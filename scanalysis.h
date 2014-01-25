@@ -7,6 +7,7 @@ struct sc_statistics {
 	unsigned long long elapsedtime;
 	unsigned int sccount;
 	unsigned int nonsccount;
+	unsigned long long actions;
 };
 
 class SCAnalysis : public TraceAnalysis {

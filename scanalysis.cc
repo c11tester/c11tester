@@ -39,6 +39,9 @@ void SCAnalysis::finish() {
 		model_print("Elapsed time in usec %llu\n", stats->elapsedtime);
 	model_print("SC count: %u\n", stats->sccount);
 	model_print("Non-SC count: %u\n", stats->nonsccount);
+	model_print("Total actions: %llu\n", stats->actions);
+	unsigned long long actionperexec=(stats->actions)/(stats->sccount+stats->nonsccount);
+	model_print("Actions per execution: %llu\n", actionperexec);
 }
 
 bool SCAnalysis::option(char * opt) {
@@ -251,6 +254,8 @@ ModelAction * SCAnalysis::pruneArray(ModelAction **array,int count) {
 
 action_list_t * SCAnalysis::generateSC(action_list_t *list) {
  	int numactions=buildVectors(list);
+	stats->actions+=numactions;
+
 	computeCV(list);
 
 	action_list_t *sclist = new action_list_t();

@@ -255,7 +255,7 @@ void ModelChecker::print_execution(bool printbugs) const
 			get_execution_number());
 	print_program_output();
 
-	if (params.verbose >= 2) {
+	if (params.verbose >= 3) {
 		model_print("\nEarliest divergence point since last feasible execution:\n");
 		if (earliest_diverge)
 			earliest_diverge->print();
@@ -303,7 +303,7 @@ bool ModelChecker::next_execution()
 	record_stats();
 
 	/* Output */
-	if (params.verbose || (complete && execution->have_bug_reports()))
+	if ( (complete && params.verbose) || params.verbose>1 || (complete && execution->have_bug_reports()))
 		print_execution(complete);
 	else
 		clear_program_output();
@@ -320,6 +320,9 @@ bool ModelChecker::next_execution()
 	}
 
 	execution_number++;
+
+	if (params.maxexecutions != 0 && stats.num_complete >= params.maxexecutions)
+		return false;
 
 	reset_to_initial_state();
 	return true;
