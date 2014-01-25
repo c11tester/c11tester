@@ -70,7 +70,9 @@ typedef enum action_type {
 	ATOMIC_UNLOCK,        /**< An unlock action */
 	ATOMIC_NOTIFY_ONE,    /**< A notify_one action */
 	ATOMIC_NOTIFY_ALL,    /**< A notify all action */
-	ATOMIC_WAIT           /**< A wait action */
+	ATOMIC_WAIT,          /**< A wait action */
+	ATOMIC_ANNOTATION     /**< An annotation action to pass information
+													 to a trace analysis */
 } action_type_t;
 
 /* Forward declaration */
@@ -142,6 +144,7 @@ public:
 	bool is_rmw() const;
 	bool is_fence() const;
 	bool is_initialization() const;
+	bool is_annotation() const;
 	bool is_relaxed() const;
 	bool is_acquire() const;
 	bool is_release() const;
