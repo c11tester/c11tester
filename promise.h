@@ -31,11 +31,13 @@ class Promise {
 	bool eliminate_thread(thread_id_t tid);
 	void add_thread(thread_id_t tid);
 	bool thread_is_available(thread_id_t tid) const;
+	bool thread_was_available(thread_id_t tid) const;
 	unsigned int max_available_thread_idx() const;
 	bool has_failed() const;
 	void set_write(const ModelAction *act) { write = act; }
 	const ModelAction * get_write() const { return write; }
 	int get_num_available_threads() const { return num_available_threads; }
+	int get_num_was_available_threads() const { return num_was_available_threads; }
 	bool is_compatible(const ModelAction *act) const;
 	bool is_compatible_exclusive(const ModelAction *act) const;
 	bool same_value(const ModelAction *write) const;
@@ -60,8 +62,10 @@ class Promise {
 	/** @brief Thread ID(s) for thread(s) that potentially can satisfy this
 	 *  promise */
 	SnapVector<bool> available_thread;
+	SnapVector<bool> was_available_thread;
 
 	int num_available_threads;
+	int num_was_available_threads;
 
 	const future_value fv;
 

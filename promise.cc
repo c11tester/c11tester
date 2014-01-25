@@ -16,6 +16,7 @@
 Promise::Promise(const ModelExecution *execution, ModelAction *read, struct future_value fv) :
 	execution(execution),
 	num_available_threads(0),
+	num_was_available_threads(0),
 	fv(fv),
 	readers(1, read),
 	write(NULL)
@@ -82,6 +83,12 @@ void Promise::add_thread(thread_id_t tid)
 		available_thread[id] = true;
 		num_available_threads++;
 	}
+	if (id >= was_available_thread.size())
+		was_available_thread.resize(id + 1, false);
+	if (!was_available_thread[id]) {
+		was_available_thread[id] = true;
+		num_was_available_threads++;
+	}
 }
 
 /**
@@ -98,6 +105,14 @@ bool Promise::thread_is_available(thread_id_t tid) const
 	if (id >= available_thread.size())
 		return false;
 	return available_thread[id];
+}
+
+bool Promise::thread_was_available(thread_id_t tid) const
+{
+	unsigned int id = id_to_int(tid);
+	if (id >= was_available_thread.size())
+		return false;
+	return was_available_thread[id];
 }
 
 /**

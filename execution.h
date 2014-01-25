@@ -187,7 +187,7 @@ private:
 	void propagate_clockvector(ModelAction *acquire, work_queue_t *work);
 	bool resolve_release_sequences(void *location, work_queue_t *work_queue);
 	void add_future_value(const ModelAction *writer, ModelAction *reader);
-
+	bool check_coherence_promise(const ModelAction *write, const ModelAction *read);
 	ModelAction * get_uninitialized_action(const ModelAction *curr) const;
 
 	action_list_t action_trace;

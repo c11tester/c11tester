@@ -456,9 +456,8 @@ bool CycleGraph::checkPromise(const ModelAction *fromact, Promise *promise) cons
 
 		if (node->getPromise() == promise)
 			return true;
-		if (!node->is_promise() &&
-				promise->eliminate_thread(node->getAction()->get_tid()))
-			return true;
+		if (!node->is_promise())
+			promise->eliminate_thread(node->getAction()->get_tid());
 
 		for (unsigned int i = 0; i < node->getNumEdges(); i++) {
 			CycleNode *next = node->getEdge(i);
