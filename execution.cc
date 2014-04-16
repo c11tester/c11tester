@@ -1753,9 +1753,10 @@ bool ModelExecution::w_modification_order(ModelAction *curr, ModelVector<ModelAc
 					added = mo_graph->addEdge(act, curr) || added;
 				else if (act->is_read()) {
 					//if previous read accessed a null, just keep going
-					if (act->get_reads_from() == NULL)
-						continue;
-					added = mo_graph->addEdge(act->get_reads_from(), curr) || added;
+					if (act->get_reads_from() == NULL) {
+						added = mo_graph->addEdge(act->get_reads_from_promise(), curr) || added;
+					} else
+						added = mo_graph->addEdge(act->get_reads_from(), curr) || added;
 				}
 				break;
 			} else if (act->is_read() && !act->could_synchronize_with(curr) &&
