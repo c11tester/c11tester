@@ -14,7 +14,7 @@ struct model_params {
 	unsigned int enabledcount;
 	unsigned int bound;
 	unsigned int uninitvalue;
-	unsigned int maxexecutions;
+	int maxexecutions;
 
 	/** @brief Maximum number of future values that can be sent to the same
 	 *  read */
