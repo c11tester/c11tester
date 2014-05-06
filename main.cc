@@ -141,9 +141,9 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		{"enabled", required_argument, NULL, 'e'},
 		{"bound", required_argument, NULL, 'b'},
 		{"verbose", optional_argument, NULL, 'v'},
-		{"uninitialized", optional_argument, NULL, 'u'},
-		{"analysis", optional_argument, NULL, 't'},
-		{"options", optional_argument, NULL, 'o'},
+		{"uninitialized", required_argument, NULL, 'u'},
+		{"analysis", required_argument, NULL, 't'},
+		{"options", required_argument, NULL, 'o'},
 		{"maxexecutions", required_argument, NULL, 'x'},
 		{0, 0, 0, 0} /* Terminator */
 	};

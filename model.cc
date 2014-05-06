@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <new>
 #include <stdarg.h>
+#include <string.h>
 
 #include "model.h"
 #include "action.h"
@@ -30,6 +31,7 @@ ModelChecker::ModelChecker(struct model_params params) :
 	earliest_diverge(NULL),
 	trace_analyses()
 {
+	memset(&stats,0,sizeof(struct execution_stats));
 }
 
 /** @brief Destructor */
