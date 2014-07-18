@@ -132,6 +132,7 @@ private:
 	bool mo_may_allow(const ModelAction *writer, const ModelAction *reader);
 	bool promises_may_allow(const ModelAction *writer, const ModelAction *reader) const;
 	void set_bad_synchronization();
+	void set_bad_sc_read();
 	bool promises_expired() const;
 	bool should_wake_up(const ModelAction *curr, const Thread *thread) const;
 	void wake_up_sleeping_actions(ModelAction *curr);

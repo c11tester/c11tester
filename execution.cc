@@ -34,6 +34,7 @@ struct model_snapshot_members {
 		too_many_reads(false),
 		no_valid_reads(false),
 		bad_synchronization(false),
+		bad_sc_read(false),
 		asserted(false)
 	{ }
 
@@ -53,6 +54,7 @@ struct model_snapshot_members {
 	bool no_valid_reads;
 	/** @brief Incorrectly-ordered synchronization was made */
 	bool bad_synchronization;
+	bool bad_sc_read;
 	bool asserted;
 
 	SNAPSHOTALLOC
@@ -200,6 +202,13 @@ void ModelExecution::wake_up_sleeping_actions(ModelAction *curr)
 void ModelExecution::set_bad_synchronization()
 {
 	priv->bad_synchronization = true;
+}
+
+/** @brief Alert the model-checker that an incorrectly-ordered
+ * synchronization was made */
+void ModelExecution::set_bad_sc_read()
+{
+	priv->bad_sc_read = true;
 }
 
 bool ModelExecution::assert_bug(const char *msg)
@@ -1306,6 +1315,12 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 				if (rf) {
 					if (r_modification_order(act, rf))
 						updated = true;
+					if (act->is_seqcst()) {
+						ModelAction *last_sc_write = get_last_seq_cst_write(act);
+						if (last_sc_write != NULL && rf->happens_before(last_sc_write)) {
+							set_bad_sc_read();
+						}
+					}
 				} else if (promise) {
 					if (r_modification_order(act, promise))
 						updated = true;
@@ -1385,6 +1400,8 @@ void ModelExecution::print_infeasibility(const char *prefix) const
 		ptr += sprintf(ptr, "[no valid reads-from]");
 	if (priv->bad_synchronization)
 		ptr += sprintf(ptr, "[bad sw ordering]");
+	if (priv->bad_sc_read)
+		ptr += sprintf(ptr, "[bad sc read]");
 	if (promises_expired())
 		ptr += sprintf(ptr, "[promise expired]");
 	if (promises.size() != 0)
@@ -1415,6 +1432,7 @@ bool ModelExecution::is_infeasible() const
 		priv->no_valid_reads ||
 		priv->too_many_reads ||
 		priv->bad_synchronization ||
+		priv->bad_sc_read ||
 		priv->hard_failed_promise ||
 		promises_expired();
 }
@@ -1614,12 +1632,6 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
 					added = mo_graph->addEdge(act, rf) || added;
 					break;
 				}
-			}
-
-			/* C++, Section 29.3 statement 3 (second subpoint) */
-			if (curr->is_seqcst() && last_sc_write && act == last_sc_write) {
-				added = mo_graph->addEdge(act, rf) || added;
-				break;
 			}
 
 			/*
