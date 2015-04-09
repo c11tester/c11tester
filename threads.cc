@@ -16,13 +16,13 @@
 /** Allocate a stack for a new thread. */
 static void * stack_allocate(size_t size)
 {
-	return snapshot_malloc(size);
+	return Thread_malloc(size);
 }
 
 /** Free a stack for a terminated thread. */
 static void stack_free(void *stack)
 {
-	snapshot_free(stack);
+	Thread_free(stack);
 }
 
 /**
