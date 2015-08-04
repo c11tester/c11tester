@@ -96,6 +96,8 @@ public:
 	thread_id_t get_tid() const { return tid; }
 	action_type get_type() const { return type; }
 	memory_order get_mo() const { return order; }
+	memory_order get_original_mo() const { return original_order; }
+	void set_mo(memory_order order) { this->order = order; }
 	void * get_location() const { return location; }
 	modelclock_t get_seq_number() const { return seq_number; }
 	uint64_t get_value() const { return value; }
@@ -193,6 +195,9 @@ private:
 
 	/** @brief The memory order for this operation. */
 	memory_order order;
+
+	/** @brief The original memory order parameter for this operation. */
+	memory_order original_order;
 
 	/** @brief A pointer to the memory location for this action. */
 	void *location;

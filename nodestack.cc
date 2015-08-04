@@ -838,6 +838,16 @@ void NodeStack::pop_restofstack(int numAhead)
 	node_list.back()->clear_backtracking();
 }
 
+/** Reset the node stack. */
+void NodeStack::full_reset() 
+{
+	for (unsigned int i = 0; i < node_list.size(); i++)
+		delete node_list[i];
+	node_list.clear();
+	reset_execution();
+	total_nodes = 1;
+}
+
 Node * NodeStack::get_head() const
 {
 	if (node_list.empty() || head_idx < 0)

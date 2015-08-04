@@ -198,6 +198,7 @@ public:
 	Node * get_next() const;
 	void reset_execution();
 	void pop_restofstack(int numAhead);
+	void full_reset();
 	int get_total_nodes() { return total_nodes; }
 
 	void print() const;

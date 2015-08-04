@@ -1,12 +1,14 @@
 include common.mk
 
+SCFENCE_DIR := scfence
+
 OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
 	   nodestack.o clockvector.o main.o snapshot-interface.o cyclegraph.o \
 	   datarace.o impatomic.o cmodelint.o \
 	   snapshot.o malloc.o mymemory.o common.o mutex.o promise.o conditionvariable.o \
 	   context.o scanalysis.o execution.o plugins.o libannotate.o
 
-CPPFLAGS += -Iinclude -I.
+CPPFLAGS += -Iinclude -I. -I$(SCFENCE_DIR)
 LDFLAGS := -ldl -lrt -rdynamic
 SHARED := -shared
 
@@ -32,14 +34,19 @@ docs: *.c *.cc *.h README.html
 README.html: README.md
 	$(MARKDOWN) $< > $@
 
-$(LIB_SO): $(OBJECTS)
-	$(CXX) $(SHARED) -o $(LIB_SO) $+ $(LDFLAGS)
 
 malloc.o: malloc.c
 	$(CC) -fPIC -c malloc.c -DMSPACES -DONLY_MSPACES -DHAVE_MMAP=0 $(CPPFLAGS) -Wno-unused-variable
 
-%.o: %.cc
+%.o : %.cc
 	$(CXX) -MMD -MF .$@.d -fPIC -c $< $(CPPFLAGS)
+
+include $(SCFENCE_DIR)/Makefile
+
+-include $(wildcard $(SCFENCE_DIR)/.*.d)
+
+$(LIB_SO): $(OBJECTS)
+	$(CXX) $(SHARED) -o $(LIB_SO) $+ $(LDFLAGS)
 
 %.pdf: %.dot
 	dot -Tpdf $< -o $@
@@ -48,7 +55,7 @@ malloc.o: malloc.c
 
 PHONY += clean
 clean:
-	rm -f *.o *.so .*.d *.pdf *.dot
+	rm -f *.o *.so .*.d *.pdf *.dot $(SCFENCE_DIR)/.*.d $(SCFENCE_DIR)/*.o
 	$(MAKE) -C $(TESTS_DIR) clean
 
 PHONY += mrclean

@@ -47,6 +47,15 @@ public:
 
 	void run();
 
+	/** Restart the model checker, intended for pluggins. */
+	void restart();
+
+	/** Exit the model checker, intended for pluggins. */
+	void exit_model_checker();
+
+	/** Check the exit_flag. */
+	bool get_exit_flag() const { return exit_flag; }
+
 	/** @returns the context for the main model-checking system thread */
 	ucontext_t * get_system_context() { return &system_context; }
 
@@ -66,12 +75,15 @@ public:
 	void assert_user_bug(const char *msg);
 
 	const model_params params;
-	void add_trace_analysis(TraceAnalysis *a) {
-		trace_analyses.push_back(a);
-	}
-
+	void add_trace_analysis(TraceAnalysis *a) {	trace_analyses.push_back(a); }
+	void set_inspect_plugin(TraceAnalysis *a) {	inspect_plugin=a;	}
 	MEMALLOC
 private:
+	/** Flag indicates whether to restart the model checker. */
+	bool restart_flag;
+	/** Flag indicates whether to exit the model checker. */
+	bool exit_flag;
+
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
 	NodeStack * const node_stack;
@@ -97,6 +109,10 @@ private:
 
 	ModelVector<TraceAnalysis *> trace_analyses;
 
+	/** @bref Implement restart. */
+	void do_restart();
+	/** @bref Plugin that can inspect new actions. */
+	TraceAnalysis *inspect_plugin;
 	/** @brief The cumulative execution stats */
 	struct execution_stats stats;
 	void record_stats();

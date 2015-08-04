@@ -231,6 +231,8 @@ static void install_trace_analyses(ModelExecution *execution)
 		TraceAnalysis * ta=(*installedanalysis)[i];
 		ta->setExecution(execution);
 		model->add_trace_analysis(ta);
+		/** Call the installation event for each installed plugin */
+		ta->actionAtInstallation();
 	}
 }
 

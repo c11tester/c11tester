@@ -23,13 +23,16 @@ ModelChecker *model;
 ModelChecker::ModelChecker(struct model_params params) :
 	/* Initialize default scheduler */
 	params(params),
+	restart_flag(false),
+	exit_flag(false),
 	scheduler(new Scheduler()),
 	node_stack(new NodeStack()),
 	execution(new ModelExecution(this, &this->params, scheduler, node_stack)),
 	execution_number(1),
 	diverge(NULL),
 	earliest_diverge(NULL),
-	trace_analyses()
+	trace_analyses(),
+	inspect_plugin(NULL)
 {
 	memset(&stats,0,sizeof(struct execution_stats));
 }
@@ -300,6 +303,9 @@ bool ModelChecker::next_execution()
 
 		checkDataRaces();
 		run_trace_analyses();
+	} else if (inspect_plugin && !execution->is_complete_execution() &&
+		(execution->too_many_steps())) {
+		 inspect_plugin->analyze(execution->get_action_trace());
 	}
 
 	record_stats();
@@ -312,6 +318,14 @@ bool ModelChecker::next_execution()
 
 	if (complete)
 		earliest_diverge = NULL;
+
+	if (restart_flag) {
+		do_restart();
+		return true;
+	}
+
+	if (exit_flag)
+		return false;
 
 	if ((diverge = execution->get_next_backtrack()) == NULL)
 		return false;
@@ -386,6 +400,9 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	Thread *old = thread_current();
 	scheduler->set_current_thread(NULL);
 	ASSERT(!old->get_pending());
+	if (inspect_plugin != NULL) {
+		inspect_plugin->inspectModelAction(act);
+	}
 	old->set_pending(act);
 	if (Thread::swap(old, &system_context) < 0) {
 		perror("swap threads");
@@ -415,9 +432,35 @@ bool ModelChecker::should_terminate_execution()
 	return false;
 }
 
+/** @brief Exit ModelChecker upon returning to the run loop of the
+ *	model checker. */
+void ModelChecker::exit_model_checker()
+{
+	exit_flag = true;
+}
+
+/** @brief Restart ModelChecker upon returning to the run loop of the
+ *	model checker. */
+void ModelChecker::restart()
+{
+	restart_flag = true;
+}
+
+void ModelChecker::do_restart()
+{
+	restart_flag = false;
+	diverge = NULL;
+	earliest_diverge = NULL;
+	reset_to_initial_state();
+	node_stack->full_reset();
+	memset(&stats,0,sizeof(struct execution_stats));
+	execution_number = 1;
+}
+
 /** @brief Run ModelChecker for the user program */
 void ModelChecker::run()
 {
+	bool has_next;
 	do {
 		thrd_t user_thread;
 		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL);
@@ -465,7 +508,17 @@ void ModelChecker::run()
 			t = execution->take_step(curr);
 		} while (!should_terminate_execution());
 
-	} while (next_execution());
+		has_next = next_execution();
+		if (inspect_plugin != NULL && !has_next) {
+			inspect_plugin->actionAtModelCheckingFinish();
+			// Check if the inpect plugin set the restart flag
+			if (restart_flag) {
+				model_print("******* Model-checking RESTART: *******\n");
+				has_next = true;
+				do_restart();
+			}
+		}
+	} while (has_next);
 
 	execution->fixup_release_sequences();
 

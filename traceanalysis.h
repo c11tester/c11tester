@@ -2,6 +2,7 @@
 #define TRACE_ANALYSIS_H
 #include "model.h"
 
+
 class TraceAnalysis {
  public:
 	/** setExecution is called once after installation with a reference to
@@ -29,6 +30,20 @@ class TraceAnalysis {
 	 *  used to print out results.  */
 
 	virtual void finish() = 0;
+
+	/** This method is used to inspect the normal/abnormal model
+	 * action. */
+	virtual void inspectModelAction(ModelAction *act) {}
+
+	/** This method will be called by when a plugin is installed by the
+	 * model checker. */
+	virtual void actionAtInstallation() {}
+
+	/** This method will be called when the model checker finishes the
+	 * executions; With this method, the model checker can alter the
+	 * state of the plugin and then the plugin can choose whether or not
+	 * restart the model checker. */
+	virtual void actionAtModelCheckingFinish() {}
 
 	SNAPSHOTALLOC
 };

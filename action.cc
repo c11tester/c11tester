@@ -9,6 +9,7 @@
 #include "common.h"
 #include "threads-model.h"
 #include "nodestack.h"
+#include "wildcard.h"
 
 #define ACTION_INITIAL_CLOCK 0
 
@@ -34,6 +35,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 		uint64_t value, Thread *thread) :
 	type(type),
 	order(order),
+	original_order(order),
 	location(loc),
 	value(value),
 	reads_from(NULL),
@@ -553,7 +555,7 @@ const char * ModelAction::get_type_str() const
 		case ATOMIC_WAIT: return "wait";
 		case ATOMIC_NOTIFY_ONE: return "notify one";
 	  case ATOMIC_NOTIFY_ALL: return "notify all";
-	  case ATOMIC_ANNOTATION: return "atomic annotation";
+	  case ATOMIC_ANNOTATION: return "annotation";
 		default: return "unknown type";
 	};
 }
