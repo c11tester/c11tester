@@ -35,7 +35,7 @@ void SCFence::setExecution(ModelExecution * execution) {
 }
 
 const char * SCFence::name() {
-	const char * name = "SCFENCE";
+	const char * name = "AUTOMO";
 	return name;
 }
 
