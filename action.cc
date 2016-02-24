@@ -330,7 +330,7 @@ bool ModelAction::could_synchronize_with(const ModelAction *act) const
 		return false;
 
 	// Different locations commute
-	if (!same_var(act))
+	if (!same_var(act) && !is_fence() && !act->is_fence())
 		return false;
 
 	// Explore interleavings of seqcst writes/fences to guarantee total
