@@ -270,6 +270,18 @@ int main(int argc, char **argv)
 	main_argc = argc;
 	main_argv = argv;
 
+	/*
+	 * If this printf statement is removed, CDSChecker will fail on an
+	 * assert on some versions of glibc.  The first time printf is
+	 * called, it allocated internal buffers.  We can't easily snapshot
+	 * libc since we also use it.
+	 */
+
+	printf("CDSChecker\n"
+				 "Copyright (c) 2013 Regents of the University of California. All rights reserved.\n"
+				 "Distributed under the GPLv2\n"
+				 "Written by Brian Norris and Brian Demsky\n\n");
+
 	/* Configure output redirection for the model-checker */
 	redirect_output();
 
