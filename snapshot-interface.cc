@@ -64,15 +64,17 @@ static void SnapshotGlobalSegments()
 		char smstr[23];
 		char r, w, x;
 		char mr, mw, mx;
-		int size;
 		void *begin, *end;
 
 		//Skip out at the end of the section
 		if (buf[0] == '\n')
 			break;
 
-		sscanf(buf, "%22s %p-%p [%5dK] %c%c%c/%c%c%c SM=%3s %200s\n", type, &begin, &end, &size, &r, &w, &x, &mr, &mw, &mx, smstr, regionname);
+		sscanf(buf, "%22s %p-%p", type, &begin, &end);
 
+		char * secondpart = strstr(buf, "]");
+		
+		sscanf(&secondpart[2], "%c%c%c/%c%c%c SM=%3s %200s\n", &r, &w, &x, &mr, &mw, &mx, smstr, regionname);
 		if (w == 'w' && strstr(regionname, MYBINARYNAME)) {
 			size_t len = ((uintptr_t)end - (uintptr_t)begin) / PAGESIZE;
 			if (len != 0)
