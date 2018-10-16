@@ -15,7 +15,6 @@
 #include "model.h"
 #include "params.h"
 #include "snapshot-interface.h"
-#include "scanalysis.h"
 #include "plugins.h"
 
 static void param_defaults(struct model_params *params)
