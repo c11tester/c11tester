@@ -27,7 +27,7 @@ ModelChecker::ModelChecker(struct model_params params) :
 	exit_flag(false),
 	scheduler(new Scheduler()),
 	node_stack(new NodeStack()),
-	execution(new ModelExecution(this, &this->params, scheduler, node_stack)),
+	execution(new ModelExecution(this, &this->params, scheduler, node_stack)),	// L: Model thread is created inside
 	execution_number(1),
 	diverge(NULL),
 	earliest_diverge(NULL),

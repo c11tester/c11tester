@@ -83,8 +83,8 @@ ModelExecution::ModelExecution(ModelChecker *m,
 	mo_graph(new CycleGraph())
 {
 	/* Initialize a model-checker thread, for special ModelActions */
-	model_thread = new Thread(get_next_id());
-	add_thread(model_thread);
+	model_thread = new Thread(get_next_id());	// L: Create model thread
+	add_thread(model_thread);			// L: Add model thread to scheduler
 	scheduler->register_engine(this);
 	node_stack->register_engine(this);
 }
