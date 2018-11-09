@@ -3,6 +3,7 @@
 #include <new>
 #include <stdarg.h>
 #include <string.h>
+#include <cstdlib>
 
 #include "model.h"
 #include "action.h"
@@ -100,9 +101,8 @@ Thread * ModelChecker::get_next_thread()
 	 * Have we completed exploring the preselected path? Then let the
 	 * scheduler decide
 	 */
-	if (diverge == NULL)
+	if (diverge == NULL)	// W: diverge is set to NULL permanently
 		return scheduler->select_next_thread(node_stack->get_head());
-
 
 	/* Else, we are trying to replay an execution */
 	ModelAction *next = node_stack->get_next()->get_action();
@@ -303,32 +303,40 @@ bool ModelChecker::next_execution()
 
 		checkDataRaces();
 		run_trace_analyses();
-	} else if (inspect_plugin && !execution->is_complete_execution() &&
-		(execution->too_many_steps())) {
-		 inspect_plugin->analyze(execution->get_action_trace());
-	}
+	} 
 
 	record_stats();
-
 	/* Output */
 	if ( (complete && params.verbose) || params.verbose>1 || (complete && execution->have_bug_reports()))
 		print_execution(complete);
 	else
 		clear_program_output();
 
-	if (complete)
-		earliest_diverge = NULL;
-
 	if (restart_flag) {
 		do_restart();
 		return true;
 	}
+// test code
+	execution_number++;
+	reset_to_initial_state();
+	node_stack->pop_restofstack(2);
+//	node_stack->full_reset();
+	diverge = NULL;
+	return false;
+/* test
+	if (complete)
+		earliest_diverge = NULL;
 
 	if (exit_flag)
 		return false;
 
-	if ((diverge = execution->get_next_backtrack()) == NULL)
+//	diverge = execution->get_next_backtrack();
+	if (diverge == NULL) {
+		execution_number++;
+		reset_to_initial_state();
+		model_print("Does not diverge\n");
 		return false;
+	} 
 
 	if (DBG_ENABLED()) {
 		model_print("Next execution will diverge at:\n");
@@ -342,6 +350,8 @@ bool ModelChecker::next_execution()
 
 	reset_to_initial_state();
 	return true;
+*/
+
 }
 
 /** @brief Run trace analyses on complete trace */
@@ -400,9 +410,10 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	Thread *old = thread_current();
 	scheduler->set_current_thread(NULL);
 	ASSERT(!old->get_pending());
+/* W: No plugin
 	if (inspect_plugin != NULL) {
-		inspect_plugin->inspectModelAction(act);
-	}
+		inspect_plugin->inspectModelAction(act); 
+	}*/
 	old->set_pending(act);
 	if (Thread::swap(old, &system_context) < 0) {
 		perror("swap threads");
@@ -461,11 +472,11 @@ void ModelChecker::do_restart()
 void ModelChecker::run()
 {
 	bool has_next;
+	int i = 0;
 	do {
 		thrd_t user_thread;
-		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL);
+		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL); // L: user_main_wrapper passes the user program
 		execution->add_thread(t);
-
 		do {
 			/*
 			 * Stash next pending action(s) for thread(s). There
@@ -473,11 +484,12 @@ void ModelChecker::run()
 			 * thread which just took a step--plus the first step
 			 * for any newly-created thread
 			 */
+
 			for (unsigned int i = 0; i < get_num_threads(); i++) {
 				thread_id_t tid = int_to_id(i);
 				Thread *thr = get_thread(tid);
 				if (!thr->is_model_thread() && !thr->is_complete() && !thr->get_pending()) {
-					switch_from_master(thr);
+					switch_from_master(thr);	// L: context swapped, and action type of thr changed. 
 					if (thr->is_waiting_on(thr))
 						assert_bug("Deadlock detected (thread %u)", i);
 				}
@@ -491,13 +503,30 @@ void ModelChecker::run()
 					scheduler->sleep(th);
 				}
 			}
-
 			/* Catch assertions from prior take_step or from
 			 * between-ModelAction bugs (e.g., data races) */
+
+			for (unsigned int i = 1; i < get_num_threads(); i++) {
+				Thread *th = get_thread(int_to_id(i));
+				ModelAction *act = th->get_pending();
+				if (act && execution->is_enabled(th) && (th->get_state() != THREAD_BLOCKED) ){
+					if (act->is_write()){
+						std::memory_order order = act->get_mo(); 
+				                if (order == std::memory_order_relaxed || order == std::memory_order_release) {
+							t = th;
+							break;
+						}
+					} else if (act->get_type() == THREAD_CREATE || act->get_type() == THREAD_START || act->get_type() == THREAD_FINISH) {
+						t = th;
+						break;
+					}				
+				}
+			}
+
+
 			if (execution->has_asserted())
 				break;
-
-			if (!t)
+			if (!t)				
 				t = get_next_thread();
 			if (!t || t->is_model_thread())
 				break;
@@ -509,16 +538,8 @@ void ModelChecker::run()
 		} while (!should_terminate_execution());
 
 		has_next = next_execution();
-		if (inspect_plugin != NULL && !has_next) {
-			inspect_plugin->actionAtModelCheckingFinish();
-			// Check if the inpect plugin set the restart flag
-			if (restart_flag) {
-				model_print("******* Model-checking RESTART: *******\n");
-				has_next = true;
-				do_restart();
-			}
-		}
-	} while (has_next);
+		i++;
+	} while (i<250); // while (has_next);
 
 	execution->fixup_release_sequences();
 

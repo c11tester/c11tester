@@ -214,8 +214,6 @@ void Scheduler::wake(Thread *t)
  */
 Thread * Scheduler::select_next_thread(Node *n)
 {
-	int old_curr_thread = curr_thread_index;
-
 	bool have_enabled_thread_with_priority = false;
 	if (model->params.fairwindow != 0) {
 		for (int i = 0; i < enabled_len; i++) {
@@ -228,8 +226,17 @@ Thread * Scheduler::select_next_thread(Node *n)
 		}
 	}	
 
-	for (int i = 0; i < enabled_len; i++) {
-		curr_thread_index = (old_curr_thread + i + 1) % enabled_len;
+	int avail_threads = enabled_len;	// number of available threads
+	int thread_list[enabled_len];	// keep a list of threads to select from
+	for (int i = 0; i< enabled_len; i++){
+		thread_list[i] = i;
+	}
+
+	while (avail_threads > 0) {
+		int random_index = rand() % avail_threads;
+		curr_thread_index = thread_list[random_index];	// randomly select a thread from available threads
+		
+		// curr_thread_index = (curr_thread_index + i + 1) % enabled_len;
 		thread_id_t curr_tid = int_to_id(curr_thread_index);
 		if (model->params.yieldon) {
 			bool bad_thread = false;
@@ -240,13 +247,20 @@ Thread * Scheduler::select_next_thread(Node *n)
 					break;
 				}
 			}
-			if (bad_thread)
+			if (bad_thread) {
+				thread_list[random_index] = thread_list[avail_threads - 1]; // remove this threads from available threads 
+				avail_threads--;
+
 				continue;
+			}
 		}
 		
 		if (enabled[curr_thread_index] == THREAD_ENABLED &&
 				(!have_enabled_thread_with_priority || n->has_priority(curr_tid))) {
 			return model->get_thread(curr_tid);
+		} else {	// remove this threads from available threads 
+			thread_list[random_index] = thread_list[avail_threads - 1]; 
+			avail_threads--;
 		}
 	}
 	

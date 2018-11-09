@@ -1,5 +1,6 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+#include <cstdlib>
 
 #include <string.h>
 
@@ -488,8 +489,11 @@ void Node::add_read_from_past(const ModelAction *act)
  */
 const ModelAction * Node::get_read_from_past() const
 {
-	if (read_from_past_idx < read_from_past.size())
-		return read_from_past[read_from_past_idx];
+	if (read_from_past_idx < read_from_past.size()) {
+		int random_index = rand() % read_from_past.size(); 
+		return read_from_past[random_index];
+	}
+//		return read_from_past[read_from_past_idx];
 	else
 		return NULL;
 }

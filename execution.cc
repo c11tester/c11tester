@@ -2877,6 +2877,19 @@ Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) cons
 	/* Do not split atomic RMW */
 	if (curr->is_rmwr())
 		return get_thread(curr);
+	if (curr->is_write()) {
+//		std::memory_order order = curr->get_mo(); 
+//		switch(order) {
+//			case std::memory_order_relaxed: 
+//				return get_thread(curr);
+//			case std::memory_order_release:
+//				return get_thread(curr);
+//			defalut:
+//				return NULL;
+//		}	
+		return NULL;
+	}
+
 	/* Follow CREATE with the created thread */
 	if (curr->get_type() == THREAD_CREATE)
 		return curr->get_thread_operand();

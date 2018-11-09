@@ -100,7 +100,6 @@ static void print_usage(const char *program_name, struct model_params *params)
 		params->verbose,
     params->uninitvalue,
 		params->maxexecutions);
-	model_print("Analysis plugins:\n");
 
 	exit(EXIT_SUCCESS);
 }
