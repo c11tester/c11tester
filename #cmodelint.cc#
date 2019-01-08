@@ -1,0 +1,74 @@
+#include "model.h"
+#include "action.h"
+#include "cmodelint.h"
+#include "threads-model.h"
+
+memory_order orders[6] = {
+	memory_order_relaxed, memory_order_consume, memory_order_acquire,
+	memory_order_release, memory_order_acq_rel, memory_order_seq_cst
+};
+
+/** Performs a read action.*/
+uint64_t model_read_action(void * obj, memory_order ord) {
+	return model->switch_to_master(new ModelAction(ATOMIC_READ, ord, obj));
+}
+
+uint64_t model_read_action_helper(void * obj, int index) {
+	return model->switch_to_master(new ModelAction(ATOMIC_READ, orders[index], obj));
+}
+:q!
+
+/** Performs a write action.*/
+void model_write_action(void * obj, memory_order ord, uint64_t val) {
+	model->switch_to_master(new ModelAction(ATOMIC_WRITE, ord, obj, val));
+}
+
+void model_write_action_helper(void * obj, int index, uint64_t val) {
+	model->switch_to_master(new ModelAction(ATOMIC_WRITE, orders[index], obj, val));
+}
+
+/** Performs an init action. */
+void model_init_action(void * obj, uint64_t val) {
+	model->switch_to_master(new ModelAction(ATOMIC_INIT, memory_order_relaxed, obj, val));
+}
+// do not need a helper function
+
+/**
+ * Performs the read part of a RMW action. The next action must either be the
+ * write part of the RMW action or an explicit close out of the RMW action w/o
+ * a write.
+ */
+uint64_t model_rmwr_action(void *obj, memory_order ord) {
+	return model->switch_to_master(new ModelAction(ATOMIC_RMWR, ord, obj));
+}
+
+uint64_t model_rmwr_action_helper(void *obj, int index) {
+	return model->switch_to_master(new ModelAction(ATOMIC_RMWR, orders[index], obj));
+}
+
+/** Performs the write part of a RMW action. */
+void model_rmw_action(void *obj, memory_order ord, uint64_t val) {
+	model->switch_to_master(new ModelAction(ATOMIC_RMW, ord, obj, val));
+}
+
+void model_rmw_action_helper(void *obj, int index, uint64_t val) {
+	model->switch_to_master(new ModelAction(ATOMIC_RMW, orders[index], obj, val));
+}
+
+/** Closes out a RMW action without doing a write. */
+void model_rmwc_action(void *obj, memory_order ord) {
+	model->switch_to_master(new ModelAction(ATOMIC_RMWC, ord, obj));
+}
+
+void model_rmwc_action_helper(void *obj, int index) {
+	model->switch_to_master(new ModelAction(ATOMIC_RMWC, orders[index], obj));
+}
+
+/** Issues a fence operation. */
+void model_fence_action(memory_order ord) {
+	model->switch_to_master(new ModelAction(ATOMIC_FENCE, ord, FENCE_LOCATION));
+}
+
+void model_fence_action_helper(int index) {
+	model->switch_to_master(new ModelAction(ATOMIC_FENCE, orders[index], FENCE_LOCATION));
+}

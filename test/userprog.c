@@ -6,11 +6,13 @@
 
 atomic_int x;
 atomic_int y;
+int z;
 
 static void a(void *obj)
 {
 	int r1=atomic_load_explicit(&y, memory_order_relaxed);
 	atomic_store_explicit(&x, r1, memory_order_relaxed);
+//	z = 1;
 	printf("r1=%d\n",r1);
 }
 
@@ -18,14 +20,15 @@ static void b(void *obj)
 {
 	int r2=atomic_load_explicit(&x, memory_order_relaxed);
 	atomic_store_explicit(&y, 42, memory_order_relaxed);
+//	z = 2;
 	printf("r2=%d\n",r2);
 }
 
-int user_main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	thrd_t t1, t2;
 
-	atomic_init(&x, 0);
+	atomic_init(&x, 30);
 	atomic_init(&y, 0);
 
 	printf("Main thread: creating 2 threads\n");

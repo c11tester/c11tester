@@ -1,3 +1,4 @@
+#include <stdio.h>
 /**
  * @file impatomic.h
  * @brief Common header for C11/C++11 atomics
@@ -118,7 +119,7 @@ inline void atomic_flag::clear( memory_order __x__ ) volatile
                 __typeof__(__m__) __v__ = (__m__);                            \
                 bool __r__;                                                   \
                 __typeof__((__a__)->__f__) __t__=(__typeof__((__a__)->__f__)) model_rmwr_action((void *)__p__, __x__); \
-                if (__t__ == * __q__ ) {                                      \
+                if (__t__ == * __q__ ) {;                                     \
                         model_rmw_action((void *)__p__, __x__, (uint64_t) __v__); __r__ = true; } \
                 else {  model_rmwc_action((void *)__p__, __x__); *__q__ = __t__;  __r__ = false;} \
                 __r__; })

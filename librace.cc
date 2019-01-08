@@ -92,3 +92,52 @@ uint64_t load_64(const void *addr)
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 7));
 	return *((uint64_t *)addr);
 }
+
+// helper functions used by CdsPass
+// The CdsPass implementation does not replace normal load/stores with cds load/stores,
+// but inserts cds load/stores to check dataraces. Thus, the cds load/stores do not
+// return anything. 
+
+void cds_store8(void *addr)
+{
+	DEBUG("addr = %p, val = %" PRIu8 "\n", addr, val);
+	thread_id_t tid = thread_current()->get_id();
+	raceCheckWrite(tid, addr);
+}
+
+void cds_store16(void *addr)
+{
+	DEBUG("addr = %p, val = %" PRIu16 "\n", addr, val);
+	thread_id_t tid = thread_current()->get_id();
+	raceCheckWrite(tid, addr);
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
+}
+
+void cds_store32(void *addr)
+{
+	DEBUG("addr = %p, val = %" PRIu32 "\n", addr, val);
+	thread_id_t tid = thread_current()->get_id();
+	raceCheckWrite(tid, addr);
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 2));
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 3));
+}
+
+void cds_store64(void *addr)
+{
+	DEBUG("addr = %p, val = %" PRIu64 "\n", addr, val);
+	thread_id_t tid = thread_current()->get_id();
+	raceCheckWrite(tid, addr);
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 2));
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 3));
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 4));
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 5));
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 6));
+	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 7));
+}
+
+void cds_load8(const void *addr) { load_8(addr); }
+void cds_load16(const void *addr) { load_16(addr); }
+void cds_load32(const void *addr) { load_32(addr); }
+void cds_load64(const void *addr) { load_64(addr); }

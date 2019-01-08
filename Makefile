@@ -62,8 +62,7 @@ tags:
 	ctags -R
 
 PHONY += tests
-tests: $(LIB_SO)
-	$(MAKE) -C $(TESTS_DIR)
+tests: $(LIB_SO)	# $(MAKE) -C $(TESTS_DIR)
 
 BENCH_DIR := benchmarks
 

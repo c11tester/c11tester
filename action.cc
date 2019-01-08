@@ -482,13 +482,23 @@ Node * ModelAction::get_node() const
 void ModelAction::set_read_from(const ModelAction *act)
 {
 	ASSERT(act);
+
 	reads_from = act;
 	reads_from_promise = NULL;
-	if (act->is_uninitialized())
-		model->assert_bug("May read from uninitialized atomic:\n"
+
+	if (act->is_uninitialized()) { // WL
+		uint64_t val = *((uint64_t *) location);
+		ModelAction * act_initialized = (ModelAction *)act;
+		act_initialized->set_value(val);
+		reads_from = (const ModelAction *)act_initialized;
+
+// disabled by WL, because LLVM IR is unable to detect atomic init
+/*		model->assert_bug("May read from uninitialized atomic:\n"
 				"    action %d, thread %d, location %p (%s, %s)",
 				seq_number, id_to_int(tid), location,
 				get_type_str(), get_mo_str());
+*/
+	}
 }
 
 /**

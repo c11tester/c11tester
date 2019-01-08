@@ -21,6 +21,16 @@ extern "C" {
 	uint32_t load_32(const void *addr);
 	uint64_t load_64(const void *addr);
 
+	void cds_store8(void *addr);
+	void cds_store16(void *addr);
+	void cds_store32(void *addr);
+	void cds_store64(void *addr);
+
+	void cds_load8(const void *addr);
+	void cds_load16(const void *addr);
+	void cds_load32(const void *addr);
+	void cds_load64(const void *addr);
+
 #ifdef __cplusplus
 }
 #endif

@@ -512,11 +512,14 @@ void ModelChecker::run()
 				if (act && execution->is_enabled(th) && (th->get_state() != THREAD_BLOCKED) ){
 					if (act->is_write()){
 						std::memory_order order = act->get_mo(); 
-				                if (order == std::memory_order_relaxed || order == std::memory_order_release) {
+				                if (order == std::memory_order_relaxed || \
+							order == std::memory_order_release) {
 							t = th;
 							break;
 						}
-					} else if (act->get_type() == THREAD_CREATE || act->get_type() == THREAD_START || act->get_type() == THREAD_FINISH) {
+					} else if (act->get_type() == THREAD_CREATE || \
+							act->get_type() == THREAD_START || \
+							act->get_type() == THREAD_FINISH) {
 						t = th;
 						break;
 					}				
@@ -539,7 +542,7 @@ void ModelChecker::run()
 
 		has_next = next_execution();
 		i++;
-	} while (i<250); // while (has_next);
+	} while (i<100); // while (has_next);
 
 	execution->fixup_release_sequences();
 

@@ -23,6 +23,7 @@ namespace std {
 
 using std::memory_order;
 using std::memory_order_relaxed;
+using std::memory_order_consume;
 using std::memory_order_acquire;
 using std::memory_order_release;
 using std::memory_order_acq_rel;
@@ -185,6 +186,11 @@ public:
 	bool may_read_from(const ModelAction *write) const;
 	bool may_read_from(const Promise *promise) const;
 	MEMALLOC
+
+// Added by WL
+	void set_value(uint64_t val) {
+		value = val;
+	}
 private:
 
 	const char * get_type_str() const;

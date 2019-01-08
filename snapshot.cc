@@ -110,7 +110,7 @@ static void mprot_handle_pf(int sig, siginfo_t *si, void *unused)
 		model_print("For debugging, place breakpoint at: %s:%d\n",
 				__FILE__, __LINE__);
 		// print_trace(); // Trace printing may cause dynamic memory allocation
-		exit(EXIT_FAILURE);
+ 		exit(EXIT_FAILURE);
 	}
 	void* addr = ReturnPageAlignedAddress(si->si_addr);
 

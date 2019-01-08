@@ -1132,6 +1132,7 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
  *
  * @return True if this read established synchronization
  */
+
 bool ModelExecution::read_from(ModelAction *act, const ModelAction *rf)
 {
 	ASSERT(rf);

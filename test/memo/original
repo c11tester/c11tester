@@ -1,0 +1,737 @@
+Program output from execution 1:
+---- BEGIN PROGRAM OUTPUT ----
+CDSChecker
+Copyright (c) 2013 Regents of the University of California. All rights reserved.
+Distributed under the GPLv2
+Written by Brian Norris and Brian Demsky
+
+v3 = 0, v4=0
+v1 = 1, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 1:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    3    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  5,  0,  9)
+10   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 10)
+11   2    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  4, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 10)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 10)
+HASH 3212361479
+------------------------------------------------------------------------------------
+
+Program output from execution 5:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 5:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 4275545527
+------------------------------------------------------------------------------------
+
+Program output from execution 8:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 8:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 3067323839
+------------------------------------------------------------------------------------
+
+Program output from execution 9:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 9:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 3067323839
+------------------------------------------------------------------------------------
+
+Program output from execution 13:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=1
+v3 = 0, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 13:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  9)
+10   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 10)
+11   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 11)
+12   3    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  5,  0, 12)
+13   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 11)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 11, 13)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 11, 13)
+HASH 3086165503
+------------------------------------------------------------------------------------
+
+Program output from execution 14:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 14:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 3067323839
+------------------------------------------------------------------------------------
+
+Program output from execution 16:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=0
+v3 = 1, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 16:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    2    atomic rmw      relaxed        0x601070   0                   3   ( 0,  4,  9)
+10   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 10)
+11   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 11, 10)
+12   3    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  5,  0, 12)
+13   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 13)
+14   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 14)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 10, 14)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 10, 14)
+HASH 4127308943
+------------------------------------------------------------------------------------
+
+Program output from execution 17:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=0
+v3 = 1, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 17:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    2    atomic rmw      relaxed        0x601070   0                   3   ( 0,  4,  9)
+10   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 10)
+11   3    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  5,  0, 11)
+12   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 12)
+13   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 10)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 10, 13)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 10, 13)
+HASH 4133240655
+------------------------------------------------------------------------------------
+
+Program output from execution 22:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 22:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 3067323839
+------------------------------------------------------------------------------------
+
+Program output from execution 24:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=0
+v1 = 1, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 24:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    3    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  5,  0,  9)
+10   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 10)
+11   2    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  4, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 10)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 10)
+HASH 3212361479
+------------------------------------------------------------------------------------
+
+Program output from execution 37:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 37:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 3067323839
+------------------------------------------------------------------------------------
+
+Program output from execution 48:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=1
+v3 = 0, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 48:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  9)
+10   2    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  4, 10)
+11   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 11)
+12   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 12)
+13   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 11)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 11, 13)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 11, 13)
+HASH 4294387191
+------------------------------------------------------------------------------------
+
+Program output from execution 49:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=1
+v3 = 0, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 49:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  9)
+10   2    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  4, 10)
+11   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 11)
+12   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 12)
+13   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 11)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 11, 13)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 11, 13)
+HASH 4294387191
+------------------------------------------------------------------------------------
+
+Program output from execution 51:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 51:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 4275545527
+------------------------------------------------------------------------------------
+
+Program output from execution 57:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=0
+v3 = 1, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 57:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    2    atomic rmw      relaxed        0x601070   0                   3   ( 0,  4,  9)
+10   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 10)
+11   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 11, 10)
+12   3    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  5,  0, 12)
+13   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 13)
+14   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 14)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 10, 14)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 10, 14)
+HASH 4127308943
+------------------------------------------------------------------------------------
+
+Program output from execution 58:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=0
+v3 = 1, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 58:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    2    atomic rmw      relaxed        0x601070   0                   3   ( 0,  4,  9)
+10   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 10)
+11   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 11, 10)
+12   3    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  5,  0, 12)
+13   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 13)
+14   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 14)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 10, 14)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 10, 14)
+HASH 4127308943
+------------------------------------------------------------------------------------
+
+Program output from execution 67:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 67:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 4275545527
+------------------------------------------------------------------------------------
+
+Program output from execution 70:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=0
+v3 = 1, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 70:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    2    atomic rmw      relaxed        0x601070   0                   3   ( 0,  4,  9)
+10   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 10)
+11   3    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  5,  0, 11)
+12   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 12, 10)
+13   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 13)
+14   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 14)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 10, 14)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 10, 14)
+HASH 4132878847
+------------------------------------------------------------------------------------
+
+Program output from execution 73:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 73:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 4275545527
+------------------------------------------------------------------------------------
+
+Program output from execution 74:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=0
+v3 = 1, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 74:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    2    atomic rmw      relaxed        0x601070   0                   3   ( 0,  4,  9)
+10   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 10)
+11   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 11, 10)
+12   3    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  5,  0, 12)
+13   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 13)
+14   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 14)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 10, 14)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 10, 14)
+HASH 4127308943
+------------------------------------------------------------------------------------
+
+Program output from execution 94:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=1
+v3 = 0, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 94:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  9)
+10   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 10)
+11   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 11)
+12   3    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  5,  0, 12)
+13   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 11)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 11, 13)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 11, 13)
+HASH 3086165503
+------------------------------------------------------------------------------------
+
+Program output from execution 95:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=0
+v1 = 1, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 95:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    3    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  5,  0,  9)
+10   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 10)
+11   2    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  4, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 10)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 10)
+HASH 3212361479
+------------------------------------------------------------------------------------
+
+Program output from execution 96:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=1
+v1 = 0, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 96:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  8)
+9    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  9)
+10   3    atomic rmw      relaxed        0x60106c   0x1                 8   ( 0,  5,  0, 10)
+11   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 9   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 11)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 11)
+HASH 4275545527
+------------------------------------------------------------------------------------
+
+Program output from execution 98:
+---- BEGIN PROGRAM OUTPUT ----
+v3 = 0, v4=0
+v1 = 1, v2=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 98:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    3    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  5,  0,  9)
+10   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 10)
+11   2    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  4, 11)
+12   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 12)
+13   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 13)
+14   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 14, 13)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 13, 10)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 13, 10)
+HASH 3212361479
+------------------------------------------------------------------------------------
+
+Program output from execution 100:
+---- BEGIN PROGRAM OUTPUT ----
+v1 = 0, v2=1
+v3 = 0, v4=1
+---- END PROGRAM OUTPUT   ----
+
+Execution trace 100:
+------------------------------------------------------------------------------------
+#    t    Action type     MO       Location         Value               Rf  CV
+------------------------------------------------------------------------------------
+1    1    thread start    seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0,  1)
+2    1    init atomic     relaxed        0x60106c   0                       ( 0,  2)
+3    1    init atomic     relaxed        0x601070   0                       ( 0,  3)
+4    1    thread create   seq_cst  0x7f9157aabb68   0x7f9157aabaf0          ( 0,  4)
+5    1    thread create   seq_cst  0x7f9157aabb60   0x7f9157aabaf0          ( 0,  5)
+6    2    thread start    seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4,  6)
+7    3    thread start    seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0,  7)
+8    3    atomic rmw      relaxed        0x601070   0                   3   ( 0,  5,  0,  8)
+9    2    atomic rmw      relaxed        0x60106c   0                   2   ( 0,  4,  9)
+10   2    atomic rmw      relaxed        0x601070   0x1                 8   ( 0,  4, 10)
+11   2    thread finish   seq_cst  0x7f9157aabbc8   0xdeadbeef              ( 0,  4, 11)
+12   1    thread join     seq_cst  0x7f9157aabbc8   0x2                     ( 0, 12, 11)
+13   3    atomic rmw      relaxed        0x60106c   0x1                 9   ( 0,  5,  0, 13)
+14   3    thread finish   seq_cst  0x7f9157babfd0   0xdeadbeef              ( 0,  5,  0, 14)
+15   1    thread join     seq_cst  0x7f9157babfd0   0x3                     ( 0, 15, 11, 14)
+16   1    thread finish   seq_cst  0x7f91579ab7c0   0xdeadbeef              ( 0, 16, 11, 14)
+HASH 3086594311
+------------------------------------------------------------------------------------
+
+******* Model-checking complete: *******
+Number of complete, bug-free executions: 25
+Number of redundant executions: 0
+Number of buggy executions: 0
+Number of infeasible executions: 75
+Total executions: 100
+Total nodes created: 1135
