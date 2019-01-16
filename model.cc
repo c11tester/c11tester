@@ -518,6 +518,7 @@ void ModelChecker::run()
 							break;
 						}
 					} else if (act->get_type() == THREAD_CREATE || \
+							act->get_type() == PTHREAD_CREATE || \ // WL
 							act->get_type() == THREAD_START || \
 							act->get_type() == THREAD_FINISH) {
 						t = th;
@@ -542,7 +543,7 @@ void ModelChecker::run()
 
 		has_next = next_execution();
 		i++;
-	} while (i<100); // while (has_next);
+	} while (i<1); // while (has_next);
 
 	execution->fixup_release_sequences();
 

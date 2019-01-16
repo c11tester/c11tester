@@ -816,7 +816,7 @@ ModelAction * NodeStack::explore_action(ModelAction *act, enabled_type_t *is_ena
 	}
 
 	int next_threads = execution->get_num_threads();
-	if (act->get_type() == THREAD_CREATE)
+	if (act->get_type() == THREAD_CREATE || act->get_type() == PTHREAD_CREATE ) // may need to be changed
 		next_threads++;
 	node_list.push_back(new Node(get_params(), act, head, next_threads, prevfairness));
 	total_nodes++;
