@@ -43,6 +43,7 @@ public:
 	Thread(thread_id_t tid);
 	Thread(thread_id_t tid, thrd_t *t, void (*func)(void *), void *a, Thread *parent);
 	Thread(thread_id_t tid, thrd_t *t, void *(*func)(void *), void *a, Thread *parent);
+
 	~Thread();
 	void complete();
 
@@ -133,6 +134,7 @@ private:
 
 	void (*start_routine)(void *);
 	void *(*pstart_routine)(void *);
+
 	void *arg;
 	ucontext_t context;
 	void *stack;

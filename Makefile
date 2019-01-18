@@ -4,7 +4,7 @@ OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
 	   nodestack.o clockvector.o main.o snapshot-interface.o cyclegraph.o \
 	   datarace.o impatomic.o cmodelint.o \
 	   snapshot.o malloc.o mymemory.o common.o mutex.o promise.o conditionvariable.o \
-	   context.o execution.o libannotate.o
+	   context.o execution.o libannotate.o pthread.o
 
 CPPFLAGS += -Iinclude -I.
 LDFLAGS := -ldl -lrt -rdynamic
@@ -62,7 +62,8 @@ tags:
 	ctags -R
 
 PHONY += tests
-tests: $(LIB_SO)	# $(MAKE) -C $(TESTS_DIR)
+tests: $(LIB_SO)
+	$(MAKE) -C $(TESTS_DIR)
 
 BENCH_DIR := benchmarks
 

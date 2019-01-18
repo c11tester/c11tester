@@ -51,10 +51,7 @@ void thread_startup()
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
 
 	/* Call the actual thread function */
-	if ( !curr_thread->start_routine )
-		curr_thread->start_routine(curr_thread->arg);
-	else
-		curr_thread->pstart_routine(curr_thread->arg);
+	curr_thread->start_routine(curr_thread->arg);
 	/* Finish thread properly */
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, curr_thread));
 }
@@ -172,17 +169,16 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void (*func)(void *), void *a, Thread
 	if (ret)
 		model_print("Error in create_context\n");
 
-	user_thread->priv = this;
+	// user_thread->priv = this; // WL
 }
 
-/** 
- * to be modified
- * Construct a new thread for pthread_create.
+/**
+ * Construct a new thread for pthread.
  * @param t The thread identifier of the newly created thread.
  * @param func The function that the thread will call.
  * @param a The parameter to pass to this function.
  */
-Thread::Thread(thread_id_t tid, thrd_t *t, void* (*func)(void *), void *a, Thread *parent) :
+Thread::Thread(thread_id_t tid, thrd_t *t, void *(*func)(void *), void *a, Thread *parent) :
 	parent(parent),
 	creation(NULL),
 	pending(NULL),
@@ -201,9 +197,8 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void* (*func)(void *), void *a, Threa
 	ret = create_context();
 	if (ret)
 		model_print("Error in create_context\n");
-
-	user_thread->priv = this;
 }
+
 
 /** Destructor */
 Thread::~Thread()
