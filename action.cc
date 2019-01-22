@@ -88,7 +88,7 @@ bool ModelAction::is_thread_start() const
 
 bool ModelAction::is_thread_join() const
 {
-	return type == THREAD_JOIN;
+	return type == THREAD_JOIN || type == PTHREAD_JOIN;
 }
 
 bool ModelAction::is_relseq_fixup() const
@@ -277,17 +277,14 @@ void ModelAction::copy_typeandorder(ModelAction * act)
 Thread * ModelAction::get_thread_operand() const
 {
 	if (type == THREAD_CREATE) {
-		/* THREAD_CREATE stores its (Thread *) in a thrd_t::priv */
-		thrd_t *thrd = (thrd_t *)get_location();
-		return thrd->priv;
+		/* thread_operand is set in execution.cc */
+		return thread_operand;
 	} else if (type == PTHREAD_CREATE) {
-		// not implemented
-		return NULL;
+		return thread_operand;
 	} else if (type == THREAD_JOIN) {
 		/* THREAD_JOIN uses (Thread *) for location */
 		return (Thread *)get_location();
 	} else if (type == PTHREAD_JOIN) {
-		// WL: to be added (modified)
 		return (Thread *)get_location();
 	} else
 		return NULL;
@@ -597,7 +594,7 @@ void ModelAction::print() const
 {
 	const char *type_str = get_type_str(), *mo_str = get_mo_str();
 
-	model_print("%-4d %-2d   %-13s   %7s  %14p   %-#18" PRIx64,
+	model_print("%-4d %-2d   %-14s  %7s  %14p   %-#18" PRIx64,
 			seq_number, id_to_int(tid), type_str, mo_str, location, get_return_value());
 	if (is_read()) {
 		if (reads_from)

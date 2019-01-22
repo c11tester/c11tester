@@ -542,6 +542,7 @@ void ModelChecker::run()
 		} while (!should_terminate_execution());
 
 		has_next = next_execution();
+		pthread_map.clear();
 		i++;
 	} while (i<100); // while (has_next);
 

@@ -189,10 +189,11 @@ public:
 	bool may_read_from(const Promise *promise) const;
 	MEMALLOC
 
-// Added by WL
-	void set_value(uint64_t val) {
-		value = val;
-	}
+	void set_value(uint64_t val) { value = val; }
+
+	/* to accomodate pthread create and join */
+	Thread * thread_operand;
+	void set_thread_operand(Thread *th) { thread_operand = th; } 
 private:
 
 	const char * get_type_str() const;

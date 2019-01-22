@@ -51,7 +51,11 @@ void thread_startup()
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
 
 	/* Call the actual thread function */
-	curr_thread->start_routine(curr_thread->arg);
+	if (curr_thread->start_routine != NULL) {
+		curr_thread->start_routine(curr_thread->arg);
+	} else if (curr_thread->pstart_routine != NULL) {
+		curr_thread->pstart_routine(curr_thread->arg);
+	}
 	/* Finish thread properly */
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, curr_thread));
 }
@@ -155,6 +159,7 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void (*func)(void *), void *a, Thread
 	creation(NULL),
 	pending(NULL),
 	start_routine(func),
+	pstart_routine(NULL),
 	arg(a),
 	user_thread(t),
 	id(tid),
@@ -169,7 +174,7 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void (*func)(void *), void *a, Thread
 	if (ret)
 		model_print("Error in create_context\n");
 
-	// user_thread->priv = this; // WL
+	user_thread->priv = this; // WL
 }
 
 /**
@@ -234,9 +239,8 @@ Thread * Thread::waiting_on() const
 
 	if (pending->get_type() == THREAD_JOIN)
 		return pending->get_thread_operand();
-	else if (pending->get_type() == PTHREAD_JOIN) {
-		// WL: to be added
-	}
+	else if (pending->get_type() == PTHREAD_JOIN)
+		return pending->get_thread_operand();
 	else if (pending->is_lock())
 		return (Thread *)pending->get_mutex()->get_state()->locked;
 	return NULL;

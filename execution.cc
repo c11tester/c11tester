@@ -949,6 +949,7 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		thrd_t *thrd = (thrd_t *)curr->get_location();
 		struct thread_params *params = (struct thread_params *)curr->get_value();
 		Thread *th = new Thread(get_next_id(), thrd, params->func, params->arg, get_thread(curr));
+		curr->set_thread_operand(th);
 		add_thread(th);
 		th->set_creation(curr);
 		/* Promises can be satisfied by children */
@@ -963,6 +964,7 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		thrd_t *thrd = (thrd_t *)curr->get_location();
 		struct pthread_params *params = (struct pthread_params *)curr->get_value();
 		Thread *th = new Thread(get_next_id(), thrd, params->func, params->arg, get_thread(curr));
+		curr->set_thread_operand(th);
 		add_thread(th);
 		th->set_creation(curr);
 		/* Promises can be satisfied by children */
@@ -981,11 +983,11 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		break;
 	}
 	case PTHREAD_JOIN: {
-		break; // WL: to be add (modified)
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
 		updated = true; /* trigger rel-seq checks */
+		break; // WL: to be add (modified)
 	}
 
 	case THREAD_FINISH: {
