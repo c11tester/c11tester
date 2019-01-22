@@ -17,6 +17,8 @@
 #include "threads-model.h"
 #include "bugmessage.h"
 
+#include <pthread.h>
+
 #define INITIAL_THREAD_ID	0
 
 /**
@@ -957,6 +959,20 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		}
 		break;
 	}
+	case PTHREAD_CREATE: {
+		thrd_t *thrd = (thrd_t *)curr->get_location();
+		struct pthread_params *params = (struct pthread_params *)curr->get_value();
+		Thread *th = new Thread(get_next_id(), thrd, params->func, params->arg, get_thread(curr));
+		add_thread(th);
+		th->set_creation(curr);
+		/* Promises can be satisfied by children */
+		for (unsigned int i = 0; i < promises.size(); i++) {
+			Promise *promise = promises[i];
+			if (promise->thread_is_available(curr->get_tid()))
+				promise->add_thread(th->get_id());
+		}
+		break;
+	}
 	case THREAD_JOIN: {
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
@@ -964,6 +980,14 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		updated = true; /* trigger rel-seq checks */
 		break;
 	}
+	case PTHREAD_JOIN: {
+		break; // WL: to be add (modified)
+		Thread *blocking = curr->get_thread_operand();
+		ModelAction *act = get_last_action(blocking->get_id());
+		synchronize(act, curr);
+		updated = true; /* trigger rel-seq checks */
+	}
+
 	case THREAD_FINISH: {
 		Thread *th = get_thread(curr);
 		/* Wake up any joining threads */
@@ -2892,8 +2916,12 @@ Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) cons
 	}
 
 	/* Follow CREATE with the created thread */
+	/* which is not needed, because model.cc takes care of this */
 	if (curr->get_type() == THREAD_CREATE)
+		return curr->get_thread_operand(); 
+	if (curr->get_type() == PTHREAD_CREATE) {
 		return curr->get_thread_operand();
+	}
 	return NULL;
 }
 

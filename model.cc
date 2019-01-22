@@ -503,8 +503,6 @@ void ModelChecker::run()
 					scheduler->sleep(th);
 				}
 			}
-			/* Catch assertions from prior take_step or from
-			 * between-ModelAction bugs (e.g., data races) */
 
 			for (unsigned int i = 1; i < get_num_threads(); i++) {
 				Thread *th = get_thread(int_to_id(i));
@@ -518,6 +516,7 @@ void ModelChecker::run()
 							break;
 						}
 					} else if (act->get_type() == THREAD_CREATE || \
+							act->get_type() == PTHREAD_CREATE || \
 							act->get_type() == THREAD_START || \
 							act->get_type() == THREAD_FINISH) {
 						t = th;
@@ -526,6 +525,8 @@ void ModelChecker::run()
 				}
 			}
 
+			/* Catch assertions from prior take_step or from
+			 * between-ModelAction bugs (e.g., data races) */
 
 			if (execution->has_asserted())
 				break;

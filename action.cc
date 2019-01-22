@@ -280,10 +280,16 @@ Thread * ModelAction::get_thread_operand() const
 		/* THREAD_CREATE stores its (Thread *) in a thrd_t::priv */
 		thrd_t *thrd = (thrd_t *)get_location();
 		return thrd->priv;
-	} else if (type == THREAD_JOIN)
+	} else if (type == PTHREAD_CREATE) {
+		// not implemented
+		return NULL;
+	} else if (type == THREAD_JOIN) {
 		/* THREAD_JOIN uses (Thread *) for location */
 		return (Thread *)get_location();
-	else
+	} else if (type == PTHREAD_JOIN) {
+		// WL: to be added (modified)
+		return (Thread *)get_location();
+	} else
 		return NULL;
 }
 
@@ -551,6 +557,10 @@ const char * ModelAction::get_type_str() const
 		case THREAD_YIELD: return "thread yield";
 		case THREAD_JOIN: return "thread join";
 		case THREAD_FINISH: return "thread finish";
+
+		case PTHREAD_CREATE: return "pthread create";
+		case PTHREAD_JOIN: return "pthread join";
+
 		case ATOMIC_UNINIT: return "uninitialized";
 		case ATOMIC_READ: return "atomic read";
 		case ATOMIC_WRITE: return "atomic write";
