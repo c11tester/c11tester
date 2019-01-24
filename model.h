@@ -17,6 +17,7 @@
 #include "params.h"
 
 #include <map>
+#include <mutex>
 
 /* Forward declaration */
 class Node;
@@ -81,6 +82,7 @@ public:
 	void set_inspect_plugin(TraceAnalysis *a) {	inspect_plugin=a;	}
 	MEMALLOC
 	std::map<pthread_t, ModelAction*> pthread_map;
+	std::map<pthread_mutex_t *, std::mutex*> mutex_map;
 private:
 	/** Flag indicates whether to restart the model checker. */
 	bool restart_flag;

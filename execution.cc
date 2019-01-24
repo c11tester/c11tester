@@ -2719,7 +2719,7 @@ static void print_list(const action_list_t *list)
 	action_list_t::const_iterator it;
 
 	model_print("------------------------------------------------------------------------------------\n");
-	model_print("#    t    Action type     MO       Location         Value               Rf  CV\n");
+	model_print("#    t     Action type     MO       Location         Value               Rf  CV\n");
 	model_print("------------------------------------------------------------------------------------\n");
 
 	unsigned int hash = 0;

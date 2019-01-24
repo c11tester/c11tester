@@ -543,6 +543,7 @@ void ModelChecker::run()
 
 		has_next = next_execution();
 		pthread_map.clear();
+		mutex_map.clear();
 		i++;
 	} while (i<100); // while (has_next);
 
