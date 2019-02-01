@@ -74,6 +74,10 @@ public:
 	 */
 	uint64_t get_return_value() const { return last_action_val; }
 
+	/** @set and get the return value from pthread functions */
+	void set_pthread_return(void *ret) { pthread_return = ret; }
+	void * get_pthread_return() { return pthread_return; }
+
 	/** @return True if this thread is finished executing */
 	bool is_complete() const { return state == THREAD_COMPLETED; }
 
@@ -148,6 +152,9 @@ private:
 	 * @see Thread::get_return_value()
 	 */
 	uint64_t last_action_val;
+
+	/** the value return from pthread functions */
+	void * pthread_return;
 
 	/** @brief Is this Thread a special model-checker thread? */
 	const bool model_thread;

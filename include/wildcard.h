@@ -1,6 +1,6 @@
 #ifndef _WILDCARD_H
 #define _WILDCARD_H
-#include "memoryorder.h"
+// #include "memoryorder.h"
 
 #define MAX_WILDCARD_NUM 50
 

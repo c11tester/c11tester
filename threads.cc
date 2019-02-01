@@ -54,7 +54,9 @@ void thread_startup()
 	if (curr_thread->start_routine != NULL) {
 		curr_thread->start_routine(curr_thread->arg);
 	} else if (curr_thread->pstart_routine != NULL) {
-		curr_thread->pstart_routine(curr_thread->arg);
+		// set pthread return value
+		void *retval = curr_thread->pstart_routine(curr_thread->arg);
+		curr_thread->set_pthread_return(retval);
 	}
 	/* Finish thread properly */
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, curr_thread));
