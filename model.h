@@ -65,7 +65,6 @@ public:
 
 	Thread * get_thread(thread_id_t tid) const;
 	Thread * get_thread(const ModelAction *act) const;
-	Thread * get_pthread(pthread_t pid);
 
 	Thread * get_current_thread() const;
 
