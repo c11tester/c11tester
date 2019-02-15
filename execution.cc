@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <algorithm>
-#include <mutex>
 #include <new>
 #include <stdarg.h>
 
@@ -16,8 +15,6 @@
 #include "datarace.h"
 #include "threads-model.h"
 #include "bugmessage.h"
-
-#include <pthread.h>
 
 #define INITIAL_THREAD_ID	0
 
@@ -72,9 +69,12 @@ ModelExecution::ModelExecution(ModelChecker *m,
 	scheduler(scheduler),
 	action_trace(),
 	thread_map(2), /* We'll always need at least 2 threads */
+	pthread_map(0),
+	pthread_counter(0),
 	obj_map(),
 	condvar_waiters_map(),
 	obj_thrd_map(),
+	mutex_map(),
 	promises(),
 	futurevalues(),
 	pending_rel_seqs(),
@@ -961,18 +961,25 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		break;
 	}
 	case PTHREAD_CREATE: {
-		thrd_t *thrd = (thrd_t *)curr->get_location();
+		(*(pthread_t *)curr->get_location()) = pthread_counter++;	
+
 		struct pthread_params *params = (struct pthread_params *)curr->get_value();
-		Thread *th = new Thread(get_next_id(), thrd, params->func, params->arg, get_thread(curr));
+		Thread *th = new Thread(get_next_id(), NULL, params->func, params->arg, get_thread(curr));
 		curr->set_thread_operand(th);
 		add_thread(th);
 		th->set_creation(curr);
+
+	        if ( pthread_map.size() < pthread_counter )
+	                pthread_map.resize( pthread_counter );
+		pthread_map[ pthread_counter-1 ] = th;
+
 		/* Promises can be satisfied by children */
 		for (unsigned int i = 0; i < promises.size(); i++) {
 			Promise *promise = promises[i];
 			if (promise->thread_is_available(curr->get_tid()))
 				promise->add_thread(th->get_id());
 		}
+		
 		break;
 	}
 	case THREAD_JOIN: {
@@ -2374,6 +2381,7 @@ ModelAction * ModelExecution::get_last_seq_cst_fence(thread_id_t tid, const Mode
 ModelAction * ModelExecution::get_last_unlock(ModelAction *curr) const
 {
 	void *location = curr->get_location();
+
 	action_list_t *list = obj_map.get(location);
 	/* Find: max({i in dom(S) | isUnlock(t_i) && samevar(t_i, t)}) */
 	action_list_t::reverse_iterator rit;
@@ -2846,6 +2854,16 @@ Thread * ModelExecution::get_thread(thread_id_t tid) const
 Thread * ModelExecution::get_thread(const ModelAction *act) const
 {
 	return get_thread(act->get_tid());
+}
+
+/**
+ * @brief Get a Thread reference by its pthread ID
+ * @param index The pthread's ID
+ * @return A Thread reference
+ */
+Thread * ModelExecution::get_pthread(pthread_t pid) {
+        if (pid < pthread_counter + 1) return pthread_map[pid];
+        else return NULL;
 }
 
 /**

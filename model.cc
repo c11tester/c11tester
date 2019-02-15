@@ -542,10 +542,8 @@ void ModelChecker::run()
 		} while (!should_terminate_execution());
 
 		has_next = next_execution();
-		pthread_map.clear();
-		mutex_map.clear();
 		i++;
-	} while (i<100); // while (has_next);
+	} while (i<2); // while (has_next);
 
 	execution->fixup_release_sequences();
 

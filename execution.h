@@ -16,6 +16,8 @@
 #include "stl-model.h"
 #include "params.h"
 
+#include <mutex>
+
 /* Forward declaration */
 class Node;
 class NodeStack;
@@ -79,6 +81,11 @@ public:
 	void add_thread(Thread *t);
 	Thread * get_thread(thread_id_t tid) const;
 	Thread * get_thread(const ModelAction *act) const;
+
+	pthread_t get_pthread_counter() { return pthread_counter; }
+	void incr_pthread_counter() { pthread_counter++; }
+	Thread * get_pthread(pthread_t pid);
+
 	int get_promise_number(const Promise *promise) const;
 
 	bool is_enabled(Thread *t) const;
@@ -118,9 +125,12 @@ public:
 
 	CycleGraph * const get_mo_graph() { return mo_graph; }
 
+	HashTable<pthread_mutex_t *, std::mutex *, uintptr_t, 4> mutex_map;
+
 	SNAPSHOTALLOC
 private:
 	int get_execution_number() const;
+	pthread_t pthread_counter;
 
 	ModelChecker *model;
 
@@ -147,6 +157,7 @@ private:
 	bool process_write(ModelAction *curr, work_queue_t *work);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
+
 	bool process_thread_action(ModelAction *curr);
 	void process_relseq_fixup(ModelAction *curr, work_queue_t *work_queue);
 	bool read_from(ModelAction *act, const ModelAction *rf);
@@ -195,6 +206,7 @@ private:
 
 	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;
+	SnapVector<Thread *> pthread_map;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */
@@ -205,6 +217,8 @@ private:
 	HashTable<const void *, action_list_t *, uintptr_t, 4> condvar_waiters_map;
 
 	HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
+
+//	HashTable<pthread_mutex_t *, std::mutex *, uintptr_t, 4> mutex_map;
 
 	/**
 	 * @brief List of currently-pending promises

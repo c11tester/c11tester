@@ -11,6 +11,7 @@
 #include "mymemory.h"
 #include "memoryorder.h"
 #include "modeltypes.h"
+#include "pthread.h"
 
 /* Forward declarations */
 class ClockVector;
@@ -59,6 +60,7 @@ typedef enum action_type {
 	THREAD_FINISH,        /**< A thread completion action */
 	PTHREAD_CREATE,       /**< A pthread creation action */
 	PTHREAD_JOIN,         /**< A pthread join action */
+	
 	ATOMIC_UNINIT,        /**< Represents an uninitialized atomic */
 	ATOMIC_READ,          /**< An atomic read action */
 	ATOMIC_WRITE,         /**< An atomic write action */
@@ -102,6 +104,7 @@ public:
 	memory_order get_original_mo() const { return original_order; }
 	void set_mo(memory_order order) { this->order = order; }
 	void * get_location() const { return location; }
+	void * get_mutex_location() const { return location_mutex; }
 	modelclock_t get_seq_number() const { return seq_number; }
 	uint64_t get_value() const { return value; }
 	uint64_t get_reads_from_value() const;
@@ -210,6 +213,9 @@ private:
 
 	/** @brief A pointer to the memory location for this action. */
 	void *location;
+
+	/** @brief A pointer to the memory location for mutex. */
+	void *location_mutex;
 
 	/** @brief The thread id that performed this action. */
 	thread_id_t tid;

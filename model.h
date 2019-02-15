@@ -16,9 +16,6 @@
 #include "context.h"
 #include "params.h"
 
-#include <map>
-#include <mutex>
-
 /* Forward declaration */
 class Node;
 class NodeStack;
@@ -68,6 +65,7 @@ public:
 
 	Thread * get_thread(thread_id_t tid) const;
 	Thread * get_thread(const ModelAction *act) const;
+	Thread * get_pthread(pthread_t pid);
 
 	Thread * get_current_thread() const;
 
@@ -81,8 +79,6 @@ public:
 	void add_trace_analysis(TraceAnalysis *a) {	trace_analyses.push_back(a); }
 	void set_inspect_plugin(TraceAnalysis *a) {	inspect_plugin=a;	}
 	MEMALLOC
-	std::map<pthread_t, ModelAction*> pthread_map;
-	std::map<pthread_mutex_t *, std::mutex*> mutex_map;
 private:
 	/** Flag indicates whether to restart the model checker. */
 	bool restart_flag;
@@ -105,7 +101,6 @@ private:
 
 	Thread * get_next_thread();
 	void reset_to_initial_state();
-
 
 	ModelAction *diverge;
 	ModelAction *earliest_diverge;

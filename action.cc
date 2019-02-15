@@ -285,6 +285,8 @@ Thread * ModelAction::get_thread_operand() const
 		/* THREAD_JOIN uses (Thread *) for location */
 		return (Thread *)get_location();
 	} else if (type == PTHREAD_JOIN) {
+		// return NULL;
+		// thread_operand is stored in execution::pthread_map;
 		return (Thread *)get_location();
 	} else
 		return NULL;
