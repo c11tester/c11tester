@@ -3,6 +3,8 @@
 #include "action.h"
 #include "pthread.h"
 #include <mutex>
+#include <condition_variable>
+#include <assert.h>
 
 /* global "model" object */
 #include "model.h"
@@ -59,14 +61,19 @@ int pthread_mutex_trylock(pthread_mutex_t *p_mutex) {
 	ModelExecution *execution = model->get_execution();
 	std::mutex *m = execution->mutex_map.get(p_mutex);
 	return m->try_lock();
-
-	/* error message?  */
 }
 int pthread_mutex_unlock(pthread_mutex_t *p_mutex) {	
 	ModelExecution *execution = model->get_execution();
 	std::mutex *m = execution->mutex_map.get(p_mutex);
 	m->unlock();
+	return 0;
+}
 
+int pthread_mutex_timedlock (pthread_mutex_t *__restrict p_mutex,
+				const struct timespec *__restrict abstime) {
+	ModelExecution *execution = model->get_execution();
+	std::mutex *m = execution->mutex_map.get(p_mutex);
+	m->lock();
 	return 0;
 }
 
@@ -77,5 +84,42 @@ pthread_t pthread_self() {
 
 int pthread_key_delete(pthread_key_t) {
 	model_print("key_delete is called\n");
+	return 0;
+}
+
+int pthread_cond_init(pthread_cond_t *p_cond, const pthread_condattr_t *attr) {
+	std::condition_variable *v = new std::condition_variable();
+
+	ModelExecution *execution = model->get_execution();
+	execution->cond_map.put(p_cond, v);
+	return 0;
+}
+
+int pthread_cond_wait(pthread_cond_t *p_cond, pthread_mutex_t *p_mutex) {
+	ModelExecution *execution = model->get_execution();
+	std::condition_variable *v = execution->cond_map.get(p_cond);
+	std::mutex *m = execution->mutex_map.get(p_mutex);
+
+	v->wait(*m);
+	return 0;
+
+}
+
+int pthread_cond_timedwait(pthread_cond_t *p_cond, 
+    pthread_mutex_t *p_mutex, const struct timespec *abstime) {
+	ModelExecution *execution = model->get_execution();
+	std::condition_variable *v = execution->cond_map.get(p_cond);
+	std::mutex *m = execution->mutex_map.get(p_mutex);
+
+	v->wait(*m);
+	return 0;
+}
+
+int pthread_cond_signal(pthread_cond_t *p_cond) {
+	// notify only one blocked thread
+	ModelExecution *execution = model->get_execution();
+	std::condition_variable *v = execution->cond_map.get(p_cond);
+
+	v->notify_one();
 	return 0;
 }

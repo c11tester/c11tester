@@ -17,6 +17,7 @@
 #include "params.h"
 
 #include <mutex>
+#include <condition_variable>
 
 /* Forward declaration */
 class Node;
@@ -126,6 +127,7 @@ public:
 	CycleGraph * const get_mo_graph() { return mo_graph; }
 
 	HashTable<pthread_mutex_t *, std::mutex *, uintptr_t, 4> mutex_map;
+	HashTable<pthread_cond_t *, std::condition_variable *, uintptr_t, 4> cond_map;
 
 	SNAPSHOTALLOC
 private:
