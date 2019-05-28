@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include <threads.h>
-#include <mutex>
+#include "mutex.h"
 #include "common.h"
 #include "threads-model.h"
 #include "action.h"

@@ -18,7 +18,7 @@ class ClockVector;
 class Thread;
 class Promise;
 
-namespace std {
+namespace cdsc {
 	class mutex;
 }
 
@@ -111,7 +111,7 @@ public:
 	uint64_t get_return_value() const;
 	const ModelAction * get_reads_from() const { return reads_from; }
 	Promise * get_reads_from_promise() const { return reads_from_promise; }
-	std::mutex * get_mutex() const;
+	cdsc::mutex * get_mutex() const;
 
 	Node * get_node() const;
 	void set_node(Node *n) { node = n; }

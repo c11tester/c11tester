@@ -7,8 +7,9 @@
 #define __CXX_MUTEX__
 
 #include "modeltypes.h"
+//#include <mutex>
 
-namespace std {
+namespace cdsc {
 	struct mutex_state {
 		void *locked; /* Thread holding the lock */
 		thread_id_t alloc_tid;

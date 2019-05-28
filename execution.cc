@@ -687,8 +687,8 @@ bool ModelExecution::process_read(ModelAction *curr)
  */
 bool ModelExecution::process_mutex(ModelAction *curr)
 {
-	std::mutex *mutex = curr->get_mutex();
-	struct std::mutex_state *state = NULL;
+	cdsc::mutex *mutex = curr->get_mutex();
+	struct cdsc::mutex_state *state = NULL;
 
 	if (mutex)
 		state = mutex->get_state();
@@ -1248,8 +1248,8 @@ void ModelExecution::thread_blocking_check_promises(Thread *blocker, Thread *wai
  */
 bool ModelExecution::check_action_enabled(ModelAction *curr) {
 	if (curr->is_lock()) {
-		std::mutex *lock = curr->get_mutex();
-		struct std::mutex_state *state = lock->get_state();
+		cdsc::mutex *lock = curr->get_mutex();
+		struct cdsc::mutex_state *state = lock->get_state();
 		if (state->locked)
 			return false;
 	} else if (curr->is_thread_join()) {

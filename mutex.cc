@@ -1,4 +1,4 @@
-#include <mutex>
+#include "mutex.h"
 
 #include "model.h"
 #include "execution.h"
@@ -6,7 +6,7 @@
 #include "clockvector.h"
 #include "action.h"
 
-namespace std {
+namespace cdsc {
 
 mutex::mutex()
 {

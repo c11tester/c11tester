@@ -16,7 +16,7 @@
 #include "stl-model.h"
 #include "params.h"
 
-#include <mutex>
+#include "mutex.h"
 #include <condition_variable>
 
 /* Forward declaration */
@@ -126,8 +126,8 @@ public:
 
 	CycleGraph * const get_mo_graph() { return mo_graph; }
 
-	HashTable<pthread_mutex_t *, std::mutex *, uintptr_t, 4> mutex_map;
-	HashTable<pthread_cond_t *, std::condition_variable *, uintptr_t, 4> cond_map;
+	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
+	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> cond_map;
 
 	SNAPSHOTALLOC
 private:
@@ -220,7 +220,7 @@ private:
 
 	HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
 
-//	HashTable<pthread_mutex_t *, std::mutex *, uintptr_t, 4> mutex_map;
+//	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
 
 	/**
 	 * @brief List of currently-pending promises

@@ -1,7 +1,7 @@
 #ifndef __CXX_CONDITION_VARIABLE__
 #define __CXX_CONDITION_VARIABLE__
 
-namespace std {
+namespace cdsc {
 	class mutex;
 
 	struct condition_variable_state {

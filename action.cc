@@ -668,12 +668,12 @@ bool ModelAction::may_read_from(const Promise *promise) const
  * Only valid for LOCK, TRY_LOCK, UNLOCK, and WAIT operations.
  * @return The mutex operated on by this action, if any; otherwise NULL
  */
-std::mutex * ModelAction::get_mutex() const
+cdsc::mutex * ModelAction::get_mutex() const
 {
 	if (is_trylock() || is_lock() || is_unlock())
-		return (std::mutex *)get_location();
+		return (cdsc::mutex *)get_location();
 	else if (is_wait())
-		return (std::mutex *)get_value();
+		return (cdsc::mutex *)get_value();
 	else
 		return NULL;
 }
