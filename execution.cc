@@ -753,6 +753,11 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		action_list_t *waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
 		int wakeupthread = curr->get_node()->get_misc();
 		action_list_t::iterator it = waiters->begin();
+
+		// WL
+		if (it == waiters->end())
+			break;
+
 		advance(it, wakeupthread);
 		scheduler->wake(get_thread(*it));
 		waiters->erase(it);
@@ -2727,7 +2732,7 @@ static void print_list(const action_list_t *list)
 	action_list_t::const_iterator it;
 
 	model_print("------------------------------------------------------------------------------------\n");
-	model_print("#    t     Action type     MO       Location         Value               Rf  CV\n");
+	model_print("#    t    Action type     MO       Location         Value               Rf  CV\n");
 	model_print("------------------------------------------------------------------------------------\n");
 
 	unsigned int hash = 0;
