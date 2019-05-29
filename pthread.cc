@@ -218,14 +218,3 @@ int pthread_cond_signal(pthread_cond_t *p_cond) {
 	v->notify_one();
 	return 0;
 }
-
-void pthread_cleanup_push(void (*routine)(void*), void *arg ) {
-	printf("pthrea cleanup push called\n");
-}
-
-int pthread_once (pthread_once_t *__once_control,
-                         void (*__init_routine)) {
-	printf("pthread once is called\n");
-}
-
-
