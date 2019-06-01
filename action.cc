@@ -39,7 +39,6 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	location(loc),
 	value(value),
 	reads_from(NULL),
-	reads_from_promise(NULL),
 	last_fence_release(NULL),
 	node(NULL),
 	seq_number(ACTION_INITIAL_CLOCK),
@@ -430,8 +429,6 @@ uint64_t ModelAction::get_reads_from_value() const
 	ASSERT(is_read());
 	if (reads_from)
 		return reads_from->get_write_value();
-	else if (reads_from_promise)
-		return reads_from_promise->get_value();
 	return VALUE_NONE; /* Only for new actions with no reads-from */
 }
 
@@ -489,7 +486,6 @@ void ModelAction::set_read_from(const ModelAction *act)
 	ASSERT(act);
 
 	reads_from = act;
-	reads_from_promise = NULL;
 
 	if (act->is_uninitialized()) { // WL
 		uint64_t val = *((uint64_t *) location);
@@ -504,17 +500,6 @@ void ModelAction::set_read_from(const ModelAction *act)
 				get_type_str(), get_mo_str());
 */
 	}
-}
-
-/**
- * Set this action's read-from promise
- * @param promise The promise to read from
- */
-void ModelAction::set_read_from_promise(Promise *promise)
-{
-	ASSERT(is_read());
-	reads_from_promise = promise;
-	reads_from = NULL;
 }
 
 /**
@@ -601,13 +586,7 @@ void ModelAction::print() const
 	if (is_read()) {
 		if (reads_from)
 			model_print("  %-3d", reads_from->get_seq_number());
-		else if (reads_from_promise) {
-			int idx = reads_from_promise->get_index();
-			if (idx >= 0)
-				model_print("  P%-2d", idx);
-			else
-				model_print("  P? ");
-		} else
+		else
 			model_print("  ?  ");
 	}
 	if (cv) {
@@ -631,8 +610,6 @@ unsigned int ModelAction::hash() const
 	if (is_read()) {
 	       if (reads_from)
 		       hash ^= reads_from->get_seq_number();
-	       else if (reads_from_promise)
-		       hash ^= reads_from_promise->get_index();
 	       hash ^= get_reads_from_value();
 	}
 	return hash;
@@ -647,19 +624,6 @@ bool ModelAction::may_read_from(const ModelAction *write) const
 {
 	for (int i = 0; i < node->get_read_from_past_size(); i++)
 		if (node->get_read_from_past(i) == write)
-			return true;
-	return false;
-}
-
-/**
- * @brief Checks the NodeStack to see if a Promise is in our may-read-from set
- * @param promise The Promise to check for
- * @return True if the Promise is found; false otherwise
- */
-bool ModelAction::may_read_from(const Promise *promise) const
-{
-	for (int i = 0; i < node->get_read_from_promise_size(); i++)
-		if (node->get_read_from_promise(i) == promise)
 			return true;
 	return false;
 }

@@ -10,7 +10,6 @@
 
 #include "mymemory.h"
 #include "schedule.h"
-#include "promise.h"
 #include "stl-model.h"
 
 class ModelAction;
@@ -31,8 +30,6 @@ struct fairness_info {
  */
 typedef enum {
 	READ_FROM_PAST, /**< @brief Read from a prior, existing store */
-	READ_FROM_PROMISE, /**< @brief Read from an existing promised future value */
-	READ_FROM_FUTURE, /**< @brief Read from a newly-asserted future value */
 	READ_FROM_NONE, /**< @brief A NULL state, which should not be reached */
 } read_from_type_t;
 
@@ -94,20 +91,6 @@ public:
 	const ModelAction * get_read_from_past(int i) const;
 	int get_read_from_past_size() const;
 
-	void add_read_from_promise(const ModelAction *reader);
-	Promise * get_read_from_promise() const;
-	Promise * get_read_from_promise(int i) const;
-	int get_read_from_promise_size() const;
-
-	bool add_future_value(struct future_value fv);
-	struct future_value get_future_value() const;
-
-	void set_promise(unsigned int i);
-	bool get_promise(unsigned int i) const;
-	bool increment_promise();
-	bool promise_empty() const;
-	void clear_promise_resolutions();
-
 	enabled_type_t *get_enabled_array() {return enabled_array;}
 
 	void set_misc_max(int i);
@@ -130,8 +113,6 @@ private:
 	int get_yield_data(int tid1, int tid2) const;
 	bool read_from_past_empty() const;
 	bool increment_read_from_past();
-	bool read_from_promise_empty() const;
-	bool increment_read_from_promise();
 	bool future_value_empty() const;
 	bool increment_future_value();
 	read_from_type_t read_from_status;
@@ -158,15 +139,6 @@ private:
 	 */
 	ModelVector<const ModelAction *> read_from_past;
 	unsigned int read_from_past_idx;
-
-	ModelVector<const ModelAction *> read_from_promises;
-	int read_from_promise_idx;
-
-	ModelVector<struct future_value> future_values;
-	int future_index;
-
-	ModelVector<bool> resolve_promise;
-	int resolve_promise_idx;
 
 	ModelVector<const ModelAction *> relseq_break_writes;
 	int relseq_break_index;

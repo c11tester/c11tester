@@ -11,7 +11,6 @@
 #include "common.h"
 #include "clockvector.h"
 #include "cyclegraph.h"
-#include "promise.h"
 #include "datarace.h"
 #include "threads-model.h"
 #include "bugmessage.h"
@@ -28,8 +27,6 @@ struct model_snapshot_members {
 		used_sequence_numbers(0),
 		next_backtrack(NULL),
 		bugs(),
-		failed_promise(false),
-		hard_failed_promise(false),
 		too_many_reads(false),
 		no_valid_reads(false),
 		bad_synchronization(false),
@@ -47,8 +44,6 @@ struct model_snapshot_members {
 	modelclock_t used_sequence_numbers;
 	ModelAction *next_backtrack;
 	SnapVector<bug_message *> bugs;
-	bool failed_promise;
-	bool hard_failed_promise;
 	bool too_many_reads;
 	bool no_valid_reads;
 	/** @brief Incorrectly-ordered synchronization was made */
@@ -64,19 +59,18 @@ ModelExecution::ModelExecution(ModelChecker *m,
 		const struct model_params *params,
 		Scheduler *scheduler,
 		NodeStack *node_stack) :
+	pthread_counter(0),
 	model(m),
 	params(params),
 	scheduler(scheduler),
 	action_trace(),
 	thread_map(2), /* We'll always need at least 2 threads */
 	pthread_map(0),
-	pthread_counter(0),
 	obj_map(),
 	condvar_waiters_map(),
 	obj_thrd_map(),
 	mutex_map(),
-	promises(),
-	futurevalues(),
+	cond_map(),
 	pending_rel_seqs(),
 	thrd_last_action(1),
 	thrd_last_fence_release(),
@@ -96,9 +90,6 @@ ModelExecution::~ModelExecution()
 {
 	for (unsigned int i = 0; i < get_num_threads(); i++)
 		delete get_thread(int_to_id(i));
-
-	for (unsigned int i = 0; i < promises.size(); i++)
-		delete promises[i];
 
 	delete mo_graph;
 	delete priv;
@@ -635,30 +626,6 @@ bool ModelExecution::process_read(ModelAction *curr)
 			updated = r_modification_order(curr, rf);
 			read_from(curr, rf);
 			mo_graph->commitChanges();
-			mo_check_promises(curr, true);
-			break;
-		}
-		case READ_FROM_PROMISE: {
-			Promise *promise = curr->get_node()->get_read_from_promise();
-			if (promise->add_reader(curr))
-				priv->failed_promise = true;
-			curr->set_read_from_promise(promise);
-			mo_graph->startChanges();
-			if (!check_recency(curr, promise))
-				priv->too_many_reads = true;
-			updated = r_modification_order(curr, promise);
-			mo_graph->commitChanges();
-			break;
-		}
-		case READ_FROM_FUTURE: {
-			/* Read from future value */
-			struct future_value fv = node->get_future_value();
-			Promise *promise = new Promise(this, curr, fv);
-			curr->set_read_from_promise(promise);
-			promises.push_back(promise);
-			mo_graph->startChanges();
-			updated = r_modification_order(curr, promise);
-			mo_graph->commitChanges();
 			break;
 		}
 		default:
@@ -771,67 +738,6 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 }
 
 /**
- * @brief Check if the current pending promises allow a future value to be sent
- *
- * It is unsafe to pass a future value back if there exists a pending promise Pr
- * such that:
- *
- *    reader --exec-> Pr --exec-> writer
- *
- * If such Pr exists, we must save the pending future value until Pr is
- * resolved.
- *
- * @param writer The operation which sends the future value. Must be a write.
- * @param reader The operation which will observe the value. Must be a read.
- * @return True if the future value can be sent now; false if it must wait.
- */
-bool ModelExecution::promises_may_allow(const ModelAction *writer,
-		const ModelAction *reader) const
-{
-	for (int i = promises.size() - 1; i >= 0; i--) {
-		ModelAction *pr = promises[i]->get_reader(0);
-		//reader is after promise...doesn't cross any promise
-		if (*reader > *pr)
-			return true;
-		//writer is after promise, reader before...bad...
-		if (*writer > *pr)
-			return false;
-	}
-	return true;
-}
-
-/**
- * @brief Add a future value to a reader
- *
- * This function performs a few additional checks to ensure that the future
- * value can be feasibly observed by the reader
- *
- * @param writer The operation whose value is sent. Must be a write.
- * @param reader The read operation which may read the future value. Must be a read.
- */
-void ModelExecution::add_future_value(const ModelAction *writer, ModelAction *reader)
-{
-	/* Do more ambitious checks now that mo is more complete */
-	if (!mo_may_allow(writer, reader))
-		return;
-
-	Node *node = reader->get_node();
-
-	/* Find an ancestor thread which exists at the time of the reader */
-	Thread *write_thread = get_thread(writer);
-	while (id_to_int(write_thread->get_id()) >= node->get_num_threads())
-		write_thread = write_thread->get_parent();
-
-	struct future_value fv = {
-		writer->get_write_value(),
-		writer->get_seq_number() + params->maxfuturedelay,
-		write_thread->get_id(),
-	};
-	if (node->add_future_value(fv))
-		set_latest_backtrack(reader);
-}
-
-/**
  * Process a write ModelAction
  * @param curr The ModelAction to process
  * @param work The work queue, for adding fixup work
@@ -842,46 +748,13 @@ bool ModelExecution::process_write(ModelAction *curr, work_queue_t *work)
 	/* Readers to which we may send our future value */
 	ModelVector<ModelAction *> send_fv;
 
-	const ModelAction *earliest_promise_reader;
-	bool updated_promises = false;
 
-	bool updated_mod_order = w_modification_order(curr, &send_fv);
-	Promise *promise = pop_promise_to_resolve(curr);
-
-	if (promise) {
-		earliest_promise_reader = promise->get_reader(0);
-		updated_promises = resolve_promise(curr, promise, work);
-	} else
-		earliest_promise_reader = NULL;
-
-	for (unsigned int i = 0; i < send_fv.size(); i++) {
-		ModelAction *read = send_fv[i];
-
-		/* Don't send future values to reads after the Promise we resolve */
-		if (!earliest_promise_reader || *read < *earliest_promise_reader) {
-			/* Check if future value can be sent immediately */
-			if (promises_may_allow(curr, read)) {
-				add_future_value(curr, read);
-			} else {
-				futurevalues.push_back(PendingFutureValue(curr, read));
-			}
-		}
-	}
-
-	/* Check the pending future values */
-	for (int i = (int)futurevalues.size() - 1; i >= 0; i--) {
-		struct PendingFutureValue pfv = futurevalues[i];
-		if (promises_may_allow(pfv.writer, pfv.reader)) {
-			add_future_value(pfv.writer, pfv.reader);
-			futurevalues.erase(futurevalues.begin() + i);
-		}
-	}
+	bool updated_mod_order = w_modification_order(curr);
 
 	mo_graph->commitChanges();
-	mo_check_promises(curr, false);
 
 	get_thread(curr)->set_return_value(VALUE_NONE);
-	return updated_mod_order || updated_promises;
+	return updated_mod_order;
 }
 
 /**
@@ -957,12 +830,6 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		curr->set_thread_operand(th);
 		add_thread(th);
 		th->set_creation(curr);
-		/* Promises can be satisfied by children */
-		for (unsigned int i = 0; i < promises.size(); i++) {
-			Promise *promise = promises[i];
-			if (promise->thread_is_available(curr->get_tid()))
-				promise->add_thread(th->get_id());
-		}
 		break;
 	}
 	case PTHREAD_CREATE: {
@@ -978,13 +845,6 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 	                pthread_map.resize( pthread_counter );
 		pthread_map[ pthread_counter-1 ] = th;
 
-		/* Promises can be satisfied by children */
-		for (unsigned int i = 0; i < promises.size(); i++) {
-			Promise *promise = promises[i];
-			if (promise->thread_is_available(curr->get_tid()))
-				promise->add_thread(th->get_id());
-		}
-		
 		break;
 	}
 	case THREAD_JOIN: {
@@ -1012,18 +872,10 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 				scheduler->wake(waiting);
 		}
 		th->complete();
-		/* Completed thread can't satisfy promises */
-		for (unsigned int i = 0; i < promises.size(); i++) {
-			Promise *promise = promises[i];
-			if (promise->thread_is_available(th->get_id()))
-				if (promise->eliminate_thread(th->get_id()))
-					priv->failed_promise = true;
-		}
 		updated = true; /* trigger rel-seq checks */
 		break;
 	}
 	case THREAD_START: {
-		check_promises(curr->get_tid(), NULL, curr->get_cv());
 		break;
 	}
 	default:
@@ -1107,9 +959,6 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		newcurr = process_rmw(*curr);
 		delete *curr;
 
-		if (newcurr->is_rmw())
-			compute_promises(newcurr);
-
 		*curr = newcurr;
 		return false;
 	}
@@ -1146,9 +995,7 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		 * Perform one-time actions when pushing new ModelAction onto
 		 * NodeStack
 		 */
-		if (newcurr->is_write())
-			compute_promises(newcurr);
-		else if (newcurr->is_relseq_fixup())
+		if (newcurr->is_relseq_fixup())
 			compute_relseq_breakwrites(newcurr);
 		else if (newcurr->is_wait())
 			newcurr->get_node()->set_misc_max(2);
@@ -1207,37 +1054,7 @@ bool ModelExecution::synchronize(const ModelAction *first, ModelAction *second)
 		set_bad_synchronization();
 		return false;
 	}
-	check_promises(first->get_tid(), second->get_cv(), first->get_cv());
 	return second->synchronize_with(first);
-}
-
-/**
- * Check promises and eliminate potentially-satisfying threads when a thread is
- * blocked (e.g., join, lock). A thread which is waiting on another thread can
- * no longer satisfy a promise generated from that thread.
- *
- * @param blocker The thread on which a thread is waiting
- * @param waiting The waiting thread
- */
-void ModelExecution::thread_blocking_check_promises(Thread *blocker, Thread *waiting)
-{
-	for (unsigned int i = 0; i < promises.size(); i++) {
-		Promise *promise = promises[i];
-		if (!promise->thread_is_available(waiting->get_id()))
-			continue;
-		for (unsigned int j = 0; j < promise->get_num_readers(); j++) {
-			ModelAction *reader = promise->get_reader(j);
-			if (reader->get_tid() != blocker->get_id())
-				continue;
-			if (promise->eliminate_thread(waiting->get_id())) {
-				/* Promise has failed */
-				priv->failed_promise = true;
-			} else {
-				/* Only eliminate the 'waiting' thread once */
-				return;
-			}
-		}
-	}
 }
 
 /**
@@ -1260,7 +1077,6 @@ bool ModelExecution::check_action_enabled(ModelAction *curr) {
 	} else if (curr->is_thread_join()) {
 		Thread *blocking = curr->get_thread_operand();
 		if (!blocking->is_complete()) {
-			thread_blocking_check_promises(blocking, get_thread(curr));
 			return false;
 		}
 	} else if (params->yieldblock && curr->is_yield()) {
@@ -1350,23 +1166,17 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 
 			if (act->is_read()) {
 				const ModelAction *rf = act->get_reads_from();
-				const Promise *promise = act->get_reads_from_promise();
-				if (rf) {
-					if (r_modification_order(act, rf))
-						updated = true;
-					if (act->is_seqcst()) {
-						ModelAction *last_sc_write = get_last_seq_cst_write(act);
-						if (last_sc_write != NULL && rf->happens_before(last_sc_write)) {
-							set_bad_sc_read();
-						}
-					}
-				} else if (promise) {
-					if (r_modification_order(act, promise))
-						updated = true;
+				if (r_modification_order(act, rf))
+				  updated = true;
+				if (act->is_seqcst()) {
+				  ModelAction *last_sc_write = get_last_seq_cst_write(act);
+				  if (last_sc_write != NULL && rf->happens_before(last_sc_write)) {
+				    set_bad_sc_read();
+				  }
 				}
 			}
 			if (act->is_write()) {
-				if (w_modification_order(act, NULL))
+				if (w_modification_order(act))
 					updated = true;
 			}
 			mo_graph->commitChanges();
@@ -1394,20 +1204,9 @@ void ModelExecution::check_curr_backtracking(ModelAction *curr)
 	if ((parnode && !parnode->backtrack_empty()) ||
 			 !currnode->misc_empty() ||
 			 !currnode->read_from_empty() ||
-			 !currnode->promise_empty() ||
 			 !currnode->relseq_break_empty()) {
 		set_latest_backtrack(curr);
 	}
-}
-
-bool ModelExecution::promises_expired() const
-{
-	for (unsigned int i = 0; i < promises.size(); i++) {
-		Promise *promise = promises[i];
-		if (promise->get_expiration() < priv->used_sequence_numbers)
-			return true;
-	}
-	return false;
 }
 
 /**
@@ -1431,8 +1230,6 @@ void ModelExecution::print_infeasibility(const char *prefix) const
 	char *ptr = buf;
 	if (mo_graph->checkForCycles())
 		ptr += sprintf(ptr, "[mo cycle]");
-	if (priv->failed_promise || priv->hard_failed_promise)
-		ptr += sprintf(ptr, "[failed promise]");
 	if (priv->too_many_reads)
 		ptr += sprintf(ptr, "[too many reads]");
 	if (priv->no_valid_reads)
@@ -1441,10 +1238,6 @@ void ModelExecution::print_infeasibility(const char *prefix) const
 		ptr += sprintf(ptr, "[bad sw ordering]");
 	if (priv->bad_sc_read)
 		ptr += sprintf(ptr, "[bad sc read]");
-	if (promises_expired())
-		ptr += sprintf(ptr, "[promise expired]");
-	if (promises.size() != 0)
-		ptr += sprintf(ptr, "[unresolved promise]");
 	if (ptr != buf)
 		model_print("%s: %s", prefix ? prefix : "Infeasible", buf);
 }
@@ -1455,7 +1248,7 @@ void ModelExecution::print_infeasibility(const char *prefix) const
  */
 bool ModelExecution::is_feasible_prefix_ignore_relseq() const
 {
-	return !is_infeasible() && promises.size() == 0 && ! priv->failed_promise;
+  return !is_infeasible() ;
 
 }
 
@@ -1471,9 +1264,7 @@ bool ModelExecution::is_infeasible() const
 		priv->no_valid_reads ||
 		priv->too_many_reads ||
 		priv->bad_synchronization ||
-		priv->bad_sc_read ||
-		priv->hard_failed_promise ||
-		promises_expired();
+	  priv->bad_sc_read;
 }
 
 /** Close out a RMWR by converting previous RMWR into a RMW or READ. */
@@ -1481,10 +1272,7 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
 	ModelAction *lastread = get_last_action(act->get_tid());
 	lastread->process_rmw(act);
 	if (act->is_rmw()) {
-		if (lastread->get_reads_from())
-			mo_graph->addRMWEdge(lastread->get_reads_from(), lastread);
-		else
-			mo_graph->addRMWEdge(lastread->get_reads_from_promise(), lastread);
+	  mo_graph->addRMWEdge(lastread->get_reads_from(), lastread);
 		mo_graph->commitChanges();
 	}
 	return lastread;
@@ -1551,8 +1339,7 @@ bool ModelExecution::check_recency(ModelAction *curr, const T *rf) const
 		return true;
 
 	//NOTE: Next check is just optimization, not really necessary....
-	if (curr->get_node()->get_read_from_past_size() +
-			curr->get_node()->get_read_from_promise_size() <= 1)
+	if (curr->get_node()->get_read_from_past_size() <= 1)
 		return true;
 
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
@@ -1572,22 +1359,14 @@ bool ModelExecution::check_recency(ModelAction *curr, const T *rf) const
 		ModelAction *act = *ritcopy;
 		if (!act->is_read())
 			return true;
-		if (act->get_reads_from_promise() && !act->get_reads_from_promise()->equals(rf))
-			return true;
 		if (act->get_reads_from() && !act->get_reads_from()->equals(rf))
 			return true;
-		if (act->get_node()->get_read_from_past_size() +
-				act->get_node()->get_read_from_promise_size() <= 1)
+		if (act->get_node()->get_read_from_past_size() <= 1)
 			return true;
 	}
 	for (int i = 0; i < curr->get_node()->get_read_from_past_size(); i++) {
 		const ModelAction *write = curr->get_node()->get_read_from_past(i);
 		if (should_read_instead(curr, rf, write))
-			return false; /* liveness failure */
-	}
-	for (int i = 0; i < curr->get_node()->get_read_from_promise_size(); i++) {
-		const Promise *promise = curr->get_node()->get_read_from_promise(i);
-		if (should_read_instead(curr, rf, promise))
 			return false; /* liveness failure */
 	}
 	return true;
@@ -1682,13 +1461,8 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
 					added = mo_graph->addEdge(act, rf) || added;
 				} else {
 					const ModelAction *prevrf = act->get_reads_from();
-					const Promise *prevrf_promise = act->get_reads_from_promise();
-					if (prevrf) {
-						if (!prevrf->equals(rf))
-							added = mo_graph->addEdge(prevrf, rf) || added;
-					} else if (!prevrf_promise->equals(rf)) {
-						added = mo_graph->addEdge(prevrf_promise, rf) || added;
-					}
+					if (!prevrf->equals(rf))
+					  added = mo_graph->addEdge(prevrf, rf) || added;
 				}
 				break;
 			}
@@ -1699,9 +1473,6 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
 	 * All compatible, thread-exclusive promises must be ordered after any
 	 * concrete loads from the same thread
 	 */
-	for (unsigned int i = 0; i < promises.size(); i++)
-		if (promises[i]->is_compatible_exclusive(curr))
-			added = mo_graph->addEdge(rf, promises[i]) || added;
 
 	return added;
 }
@@ -1730,7 +1501,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
  * value. If NULL, then don't record any future values.
  * @return True if modification order edges were added; false otherwise
  */
-bool ModelExecution::w_modification_order(ModelAction *curr, ModelVector<ModelAction *> *send_fv)
+bool ModelExecution::w_modification_order(ModelAction *curr)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;
@@ -1804,10 +1575,7 @@ bool ModelExecution::w_modification_order(ModelAction *curr, ModelVector<ModelAc
 					added = mo_graph->addEdge(act, curr) || added;
 				else if (act->is_read()) {
 					//if previous read accessed a null, just keep going
-					if (act->get_reads_from() == NULL) {
-						added = mo_graph->addEdge(act->get_reads_from_promise(), curr) || added;
-					} else
-						added = mo_graph->addEdge(act->get_reads_from(), curr) || added;
+				  added = mo_graph->addEdge(act->get_reads_from(), curr) || added;
 				}
 				break;
 			} else if (act->is_read() && !act->could_synchronize_with(curr) &&
@@ -1825,92 +1593,11 @@ bool ModelExecution::w_modification_order(ModelAction *curr, ModelVector<ModelAc
 
 				 */
 
-				if (send_fv && thin_air_constraint_may_allow(curr, act) && check_coherence_promise(curr, act)) {
-					if (!is_infeasible())
-						send_fv->push_back(act);
-					else if (curr->is_rmw() && act->is_rmw() && curr->get_reads_from() && curr->get_reads_from() == act->get_reads_from())
-						add_future_value(curr, act);
-				}
 			}
 		}
 	}
-
-	/*
-	 * All compatible, thread-exclusive promises must be ordered after any
-	 * concrete stores to the same thread, or else they can be merged with
-	 * this store later
-	 */
-	for (unsigned int i = 0; i < promises.size(); i++)
-		if (promises[i]->is_compatible_exclusive(curr))
-			added = mo_graph->addEdge(curr, promises[i]) || added;
 
 	return added;
-}
-
-//This procedure uses cohere to prune future values that are
-//guaranteed to generate a coherence violation.
-//
-//need to see if there is (1) a promise for thread write, (2)
-//the promise is sb before write, (3) the promise can only be
-//resolved by the thread read, and (4) the promise has same
-//location as read/write
-
-bool ModelExecution::check_coherence_promise(const ModelAction * write, const ModelAction *read) {
-	thread_id_t write_tid=write->get_tid();
-	for(unsigned int i = promises.size(); i>0; i--) {
-		Promise *pr=promises[i-1];
-		if (!pr->same_location(write))
-			continue;
-		//the reading thread is the only thread that can resolve the promise
-		if (pr->get_num_was_available_threads()==1 && pr->thread_was_available(read->get_tid())) {
-			for(unsigned int j=0;j<pr->get_num_readers();j++) {
-				ModelAction *prreader=pr->get_reader(j);
-				//the writing thread reads from the promise before the write
-				if (prreader->get_tid()==write_tid &&
-						(*prreader)<(*write)) {
-					if ((*read)>(*prreader)) {
-						//check that we don't have a read between the read and promise
-						//from the same thread as read
-						bool okay=false;
-						for(const ModelAction *tmp=read;tmp!=prreader;) {
-							tmp=tmp->get_node()->get_parent()->get_action();
-							if (tmp->is_read() && tmp->same_thread(read)) {
-								okay=true;
-								break;
-							}
-						}
-						if (okay)
-							continue;
-					}
-					return false;
-				}
-			}
-		}
-	}
-	return true;
-}
-
-
-/** Arbitrary reads from the future are not allowed.  Section 29.3
- * part 9 places some constraints.  This method checks one result of constraint
- * constraint.  Others require compiler support. */
-bool ModelExecution::thin_air_constraint_may_allow(const ModelAction *writer, const ModelAction *reader) const
-{
-	if (!writer->is_rmw())
-		return true;
-
-	if (!reader->is_rmw())
-		return true;
-
-	for (const ModelAction *search = writer->get_reads_from(); search != NULL; search = search->get_reads_from()) {
-		if (search == reader)
-			return false;
-		if (search->get_tid() == reader->get_tid() &&
-				search->happens_before(reader))
-			break;
-	}
-
-	return true;
 }
 
 /**
@@ -2415,177 +2102,6 @@ ClockVector * ModelExecution::get_cv(thread_id_t tid) const
 }
 
 /**
- * @brief Find the promise (if any) to resolve for the current action and
- * remove it from the pending promise vector
- * @param curr The current ModelAction. Should be a write.
- * @return The Promise to resolve, if any; otherwise NULL
- */
-Promise * ModelExecution::pop_promise_to_resolve(const ModelAction *curr)
-{
-	for (unsigned int i = 0; i < promises.size(); i++)
-		if (curr->get_node()->get_promise(i)) {
-			Promise *ret = promises[i];
-			promises.erase(promises.begin() + i);
-			return ret;
-		}
-	return NULL;
-}
-
-/**
- * Resolve a Promise with a current write.
- * @param write The ModelAction that is fulfilling Promises
- * @param promise The Promise to resolve
- * @param work The work queue, for adding new fixup work
- * @return True if the Promise was successfully resolved; false otherwise
- */
-bool ModelExecution::resolve_promise(ModelAction *write, Promise *promise,
-		work_queue_t *work)
-{
-	ModelVector<ModelAction *> actions_to_check;
-
-	for (unsigned int i = 0; i < promise->get_num_readers(); i++) {
-		ModelAction *read = promise->get_reader(i);
-		if (read_from(read, write)) {
-			/* Propagate the changed clock vector */
-			propagate_clockvector(read, work);
-		}
-		actions_to_check.push_back(read);
-	}
-	/* Make sure the promise's value matches the write's value */
-	ASSERT(promise->is_compatible(write) && promise->same_value(write));
-	if (!mo_graph->resolvePromise(promise, write))
-		priv->hard_failed_promise = true;
-
-	/**
-	 * @todo  It is possible to end up in an inconsistent state, where a
-	 * "resolved" promise may still be referenced if
-	 * CycleGraph::resolvePromise() failed, so don't delete 'promise'.
-	 *
-	 * Note that the inconsistency only matters when dumping mo_graph to
-	 * file.
-	 *
-	 * delete promise;
-	 */
-
-	//Check whether reading these writes has made threads unable to
-	//resolve promises
-	for (unsigned int i = 0; i < actions_to_check.size(); i++) {
-		ModelAction *read = actions_to_check[i];
-		mo_check_promises(read, true);
-	}
-
-	return true;
-}
-
-/**
- * Compute the set of promises that could potentially be satisfied by this
- * action. Note that the set computation actually appears in the Node, not in
- * ModelExecution.
- * @param curr The ModelAction that may satisfy promises
- */
-void ModelExecution::compute_promises(ModelAction *curr)
-{
-	for (unsigned int i = 0; i < promises.size(); i++) {
-		Promise *promise = promises[i];
-		if (!promise->is_compatible(curr) || !promise->same_value(curr))
-			continue;
-
-		bool satisfy = true;
-		for (unsigned int j = 0; j < promise->get_num_readers(); j++) {
-			const ModelAction *act = promise->get_reader(j);
-			if (act->happens_before(curr) ||
-					act->could_synchronize_with(curr)) {
-				satisfy = false;
-				break;
-			}
-		}
-		if (satisfy)
-			curr->get_node()->set_promise(i);
-	}
-}
-
-/** Checks promises in response to change in ClockVector Threads. */
-void ModelExecution::check_promises(thread_id_t tid, ClockVector *old_cv, ClockVector *merge_cv)
-{
-	for (unsigned int i = 0; i < promises.size(); i++) {
-		Promise *promise = promises[i];
-		if (!promise->thread_is_available(tid))
-			continue;
-		for (unsigned int j = 0; j < promise->get_num_readers(); j++) {
-			const ModelAction *act = promise->get_reader(j);
-			if ((!old_cv || !old_cv->synchronized_since(act)) &&
-					merge_cv->synchronized_since(act)) {
-				if (promise->eliminate_thread(tid)) {
-					/* Promise has failed */
-					priv->failed_promise = true;
-					return;
-				}
-			}
-		}
-	}
-}
-
-void ModelExecution::check_promises_thread_disabled()
-{
-	for (unsigned int i = 0; i < promises.size(); i++) {
-		Promise *promise = promises[i];
-		if (promise->has_failed()) {
-			priv->failed_promise = true;
-			return;
-		}
-	}
-}
-
-/**
- * @brief Checks promises in response to addition to modification order for
- * threads.
- *
- * We test whether threads are still available for satisfying promises after an
- * addition to our modification order constraints. Those that are unavailable
- * are "eliminated". Once all threads are eliminated from satisfying a promise,
- * that promise has failed.
- *
- * @param act The ModelAction which updated the modification order
- * @param is_read_check Should be true if act is a read and we must check for
- * updates to the store from which it read (there is a distinction here for
- * RMW's, which are both a load and a store)
- */
-void ModelExecution::mo_check_promises(const ModelAction *act, bool is_read_check)
-{
-	const ModelAction *write = is_read_check ? act->get_reads_from() : act;
-
-	for (unsigned int i = 0; i < promises.size(); i++) {
-		Promise *promise = promises[i];
-
-		// Is this promise on the same location?
-		if (!promise->same_location(write))
-			continue;
-
-		for (unsigned int j = 0; j < promise->get_num_readers(); j++) {
-			const ModelAction *pread = promise->get_reader(j);
-			if (!pread->happens_before(act))
-			       continue;
-			if (mo_graph->checkPromise(write, promise)) {
-				priv->hard_failed_promise = true;
-				return;
-			}
-			break;
-		}
-
-		// Don't do any lookups twice for the same thread
-		if (!promise->thread_is_available(act->get_tid()))
-			continue;
-
-		if (mo_graph->checkReachable(promise, write)) {
-			if (mo_graph->checkPromise(write, promise)) {
-				priv->hard_failed_promise = true;
-				return;
-			}
-		}
-	}
-}
-
-/**
  * Compute the set of writes that may break the current pending release
  * sequence. This information is extracted from previou release sequence
  * calculations.
@@ -2658,20 +2174,6 @@ void ModelExecution::build_may_read_from(ModelAction *curr)
 			/* Include at most one act per-thread that "happens before" curr */
 			if (act->happens_before(curr))
 				break;
-		}
-	}
-
-	/* Inherit existing, promised future values */
-	for (i = 0; i < promises.size(); i++) {
-		const Promise *promise = promises[i];
-		const ModelAction *promise_read = promise->get_reader(0);
-		if (promise_read->same_var(curr)) {
-			/* Only add feasible future-values */
-			mo_graph->startChanges();
-			r_modification_order(curr, promise);
-			if (!is_infeasible())
-				curr->get_node()->add_read_from_promise(promise_read);
-			mo_graph->rollbackChanges();
 		}
 	}
 
@@ -2761,16 +2263,10 @@ void ModelExecution::dumpGraph(char *filename) const
 		ModelAction *act = *it;
 		if (act->is_read()) {
 			mo_graph->dot_print_node(file, act);
-			if (act->get_reads_from())
-				mo_graph->dot_print_edge(file,
+			mo_graph->dot_print_edge(file,
 						act->get_reads_from(),
 						act,
 						"label=\"rf\", color=red, weight=2");
-			else
-				mo_graph->dot_print_edge(file,
-						act->get_reads_from_promise(),
-						act,
-						"label=\"rf\", color=red");
 		}
 		if (thread_array[act->get_tid()]) {
 			mo_graph->dot_print_edge(file,
@@ -2813,14 +2309,6 @@ void ModelExecution::print_summary() const
 	print_list(&action_trace);
 	model_print("\n");
 
-	if (!promises.empty()) {
-		model_print("Pending promises:\n");
-		for (unsigned int i = 0; i < promises.size(); i++) {
-			model_print(" [P%u] ", i);
-			promises[i]->print();
-		}
-		model_print("\n");
-	}
 }
 
 /**
@@ -2869,26 +2357,6 @@ Thread * ModelExecution::get_thread(const ModelAction *act) const
 Thread * ModelExecution::get_pthread(pthread_t pid) {
         if (pid < pthread_counter + 1) return pthread_map[pid];
         else return NULL;
-}
-
-/**
- * @brief Get a Promise's "promise number"
- *
- * A "promise number" is an index number that is unique to a promise, valid
- * only for a specific snapshot of an execution trace. Promises may come and go
- * as they are generated an resolved, so an index only retains meaning for the
- * current snapshot.
- *
- * @param promise The Promise to check
- * @return The promise index, if the promise still is valid; otherwise -1
- */
-int ModelExecution::get_promise_number(const Promise *promise) const
-{
-	for (unsigned int i = 0; i < promises.size(); i++)
-		if (promises[i] == promise)
-			return i;
-	/* Not found */
-	return -1;
 }
 
 /**

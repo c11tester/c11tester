@@ -93,7 +93,7 @@ int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
 	cdsc::mutex *m = new cdsc::mutex();
 
 	ModelExecution *execution = model->get_execution();
-	execution->mutex_map.put(p_mutex, m);
+	execution->getMutexMap()->put(p_mutex, m);
 	return 0;
 }
 
@@ -103,11 +103,11 @@ int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
 	/* to protect the case where PTHREAD_MUTEX_INITIALIZER is used 
 	   instead of pthread_mutex_init, or where *p_mutex is not stored
 	   in the execution->mutex_map for some reason. */
-	if (!execution->mutex_map.contains(p_mutex)) {	
+	if (!execution->getMutexMap()->contains(p_mutex)) {	
 		pthread_mutex_init(p_mutex, NULL);
 	}
 
-	cdsc::mutex *m = execution->mutex_map.get(p_mutex);
+	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
 
 	if (m != NULL) {
 		m->lock();
@@ -120,12 +120,12 @@ int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
 
 int pthread_mutex_trylock(pthread_mutex_t *p_mutex) {
 	ModelExecution *execution = model->get_execution();
-	cdsc::mutex *m = execution->mutex_map.get(p_mutex);
+	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
 	return m->try_lock();
 }
 int pthread_mutex_unlock(pthread_mutex_t *p_mutex) {	
 	ModelExecution *execution = model->get_execution();
-	cdsc::mutex *m = execution->mutex_map.get(p_mutex);
+	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
 
 	if (m != NULL) {
 		m->unlock();
@@ -172,17 +172,17 @@ int pthread_cond_init(pthread_cond_t *p_cond, const pthread_condattr_t *attr) {
 	cdsc::condition_variable *v = new cdsc::condition_variable();
 
 	ModelExecution *execution = model->get_execution();
-	execution->cond_map.put(p_cond, v);
+	execution->getCondMap()->put(p_cond, v);
 	return 0;
 }
 
 int pthread_cond_wait(pthread_cond_t *p_cond, pthread_mutex_t *p_mutex) {
 	ModelExecution *execution = model->get_execution();
-	if ( !execution->cond_map.contains(p_cond) )
+	if ( !execution->getCondMap()->contains(p_cond) )
 		pthread_cond_init(p_cond, NULL);
 
-	cdsc::condition_variable *v = execution->cond_map.get(p_cond);
-	cdsc::mutex *m = execution->mutex_map.get(p_mutex);
+	cdsc::condition_variable *v = execution->getCondMap()->get(p_cond);
+	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
 
 	v->wait(*m);
 	return 0;
@@ -193,13 +193,13 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
 // implement cond_timedwait as a noop and let the scheduler decide which thread goes next
 	ModelExecution *execution = model->get_execution();
 
-	if ( !execution->cond_map.contains(p_cond) )
+	if ( !execution->getCondMap()->contains(p_cond) )
 		pthread_cond_init(p_cond, NULL);
-	if ( !execution->mutex_map.contains(p_mutex) )
+	if ( !execution->getMutexMap()->contains(p_mutex) )
 		pthread_mutex_init(p_mutex, NULL);
 
-	cdsc::condition_variable *v = execution->cond_map.get(p_cond);
-	cdsc::mutex *m = execution->mutex_map.get(p_mutex);
+	cdsc::condition_variable *v = execution->getCondMap()->get(p_cond);
+	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
 
 	model->switch_to_master(new ModelAction(NOOP, std::memory_order_seq_cst, v, NULL));
 //	v->wait(*m);
@@ -210,10 +210,10 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
 int pthread_cond_signal(pthread_cond_t *p_cond) {
 	// notify only one blocked thread
 	ModelExecution *execution = model->get_execution();
-	if ( !execution->cond_map.contains(p_cond) )
+	if ( !execution->getCondMap()->contains(p_cond) )
 		pthread_cond_init(p_cond, NULL);
 
-	cdsc::condition_variable *v = execution->cond_map.get(p_cond);
+	cdsc::condition_variable *v = execution->getCondMap()->get(p_cond);
 
 	v->notify_one();
 	return 0;

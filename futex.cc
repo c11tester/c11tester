@@ -48,8 +48,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 		cdsc::condition_variable *v = new cdsc::condition_variable();
 		cdsc::mutex *m = new cdsc::mutex();
 
-		execution->cond_map.put( (pthread_cond_t *) __addr, v);
-		execution->mutex_map.put( (pthread_mutex_t *) __addr, m);
+		execution->getCondMap()->put( (pthread_cond_t *) __addr, v);
+		execution->getMutexMap()->put( (pthread_mutex_t *) __addr, m);
 
 		v->wait(*m);
 		return true;
@@ -60,7 +60,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	{
 		// INT_MAX wakes all the waiters at the address __addr
 		ModelExecution *execution = model->get_execution();
-		cdsc::condition_variable *v = execution->cond_map.get( (pthread_cond_t *) __addr);
+		cdsc::condition_variable *v = execution->getCondMap()->get( (pthread_cond_t *) __addr);
 		v->notify_all();
 	}
 

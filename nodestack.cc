@@ -42,12 +42,6 @@ Node::Node(const struct model_params *params, ModelAction *act, Node *par,
 	enabled_array(NULL),
 	read_from_past(),
 	read_from_past_idx(0),
-	read_from_promises(),
-	read_from_promise_idx(-1),
-	future_values(),
-	future_index(-1),
-	resolve_promise(),
-	resolve_promise_idx(-1),
 	relseq_break_writes(),
 	relseq_break_index(0),
 	misc_index(0),
@@ -180,17 +174,6 @@ void Node::print() const
 		model_print("[%d]", read_from_past[i]->get_seq_number());
 	model_print("\n");
 
-	model_print("          read-from promises: %s", read_from_promise_empty() ? "empty" : "non-empty ");
-	for (int i = read_from_promise_idx + 1; i < (int)read_from_promises.size(); i++)
-		model_print("[%d]", read_from_promises[i]->get_seq_number());
-	model_print("\n");
-
-	model_print("          future values: %s", future_value_empty() ? "empty" : "non-empty ");
-	for (int i = future_index + 1; i < (int)future_values.size(); i++)
-		model_print("[%#" PRIx64 "]", future_values[i].value);
-	model_print("\n");
-
-	model_print("          promises: %s\n", promise_empty() ? "empty" : "non-empty");
 	model_print("          misc: %s\n", misc_empty() ? "empty" : "non-empty");
 	model_print("          rel seq break: %s\n", relseq_break_empty() ? "empty" : "non-empty");
 }
@@ -292,68 +275,6 @@ void Node::clear_backtracking()
 
 /************************** end threads backtracking **************************/
 
-/*********************************** promise **********************************/
-
-/**
- * Sets a promise to explore meeting with the given node.
- * @param i is the promise index.
- */
-void Node::set_promise(unsigned int i)
-{
-	if (i >= resolve_promise.size())
-		resolve_promise.resize(i + 1, false);
-	resolve_promise[i] = true;
-}
-
-/**
- * Looks up whether a given promise should be satisfied by this node.
- * @param i The promise index.
- * @return true if the promise should be satisfied by the given ModelAction.
- */
-bool Node::get_promise(unsigned int i) const
-{
-	return (i < resolve_promise.size()) && (int)i == resolve_promise_idx;
-}
-
-/**
- * Increments to the next promise to resolve.
- * @return true if we have a valid combination.
- */
-bool Node::increment_promise()
-{
-	DBG();
-	if (resolve_promise.empty())
-		return false;
-	int prev_idx = resolve_promise_idx;
-	resolve_promise_idx++;
-	for ( ; resolve_promise_idx < (int)resolve_promise.size(); resolve_promise_idx++)
-		if (resolve_promise[resolve_promise_idx])
-			return true;
-	resolve_promise_idx = prev_idx;
-	return false;
-}
-
-/**
- * Returns whether the promise set is empty.
- * @return true if we have explored all promise combinations.
- */
-bool Node::promise_empty() const
-{
-	for (int i = resolve_promise_idx + 1; i < (int)resolve_promise.size(); i++)
-		if (i >= 0 && resolve_promise[i])
-			return false;
-	return true;
-}
-
-/** @brief Clear any promise-resolution information for this Node */
-void Node::clear_promise_resolutions()
-{
-	resolve_promise.clear();
-	resolve_promise_idx = -1;
-}
-
-/******************************* end promise **********************************/
-
 void Node::set_misc_max(int i)
 {
 	misc_max = i;
@@ -409,7 +330,7 @@ bool Node::has_priority_over(thread_id_t tid1, thread_id_t tid2) const
 
 /**
  * Get the current state of the may-read-from set iteration
- * @return The read-from type we should currently be checking (past or future)
+ * @return The read-from type we should currently be checking (past)
  */
 read_from_type_t Node::get_read_from_status()
 {
@@ -425,16 +346,9 @@ read_from_type_t Node::get_read_from_status()
  */
 bool Node::increment_read_from()
 {
-	clear_promise_resolutions();
 	if (increment_read_from_past()) {
 	       read_from_status = READ_FROM_PAST;
 	       return true;
-	} else if (increment_read_from_promise()) {
-		read_from_status = READ_FROM_PROMISE;
-		return true;
-	} else if (increment_future_value()) {
-		read_from_status = READ_FROM_FUTURE;
-		return true;
 	}
 	read_from_status = READ_FROM_NONE;
 	return false;
@@ -445,21 +359,16 @@ bool Node::increment_read_from()
  */
 bool Node::read_from_empty() const
 {
-	return read_from_past_empty() &&
-		read_from_promise_empty() &&
-		future_value_empty();
+  return read_from_past_empty();
 }
 
 /**
- * Get the total size of the may-read-from set, including both past and future
- * values
+ * Get the total size of the may-read-from set, including both past
  * @return The size of may-read-from
  */
 unsigned int Node::read_from_size() const
 {
-	return read_from_past.size() +
-		read_from_promises.size() +
-		future_values.size();
+  return read_from_past.size();
 }
 
 /******************************* end read from ********************************/
@@ -533,151 +442,6 @@ bool Node::increment_read_from_past()
 
 /************************** end read from past ********************************/
 
-/***************************** read_from_promises *****************************/
-
-/**
- * Add an action to the read_from_promises set.
- * @param reader The read which generated the Promise; we use the ModelAction
- * instead of the Promise because the Promise does not last across executions
- */
-void Node::add_read_from_promise(const ModelAction *reader)
-{
-	read_from_promises.push_back(reader);
-}
-
-/**
- * Gets the next 'read-from-promise' from this Node. Only valid for a node
- * where this->action is a 'read'.
- * @return The current element in read_from_promises
- */
-Promise * Node::get_read_from_promise() const
-{
-	ASSERT(read_from_promise_idx >= 0 && read_from_promise_idx < ((int)read_from_promises.size()));
-	return read_from_promises[read_from_promise_idx]->get_reads_from_promise();
-}
-
-/**
- * Gets a particular 'read-from-promise' form this Node. Only vlaid for a node
- * where this->action is a 'read'.
- * @param i The index of the Promise to get
- * @return The Promise at index i, if the Promise is still available; NULL
- * otherwise
- */
-Promise * Node::get_read_from_promise(int i) const
-{
-	return read_from_promises[i]->get_reads_from_promise();
-}
-
-/** @return The size of the read-from-promise set */
-int Node::get_read_from_promise_size() const
-{
-	return read_from_promises.size();
-}
-
-/**
- * Checks whether the read_from_promises set for this node is empty.
- * @return true if the read_from_promises set is empty.
- */
-bool Node::read_from_promise_empty() const
-{
-	return ((read_from_promise_idx + 1) >= ((int)read_from_promises.size()));
-}
-
-/**
- * Increments the index into the read_from_promises set to explore the next item.
- * @return Returns false if we have explored all promises.
- */
-bool Node::increment_read_from_promise()
-{
-	DBG();
-	if (read_from_promise_idx < ((int)read_from_promises.size())) {
-		read_from_promise_idx++;
-		return (read_from_promise_idx < ((int)read_from_promises.size()));
-	}
-	return false;
-}
-
-/************************* end read_from_promises *****************************/
-
-/****************************** future values *********************************/
-
-/**
- * Adds a value from a weakly ordered future write to backtrack to. This
- * operation may "fail" if the future value has already been run (within some
- * sloppiness window of this expiration), or if the futurevalues set has
- * reached its maximum.
- * @see model_params.maxfuturevalues
- *
- * @param value is the value to backtrack to.
- * @return True if the future value was successully added; false otherwise
- */
-bool Node::add_future_value(struct future_value fv)
-{
-	uint64_t value = fv.value;
-	modelclock_t expiration = fv.expiration;
-	thread_id_t tid = fv.tid;
-	int idx = -1; /* Highest index where value is found */
-	for (unsigned int i = 0; i < future_values.size(); i++) {
-		if (future_values[i].value == value && future_values[i].tid == tid) {
-			if (expiration <= future_values[i].expiration)
-				return false;
-			idx = i;
-		}
-	}
-	if (idx > future_index) {
-		/* Future value hasn't been explored; update expiration */
-		future_values[idx].expiration = expiration;
-		return true;
-	} else if (idx >= 0 && expiration <= future_values[idx].expiration + get_params()->expireslop) {
-		/* Future value has been explored and is within the "sloppy" window */
-		return false;
-	}
-
-	/* Limit the size of the future-values set */
-	if (get_params()->maxfuturevalues > 0 &&
-			(int)future_values.size() >= get_params()->maxfuturevalues)
-		return false;
-
-	future_values.push_back(fv);
-	return true;
-}
-
-/**
- * Gets the next 'future_value' from this Node. Only valid for a node where
- * this->action is a 'read'.
- * @return The first element in future_values
- */
-struct future_value Node::get_future_value() const
-{
-	ASSERT(future_index >= 0 && future_index < ((int)future_values.size()));
-	return future_values[future_index];
-}
-
-/**
- * Checks whether the future_values set for this node is empty.
- * @return true if the future_values set is empty.
- */
-bool Node::future_value_empty() const
-{
-	return ((future_index + 1) >= ((int)future_values.size()));
-}
-
-/**
- * Increments the index into the future_values set to explore the next item.
- * @return Returns false if we have explored all values.
- */
-bool Node::increment_future_value()
-{
-	DBG();
-	if (future_index < ((int)future_values.size())) {
-		future_index++;
-		return (future_index < ((int)future_values.size()));
-	}
-	return false;
-}
-
-/************************** end future values *********************************/
-
 /*********************** breaking release sequences ***************************/
 
 /**
@@ -742,9 +506,6 @@ bool Node::increment_behaviors()
 {
 	/* satisfy a different misc_index values */
 	if (increment_misc())
-		return true;
-	/* satisfy a different set of promises */
-	if (increment_promise())
 		return true;
 	/* read from a different value */
 	if (increment_read_from())

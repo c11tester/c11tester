@@ -471,7 +471,6 @@ void ModelChecker::do_restart()
 /** @brief Run ModelChecker for the user program */
 void ModelChecker::run()
 {
-	bool has_next;
 	int i = 0;
 	do {
 		thrd_t user_thread;
@@ -541,7 +540,7 @@ void ModelChecker::run()
 			t = execution->take_step(curr);
 		} while (!should_terminate_execution());
 
-		has_next = next_execution();
+		next_execution();
 		i++;
 	} while (i<2); // while (has_next);
 

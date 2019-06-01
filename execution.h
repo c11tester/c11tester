@@ -23,7 +23,6 @@
 class Node;
 class NodeStack;
 class CycleGraph;
-class Promise;
 class Scheduler;
 class Thread;
 class ClockVector;
@@ -87,8 +86,6 @@ public:
 	void incr_pthread_counter() { pthread_counter++; }
 	Thread * get_pthread(pthread_t pid);
 
-	int get_promise_number(const Promise *promise) const;
-
 	bool is_enabled(Thread *t) const;
 	bool is_enabled(thread_id_t tid) const;
 
@@ -97,7 +94,6 @@ public:
 
 	ClockVector * get_cv(thread_id_t tid) const;
 	ModelAction * get_parent_action(thread_id_t tid) const;
-	void check_promises_thread_disabled();
 	bool isfeasibleprefix() const;
 
 	action_list_t * get_actions_on_obj(void * obj, thread_id_t tid) const;
@@ -125,10 +121,9 @@ public:
 	action_list_t * get_action_trace() { return &action_trace; }
 
 	CycleGraph * const get_mo_graph() { return mo_graph; }
-
-	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
-	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> cond_map;
-
+  HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
+  HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
+  
 	SNAPSHOTALLOC
 private:
 	int get_execution_number() const;
@@ -144,10 +139,8 @@ private:
 	bool sleep_can_read_from(ModelAction *curr, const ModelAction *write);
 	bool thin_air_constraint_may_allow(const ModelAction *writer, const ModelAction *reader) const;
 	bool mo_may_allow(const ModelAction *writer, const ModelAction *reader);
-	bool promises_may_allow(const ModelAction *writer, const ModelAction *reader) const;
 	void set_bad_synchronization();
 	void set_bad_sc_read();
-	bool promises_expired() const;
 	bool should_wake_up(const ModelAction *curr, const Thread *thread) const;
 	void wake_up_sleeping_actions(ModelAction *curr);
 	modelclock_t get_next_seq_num();
@@ -175,15 +168,7 @@ private:
 	ModelAction * get_last_conflict(ModelAction *act) const;
 	void set_backtracking(ModelAction *act);
 	bool set_latest_backtrack(ModelAction *act);
-	Promise * pop_promise_to_resolve(const ModelAction *curr);
-	bool resolve_promise(ModelAction *curr, Promise *promise,
-			work_queue_t *work);
-	void compute_promises(ModelAction *curr);
 	void compute_relseq_breakwrites(ModelAction *curr);
-
-	void check_promises(thread_id_t tid, ClockVector *old_cv, ClockVector *merge_cv);
-	void mo_check_promises(const ModelAction *act, bool is_read_check);
-	void thread_blocking_check_promises(Thread *blocker, Thread *waiting);
 
 	void check_curr_backtracking(ModelAction *curr);
 	void add_action_to_lists(ModelAction *act);
@@ -197,13 +182,12 @@ private:
 	template <typename rf_type>
 	bool r_modification_order(ModelAction *curr, const rf_type *rf);
 
-	bool w_modification_order(ModelAction *curr, ModelVector<ModelAction *> *send_fv);
+	bool w_modification_order(ModelAction *curr);
 	void get_release_seq_heads(ModelAction *acquire, ModelAction *read, rel_heads_list_t *release_heads);
 	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads, struct release_seq *pending) const;
 	void propagate_clockvector(ModelAction *acquire, work_queue_t *work);
 	bool resolve_release_sequences(void *location, work_queue_t *work_queue);
 	void add_future_value(const ModelAction *writer, ModelAction *reader);
-	bool check_coherence_promise(const ModelAction *write, const ModelAction *read);
 	ModelAction * get_uninitialized_action(const ModelAction *curr) const;
 
 	action_list_t action_trace;
@@ -220,16 +204,8 @@ private:
 
 	HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
 
-//	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
-
-	/**
-	 * @brief List of currently-pending promises
-	 *
-	 * Promises are sorted by the execution order of the read(s) which
-	 * created them
-	 */
-	SnapVector<Promise *> promises;
-	SnapVector<struct PendingFutureValue> futurevalues;
+  HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
+	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> cond_map;
 
 	/**
 	 * List of pending release sequences. Release sequences might be
