@@ -1,7 +1,6 @@
 #include "cyclegraph.h"
 #include "action.h"
 #include "common.h"
-#include "promise.h"
 #include "threads-model.h"
 
 /** Initializes a CycleGraph object. */

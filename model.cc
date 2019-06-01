@@ -101,50 +101,7 @@ Thread * ModelChecker::get_next_thread()
 	 * Have we completed exploring the preselected path? Then let the
 	 * scheduler decide
 	 */
-	if (diverge == NULL)	// W: diverge is set to NULL permanently
-		return scheduler->select_next_thread(node_stack->get_head());
-
-	/* Else, we are trying to replay an execution */
-	ModelAction *next = node_stack->get_next()->get_action();
-
-	if (next == diverge) {
-		if (earliest_diverge == NULL || *diverge < *earliest_diverge)
-			earliest_diverge = diverge;
-
-		Node *nextnode = next->get_node();
-		Node *prevnode = nextnode->get_parent();
-		scheduler->update_sleep_set(prevnode);
-
-		/* Reached divergence point */
-		if (nextnode->increment_behaviors()) {
-			/* Execute the same thread with a new behavior */
-			tid = next->get_tid();
-			node_stack->pop_restofstack(2);
-		} else {
-			ASSERT(prevnode);
-			/* Make a different thread execute for next step */
-			scheduler->add_sleep(get_thread(next->get_tid()));
-			tid = prevnode->get_next_backtrack();
-			/* Make sure the backtracked thread isn't sleeping. */
-			node_stack->pop_restofstack(1);
-			if (diverge == earliest_diverge) {
-				earliest_diverge = prevnode->get_action();
-			}
-		}
-		/* Start the round robin scheduler from this thread id */
-		scheduler->set_scheduler_thread(tid);
-		/* The correct sleep set is in the parent node. */
-		execute_sleep_set();
-
-		DEBUG("*** Divergence point ***\n");
-
-		diverge = NULL;
-	} else {
-		tid = next->get_tid();
-	}
-	DEBUG("*** ModelChecker chose next thread = %d ***\n", id_to_int(tid));
-	ASSERT(tid != THREAD_ID_T_NONE);
-	return get_thread(id_to_int(tid));
+	return scheduler->select_next_thread(node_stack->get_head());
 }
 
 /**
@@ -319,8 +276,7 @@ bool ModelChecker::next_execution()
 // test code
 	execution_number++;
 	reset_to_initial_state();
-	node_stack->pop_restofstack(2);
-//	node_stack->full_reset();
+	node_stack->full_reset();
 	diverge = NULL;
 	return false;
 /* test

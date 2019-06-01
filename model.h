@@ -20,7 +20,6 @@
 class Node;
 class NodeStack;
 class CycleGraph;
-class Promise;
 class Scheduler;
 class Thread;
 class ClockVector;

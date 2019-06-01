@@ -131,15 +131,6 @@ enabled_type_t Scheduler::get_enabled(const Thread *t) const
 	return enabled[id];
 }
 
-void Scheduler::update_sleep_set(Node *n) {
-	enabled_type_t *enabled_array = n->get_enabled_array();
-	for (int i = 0; i < enabled_len; i++) {
-		if (enabled_array[i] == THREAD_SLEEP_SET) {
-			enabled[i] = THREAD_SLEEP_SET;
-		}
-	}
-}
-
 /**
  * Add a Thread to the sleep set.
  * @param t The Thread to add

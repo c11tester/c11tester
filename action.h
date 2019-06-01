@@ -16,7 +16,6 @@
 /* Forward declarations */
 class ClockVector;
 class Thread;
-class Promise;
 
 namespace cdsc {
 	class mutex;
@@ -111,14 +110,12 @@ public:
 	uint64_t get_write_value() const;
 	uint64_t get_return_value() const;
 	const ModelAction * get_reads_from() const { return reads_from; }
-	Promise * get_reads_from_promise() const { return reads_from_promise; }
 	cdsc::mutex * get_mutex() const;
 
 	Node * get_node() const;
 	void set_node(Node *n) { node = n; }
 
 	void set_read_from(const ModelAction *act);
-	void set_read_from_promise(Promise *promise);
 
 	/** Store the most recent fence-release from the same thread
 	 *  @param fence The fence-release that occured prior to this */
@@ -186,10 +183,7 @@ public:
 	unsigned int hash() const;
 
 	bool equals(const ModelAction *x) const { return this == x; }
-	bool equals(const Promise *x) const { return false; }
 
-	bool may_read_from(const ModelAction *write) const;
-	bool may_read_from(const Promise *promise) const;
 	MEMALLOC
 
 	void set_value(uint64_t val) { value = val; }
@@ -226,13 +220,6 @@ private:
 	 * Only valid for reads
 	 */
 	const ModelAction *reads_from;
-
-	/**
-	 * @brief The promise that this action reads from
-	 *
-	 * Only valid for reads
-	 */
-	Promise *reads_from_promise;
 
 	/** @brief The last fence release from the same thread */
 	const ModelAction *last_fence_release;

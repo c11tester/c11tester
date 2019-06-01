@@ -11,7 +11,6 @@
 #include "common.h"
 #include "clockvector.h"
 #include "cyclegraph.h"
-#include "promise.h"
 #include "datarace.h"
 #include "threads-model.h"
 #include "bugmessage.h"
