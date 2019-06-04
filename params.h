@@ -6,10 +6,6 @@
  * the model checker.
  */
 struct model_params {
-	int maxreads;
-	bool yieldon;
-	bool yieldblock;
-	unsigned int fairwindow;
 	unsigned int enabledcount;
 	unsigned int bound;
 	unsigned int uninitvalue;

@@ -24,7 +24,7 @@ static void b(void *obj)
 	printf("r2=%d\n",r2);
 }
 
-int user_main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	thrd_t t1, t2;
 

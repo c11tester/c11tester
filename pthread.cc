@@ -16,10 +16,6 @@
 
 static void param_defaults(struct model_params *params)
 {
-        params->maxreads = 0;
-        params->fairwindow = 0;
-        params->yieldon = false;
-        params->yieldblock = false;
         params->enabledcount = 1;
         params->bound = 0;
         params->verbose = !!DBG_ENABLED();
@@ -198,7 +194,7 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
 	cdsc::condition_variable *v = execution->getCondMap()->get(p_cond);
 	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
 
-	model->switch_to_master(new ModelAction(NOOP, std::memory_order_seq_cst, v, NULL));
+	model->switch_to_master(new ModelAction(NOOP, std::memory_order_seq_cst, v));
 //	v->wait(*m);
 //	printf("timed_wait called\n");
 	return 0;

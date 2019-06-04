@@ -10,7 +10,6 @@
 
 #include "mymemory.h"
 #include "hashtable.h"
-#include "workqueue.h"
 #include "config.h"
 #include "modeltypes.h"
 #include "stl-model.h"
@@ -111,10 +110,7 @@ public:
 	void print_infeasibility(const char *prefix) const;
 	bool is_infeasible() const;
 	bool is_deadlocked() const;
-	bool is_yieldblocked() const;
 	bool too_many_steps() const;
-
-	ModelAction * get_next_backtrack();
 
 	action_list_t * get_action_trace() { return &action_trace; }
 
@@ -125,7 +121,6 @@ public:
 	SNAPSHOTALLOC
 private:
 	int get_execution_number() const;
-	pthread_t pthread_counter;
 
 	ModelChecker *model;
 
@@ -134,8 +129,6 @@ private:
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
 
-	bool sleep_can_read_from(ModelAction *curr, const ModelAction *write);
-	bool thin_air_constraint_may_allow(const ModelAction *writer, const ModelAction *reader) const;
 	bool mo_may_allow(const ModelAction *writer, const ModelAction *reader);
 	void set_bad_synchronization();
 	void set_bad_sc_read();
@@ -146,8 +139,8 @@ private:
 	bool next_execution();
 	ModelAction * check_current_action(ModelAction *curr);
 	bool initialize_curr_action(ModelAction **curr);
-	bool process_read(ModelAction *curr);
-	bool process_write(ModelAction *curr, work_queue_t *work);
+  bool process_read(ModelAction *curr, ModelVector<ModelAction *> * rf_set);
+	bool process_write(ModelAction *curr);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
 
@@ -155,24 +148,12 @@ private:
 	bool read_from(ModelAction *act, const ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
 
-	template <typename T>
-	bool check_recency(ModelAction *curr, const T *rf) const;
-
-	template <typename T, typename U>
-	bool should_read_instead(const ModelAction *curr, const T *rf, const U *other_rf) const;
-
-	ModelAction * get_last_fence_conflict(ModelAction *act) const;
-	ModelAction * get_last_conflict(ModelAction *act) const;
-	void set_backtracking(ModelAction *act);
-	bool set_latest_backtrack(ModelAction *act);
-
-	void check_curr_backtracking(ModelAction *curr);
 	void add_action_to_lists(ModelAction *act);
 	ModelAction * get_last_fence_release(thread_id_t tid) const;
 	ModelAction * get_last_seq_cst_write(ModelAction *curr) const;
 	ModelAction * get_last_seq_cst_fence(thread_id_t tid, const ModelAction *before_fence) const;
 	ModelAction * get_last_unlock(ModelAction *curr) const;
-	void build_may_read_from(ModelAction *curr);
+  ModelVector<ModelAction *> * build_may_read_from(ModelAction *curr);
 	ModelAction * process_rmw(ModelAction *curr);
 
 	template <typename rf_type>
@@ -180,14 +161,13 @@ private:
 
 	bool w_modification_order(ModelAction *curr);
 	void get_release_seq_heads(ModelAction *acquire, ModelAction *read, rel_heads_list_t *release_heads);
-	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads, struct release_seq *pending) const;
-	void propagate_clockvector(ModelAction *acquire, work_queue_t *work);
-	bool resolve_release_sequences(void *location, work_queue_t *work_queue);
+  bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const;
 	ModelAction * get_uninitialized_action(const ModelAction *curr) const;
 
 	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;
 	SnapVector<Thread *> pthread_map;
+	pthread_t pthread_counter;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */
@@ -208,7 +188,6 @@ private:
 	 * are established. Each entry in the list may only be partially
 	 * filled, depending on its pending status.
 	 */
-	SnapVector<struct release_seq *> pending_rel_seqs;
 
 	SnapVector<ModelAction *> thrd_last_action;
 	SnapVector<ModelAction *> thrd_last_fence_release;

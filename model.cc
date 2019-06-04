@@ -95,56 +95,12 @@ Thread * ModelChecker::get_current_thread() const
  */
 Thread * ModelChecker::get_next_thread()
 {
-	thread_id_t tid;
 
 	/*
 	 * Have we completed exploring the preselected path? Then let the
 	 * scheduler decide
 	 */
-	if (diverge == NULL)	// W: diverge is set to NULL permanently
-		return scheduler->select_next_thread(node_stack->get_head());
-
-	/* Else, we are trying to replay an execution */
-	ModelAction *next = node_stack->get_next()->get_action();
-
-	if (next == diverge) {
-		if (earliest_diverge == NULL || *diverge < *earliest_diverge)
-			earliest_diverge = diverge;
-
-		Node *nextnode = next->get_node();
-		Node *prevnode = nextnode->get_parent();
-		scheduler->update_sleep_set(prevnode);
-
-		/* Reached divergence point */
-		if (nextnode->increment_behaviors()) {
-			/* Execute the same thread with a new behavior */
-			tid = next->get_tid();
-			node_stack->pop_restofstack(2);
-		} else {
-			ASSERT(prevnode);
-			/* Make a different thread execute for next step */
-			scheduler->add_sleep(get_thread(next->get_tid()));
-			tid = prevnode->get_next_backtrack();
-			/* Make sure the backtracked thread isn't sleeping. */
-			node_stack->pop_restofstack(1);
-			if (diverge == earliest_diverge) {
-				earliest_diverge = prevnode->get_action();
-			}
-		}
-		/* Start the round robin scheduler from this thread id */
-		scheduler->set_scheduler_thread(tid);
-		/* The correct sleep set is in the parent node. */
-		execute_sleep_set();
-
-		DEBUG("*** Divergence point ***\n");
-
-		diverge = NULL;
-	} else {
-		tid = next->get_tid();
-	}
-	DEBUG("*** ModelChecker chose next thread = %d ***\n", id_to_int(tid));
-	ASSERT(tid != THREAD_ID_T_NONE);
-	return get_thread(id_to_int(tid));
+	return scheduler->select_next_thread(node_stack->get_head());
 }
 
 /**
@@ -319,8 +275,7 @@ bool ModelChecker::next_execution()
 // test code
 	execution_number++;
 	reset_to_initial_state();
-	node_stack->pop_restofstack(2);
-//	node_stack->full_reset();
+	node_stack->full_reset();
 	diverge = NULL;
 	return false;
 /* test
@@ -472,10 +427,14 @@ void ModelChecker::do_restart()
 void ModelChecker::run()
 {
 	int i = 0;
+	//Need to initial random number generator state to avoid resets on rollback
+	char random_state[256];
+	initstate(423121, random_state, sizeof(random_state));
 	do {
 		thrd_t user_thread;
 		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL); // L: user_main_wrapper passes the user program
 		execution->add_thread(t);
+		//Need to seed random number generator, otherwise its state gets reset
 		do {
 			/*
 			 * Stash next pending action(s) for thread(s). There
@@ -539,11 +498,11 @@ void ModelChecker::run()
 			t->set_pending(NULL);
 			t = execution->take_step(curr);
 		} while (!should_terminate_execution());
-
 		next_execution();
 		i++;
-	} while (i<2); // while (has_next);
-
+		//restore random number generator state after rollback
+		setstate(random_state);
+	} while (i<5); // while (has_next);
 
 	model_print("******* Model-checking complete: *******\n");
 	print_stats();

@@ -59,19 +59,17 @@ ModelExecution::ModelExecution(ModelChecker *m,
 		const struct model_params *params,
 		Scheduler *scheduler,
 		NodeStack *node_stack) :
-	pthread_counter(0),
 	model(m),
 	params(params),
 	scheduler(scheduler),
 	action_trace(),
 	thread_map(2), /* We'll always need at least 2 threads */
 	pthread_map(0),
+	pthread_counter(0),
 	obj_map(),
 	condvar_waiters_map(),
 	obj_thrd_map(),
 	mutex_map(),
-	cond_map(),
-	pending_rel_seqs(),
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	node_stack(node_stack),
@@ -269,28 +267,6 @@ bool ModelExecution::is_deadlocked() const
 }
 
 /**
- * @brief Check if we are yield-blocked
- *
- * A program can be "yield-blocked" if all threads are ready to execute a
- * yield.
- *
- * @return True if the program is yield-blocked; false otherwise
- */
-bool ModelExecution::is_yieldblocked() const
-{
-	if (!params->yieldblock)
-		return false;
-
-	for (unsigned int i = 0; i < get_num_threads(); i++) {
-		thread_id_t tid = int_to_id(i);
-		Thread *t = get_thread(tid);
-		if (t->get_pending() && t->get_pending()->is_yield())
-			return true;
-	}
-	return false;
-}
-
-/**
  * Check if this is a complete execution. That is, have all thread completed
  * execution (rather than exiting because sleep sets have forced a redundant
  * execution).
@@ -299,341 +275,34 @@ bool ModelExecution::is_yieldblocked() const
  */
 bool ModelExecution::is_complete_execution() const
 {
-	if (is_yieldblocked())
-		return false;
 	for (unsigned int i = 0; i < get_num_threads(); i++)
 		if (is_enabled(int_to_id(i)))
 			return false;
 	return true;
 }
 
-/**
- * @brief Find the last fence-related backtracking conflict for a ModelAction
- *
- * This function performs the search for the most recent conflicting action
- * against which we should perform backtracking, as affected by fence
- * operations. This includes pairs of potentially-synchronizing actions which
- * occur due to fence-acquire or fence-release, and hence should be explored in
- * the opposite execution order.
- *
- * @param act The current action
- * @return The most recent action which conflicts with act due to fences
- */
-ModelAction * ModelExecution::get_last_fence_conflict(ModelAction *act) const
-{
-	/* Only perform release/acquire fence backtracking for stores */
-	if (!act->is_write())
-		return NULL;
-
-	/* Find a fence-release (or, act is a release) */
-	ModelAction *last_release;
-	if (act->is_release())
-		last_release = act;
-	else
-		last_release = get_last_fence_release(act->get_tid());
-	if (!last_release)
-		return NULL;
-
-	/* Skip past the release */
-	const action_list_t *list = &action_trace;
-	action_list_t::const_reverse_iterator rit;
-	for (rit = list->rbegin(); rit != list->rend(); rit++)
-		if (*rit == last_release)
-			break;
-	ASSERT(rit != list->rend());
-
-	/* Find a prior:
-	 *   load-acquire
-	 * or
-	 *   load --sb-> fence-acquire */
-	ModelVector<ModelAction *> acquire_fences(get_num_threads(), NULL);
-	ModelVector<ModelAction *> prior_loads(get_num_threads(), NULL);
-	bool found_acquire_fences = false;
-	for ( ; rit != list->rend(); rit++) {
-		ModelAction *prev = *rit;
-		if (act->same_thread(prev))
-			continue;
-
-		int tid = id_to_int(prev->get_tid());
-
-		if (prev->is_read() && act->same_var(prev)) {
-			if (prev->is_acquire()) {
-				/* Found most recent load-acquire, don't need
-				 * to search for more fences */
-				if (!found_acquire_fences)
-					return NULL;
-			} else {
-				prior_loads[tid] = prev;
-			}
-		}
-		if (prev->is_acquire() && prev->is_fence() && !acquire_fences[tid]) {
-			found_acquire_fences = true;
-			acquire_fences[tid] = prev;
-		}
-	}
-
-	ModelAction *latest_backtrack = NULL;
-	for (unsigned int i = 0; i < acquire_fences.size(); i++)
-		if (acquire_fences[i] && prior_loads[i])
-			if (!latest_backtrack || *latest_backtrack < *acquire_fences[i])
-				latest_backtrack = acquire_fences[i];
-	return latest_backtrack;
-}
-
-/**
- * @brief Find the last backtracking conflict for a ModelAction
- *
- * This function performs the search for the most recent conflicting action
- * against which we should perform backtracking. This primary includes pairs of
- * synchronizing actions which should be explored in the opposite execution
- * order.
- *
- * @param act The current action
- * @return The most recent action which conflicts with act
- */
-ModelAction * ModelExecution::get_last_conflict(ModelAction *act) const
-{
-	switch (act->get_type()) {
-	case ATOMIC_FENCE:
-		/* Only seq-cst fences can (directly) cause backtracking */
-		if (!act->is_seqcst())
-			break;
-	case ATOMIC_READ:
-	case ATOMIC_WRITE:
-	case ATOMIC_RMW: {
-		ModelAction *ret = NULL;
-
-		/* linear search: from most recent to oldest */
-		action_list_t *list = obj_map.get(act->get_location());
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
-			ModelAction *prev = *rit;
-			if (prev == act)
-				continue;
-			if (prev->could_synchronize_with(act)) {
-				ret = prev;
-				break;
-			}
-		}
-
-		ModelAction *ret2 = get_last_fence_conflict(act);
-		if (!ret2)
-			return ret;
-		if (!ret)
-			return ret2;
-		if (*ret < *ret2)
-			return ret2;
-		return ret;
-	}
-	case ATOMIC_LOCK:
-	case ATOMIC_TRYLOCK: {
-		/* linear search: from most recent to oldest */
-		action_list_t *list = obj_map.get(act->get_location());
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
-			ModelAction *prev = *rit;
-			if (act->is_conflicting_lock(prev))
-				return prev;
-		}
-		break;
-	}
-	case ATOMIC_UNLOCK: {
-		/* linear search: from most recent to oldest */
-		action_list_t *list = obj_map.get(act->get_location());
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
-			ModelAction *prev = *rit;
-			if (!act->same_thread(prev) && prev->is_failed_trylock())
-				return prev;
-		}
-		break;
-	}
-	case ATOMIC_WAIT: {
-		/* linear search: from most recent to oldest */
-		action_list_t *list = obj_map.get(act->get_location());
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
-			ModelAction *prev = *rit;
-			if (!act->same_thread(prev) && prev->is_failed_trylock())
-				return prev;
-			if (!act->same_thread(prev) && prev->is_notify())
-				return prev;
-		}
-		break;
-	}
-
-	case ATOMIC_NOTIFY_ALL:
-	case ATOMIC_NOTIFY_ONE: {
-		/* linear search: from most recent to oldest */
-		action_list_t *list = obj_map.get(act->get_location());
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
-			ModelAction *prev = *rit;
-			if (!act->same_thread(prev) && prev->is_wait())
-				return prev;
-		}
-		break;
-	}
-	default:
-		break;
-	}
-	return NULL;
-}
-
-/** This method finds backtracking points where we should try to
- * reorder the parameter ModelAction against.
- *
- * @param the ModelAction to find backtracking points for.
- */
-void ModelExecution::set_backtracking(ModelAction *act)
-{
-	Thread *t = get_thread(act);
-	ModelAction *prev = get_last_conflict(act);
-	if (prev == NULL)
-		return;
-
-	Node *node = prev->get_node()->get_parent();
-
-	/* See Dynamic Partial Order Reduction (addendum), POPL '05 */
-	int low_tid, high_tid;
-	if (node->enabled_status(t->get_id()) == THREAD_ENABLED) {
-		low_tid = id_to_int(act->get_tid());
-		high_tid = low_tid + 1;
-	} else {
-		low_tid = 0;
-		high_tid = get_num_threads();
-	}
-
-	for (int i = low_tid; i < high_tid; i++) {
-		thread_id_t tid = int_to_id(i);
-
-		/* Make sure this thread can be enabled here. */
-		if (i >= node->get_num_threads())
-			break;
-
-		/* See Dynamic Partial Order Reduction (addendum), POPL '05 */
-		/* Don't backtrack into a point where the thread is disabled or sleeping. */
-		if (node->enabled_status(tid) != THREAD_ENABLED)
-			continue;
-
-		/* Check if this has been explored already */
-		if (node->has_been_explored(tid))
-			continue;
-
-		/* See if fairness allows */
-		if (params->fairwindow != 0 && !node->has_priority(tid)) {
-			bool unfair = false;
-			for (int t = 0; t < node->get_num_threads(); t++) {
-				thread_id_t tother = int_to_id(t);
-				if (node->is_enabled(tother) && node->has_priority(tother)) {
-					unfair = true;
-					break;
-				}
-			}
-			if (unfair)
-				continue;
-		}
-
-		/* See if CHESS-like yield fairness allows */
-		if (params->yieldon) {
-			bool unfair = false;
-			for (int t = 0; t < node->get_num_threads(); t++) {
-				thread_id_t tother = int_to_id(t);
-				if (node->is_enabled(tother) && node->has_priority_over(tid, tother)) {
-					unfair = true;
-					break;
-				}
-			}
-			if (unfair)
-				continue;
-		}
-
-		/* Cache the latest backtracking point */
-		set_latest_backtrack(prev);
-
-		/* If this is a new backtracking point, mark the tree */
-		if (!node->set_backtrack(tid))
-			continue;
-		DEBUG("Setting backtrack: conflict = %d, instead tid = %d\n",
-					id_to_int(prev->get_tid()),
-					id_to_int(t->get_id()));
-		if (DBG_ENABLED()) {
-			prev->print();
-			act->print();
-		}
-	}
-}
-
-/**
- * @brief Cache the a backtracking point as the "most recent", if eligible
- *
- * Note that this does not prepare the NodeStack for this backtracking
- * operation, it only caches the action on a per-execution basis
- *
- * @param act The operation at which we should explore a different next action
- * (i.e., backtracking point)
- * @return True, if this action is now the most recent backtracking point;
- * false otherwise
- */
-bool ModelExecution::set_latest_backtrack(ModelAction *act)
-{
-	if (!priv->next_backtrack || *act > *priv->next_backtrack) {
-		priv->next_backtrack = act;
-		return true;
-	}
-	return false;
-}
-
-/**
- * Returns last backtracking point. The model checker will explore a different
- * path for this point in the next execution.
- * @return The ModelAction at which the next execution should diverge.
- */
-ModelAction * ModelExecution::get_next_backtrack()
-{
-	ModelAction *next = priv->next_backtrack;
-	priv->next_backtrack = NULL;
-	return next;
-}
 
 /**
  * Processes a read model action.
  * @param curr is the read model action to process.
+ * @param rf_set is the set of model actions we can possibly read from
  * @return True if processing this read updates the mo_graph.
  */
-bool ModelExecution::process_read(ModelAction *curr)
+bool ModelExecution::process_read(ModelAction *curr, ModelVector<ModelAction *> * rf_set)
 {
-	Node *node = curr->get_node();
-	while (true) {
-		bool updated = false;
-		switch (node->get_read_from_status()) {
-		case READ_FROM_PAST: {
-			const ModelAction *rf = node->get_read_from_past();
-			ASSERT(rf);
-
-			mo_graph->startChanges();
-
-			ASSERT(!is_infeasible());
-			if (!check_recency(curr, rf)) {
-				if (node->increment_read_from()) {
-					mo_graph->rollbackChanges();
-					continue;
-				} else {
-					priv->too_many_reads = true;
-				}
-			}
-
-			updated = r_modification_order(curr, rf);
-			read_from(curr, rf);
-			mo_graph->commitChanges();
-			break;
-		}
-		default:
-			ASSERT(false);
-		}
-		get_thread(curr)->set_return_value(curr->get_return_value());
-		return updated;
-	}
+	int random_index = random() % rf_set->size();
+	bool updated = false;
+		
+	const ModelAction *rf = (*rf_set)[random_index];
+	ASSERT(rf);
+	
+	mo_graph->startChanges();
+	
+	updated = r_modification_order(curr, rf);
+	read_from(curr, rf);
+	mo_graph->commitChanges();
+	get_thread(curr)->set_return_value(curr->get_return_value());
+	return updated;
 }
 
 /**
@@ -699,12 +368,6 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		if (!curr->is_wait())
 			break; /* The rest is only for ATOMIC_WAIT */
 
-		/* Should we go to sleep? (simulate spurious failures) */
-		if (curr->get_node()->get_misc() == 0) {
-			get_safe_ptr_action(&condvar_waiters_map, curr->get_location())->push_back(curr);
-			/* disable us */
-			scheduler->sleep(get_thread(curr));
-		}
 		break;
 	}
 	case ATOMIC_NOTIFY_ALL: {
@@ -718,7 +381,11 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	}
 	case ATOMIC_NOTIFY_ONE: {
 		action_list_t *waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
-		int wakeupthread = curr->get_node()->get_misc();
+
+		//BCD -- TOFIX FUZZER
+		//THIS SHOULD BE A RANDOM CHOICE
+		//		int wakeupthread = curr->get_node()->get_misc();
+		int wakeupthread = 0;
 		action_list_t::iterator it = waiters->begin();
 
 		// WL
@@ -740,10 +407,9 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 /**
  * Process a write ModelAction
  * @param curr The ModelAction to process
- * @param work The work queue, for adding fixup work
  * @return True if the mo_graph was updated or promises were resolved
  */
-bool ModelExecution::process_write(ModelAction *curr, work_queue_t *work)
+bool ModelExecution::process_write(ModelAction *curr)
 {
 
 	bool updated_mod_order = w_modification_order(curr);
@@ -907,7 +573,7 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 
 	(*curr)->set_seq_number(get_next_seq_num());
 
-	newcurr = node_stack->explore_action(*curr, scheduler->get_enabled_array());
+	newcurr = node_stack->explore_action(*curr);
 	if (newcurr) {
 		/* First restore type and order in case of RMW operation */
 		if ((*curr)->is_rmwr())
@@ -933,15 +599,6 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		/* Assign most recent release fence */
 		newcurr->set_last_fence_release(get_last_fence_release(newcurr->get_tid()));
 
-		/*
-		 * Perform one-time actions when pushing new ModelAction onto
-		 * NodeStack
-		 */
-		if (newcurr->is_wait())
-			newcurr->get_node()->set_misc_max(2);
-		else if (newcurr->is_notify_one()) {
-			newcurr->get_node()->set_misc_max(get_safe_ptr_action(&condvar_waiters_map, newcurr->get_location())->size());
-		}
 		return true; /* This was a new ModelAction */
 	}
 }
@@ -1019,8 +676,6 @@ bool ModelExecution::check_action_enabled(ModelAction *curr) {
 		if (!blocking->is_complete()) {
 			return false;
 		}
-	} else if (params->yieldblock && curr->is_yield()) {
-		return false;
 	}
 
 	return true;
@@ -1047,86 +702,32 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 
 	wake_up_sleeping_actions(curr);
 
-	/* Compute fairness information for CHESS yield algorithm */
-	if (params->yieldon) {
-		curr->get_node()->update_yield(scheduler);
-	}
-
 	/* Add the action to lists before any other model-checking tasks */
 	if (!second_part_of_rmw)
 		add_action_to_lists(curr);
 
+	ModelVector<ModelAction *> * rf_set = NULL;
 	/* Build may_read_from set for newly-created actions */
 	if (newly_explored && curr->is_read())
-		build_may_read_from(curr);
+	  rf_set = build_may_read_from(curr);
 
-	/* Initialize work_queue with the "current action" work */
-	work_queue_t work_queue(1, CheckCurrWorkEntry(curr));
-	while (!work_queue.empty() && !has_asserted()) {
-		WorkQueueEntry work = work_queue.front();
-		work_queue.pop_front();
-
-		switch (work.type) {
-		case WORK_CHECK_CURR_ACTION: {
-			ModelAction *act = work.action;
-
-			process_thread_action(curr);
-
-			if (act->is_read() && !second_part_of_rmw)
-			  process_read(act);
-
-			if (act->is_write())
-			  process_write(act, &work_queue);
-			
-			if (act->is_fence())
-			  process_fence(act);
-			
-			if (act->is_mutex_op())
-			  process_mutex(act);
-
-			break;
-		}
-		case WORK_CHECK_MO_EDGES: {
-			/** @todo Complete verification of work_queue */
-			ModelAction *act = work.action;
-
-			if (act->is_read()) {
-				const ModelAction *rf = act->get_reads_from();
-				r_modification_order(act, rf);
-				if (act->is_seqcst()) {
-				  ModelAction *last_sc_write = get_last_seq_cst_write(act);
-				  if (last_sc_write != NULL && rf->happens_before(last_sc_write)) {
-				    set_bad_sc_read();
-				  }
-				}
-			}
-			if (act->is_write()) {
-			  w_modification_order(act);
-			}
-			mo_graph->commitChanges();
-			break;
-		}
-		default:
-			ASSERT(false);
-			break;
-		}
+	process_thread_action(curr);
+	
+	if (curr->is_read() && !second_part_of_rmw) {
+	  process_read(curr, rf_set);
+	  delete rf_set;
 	}
+	
+	if (curr->is_write())
+	  process_write(curr);
+	
+	if (curr->is_fence())
+	  process_fence(curr);
+	
+	if (curr->is_mutex_op())
+	  process_mutex(curr);
 
-	check_curr_backtracking(curr);
-	set_backtracking(curr);
 	return curr;
-}
-
-void ModelExecution::check_curr_backtracking(ModelAction *curr)
-{
-	Node *currnode = curr->get_node();
-	Node *parnode = currnode->get_parent();
-
-	if ((parnode && !parnode->backtrack_empty()) ||
-			 !currnode->misc_empty() ||
-	    !currnode->read_from_empty()) {
-		set_latest_backtrack(curr);
-	}
 }
 
 /**
@@ -1186,100 +787,6 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
 		mo_graph->commitChanges();
 	}
 	return lastread;
-}
-
-/**
- * A helper function for ModelExecution::check_recency, to check if the current
- * thread is able to read from a different write/promise for 'params.maxreads'
- * number of steps and if that write/promise should become visible (i.e., is
- * ordered later in the modification order). This helps model memory liveness.
- *
- * @param curr The current action. Must be a read.
- * @param rf The write/promise from which we plan to read
- * @param other_rf The write/promise from which we may read
- * @return True if we were able to read from other_rf for params.maxreads steps
- */
-template <typename T, typename U>
-bool ModelExecution::should_read_instead(const ModelAction *curr, const T *rf, const U *other_rf) const
-{
-	/* Need a different write/promise */
-	if (other_rf->equals(rf))
-		return false;
-
-	/* Only look for "newer" writes/promises */
-	if (!mo_graph->checkReachable(rf, other_rf))
-		return false;
-
-	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
-	action_list_t *list = &(*thrd_lists)[id_to_int(curr->get_tid())];
-	action_list_t::reverse_iterator rit = list->rbegin();
-	ASSERT((*rit) == curr);
-	/* Skip past curr */
-	rit++;
-
-	/* Does this write/promise work for everyone? */
-	for (int i = 0; i < params->maxreads; i++, rit++) {
-		ModelAction *act = *rit;
-		if (!act->may_read_from(other_rf))
-			return false;
-	}
-	return true;
-}
-
-/**
- * Checks whether a thread has read from the same write or Promise for too many
- * times without seeing the effects of a later write/Promise.
- *
- * Basic idea:
- * 1) there must a different write/promise that we could read from,
- * 2) we must have read from the same write/promise in excess of maxreads times,
- * 3) that other write/promise must have been in the reads_from set for maxreads times, and
- * 4) that other write/promise must be mod-ordered after the write/promise we are reading.
- *
- * If so, we decide that the execution is no longer feasible.
- *
- * @param curr The current action. Must be a read.
- * @param rf The ModelAction/Promise from which we might read.
- * @return True if the read should succeed; false otherwise
- */
-template <typename T>
-bool ModelExecution::check_recency(ModelAction *curr, const T *rf) const
-{
-	if (!params->maxreads)
-		return true;
-
-	//NOTE: Next check is just optimization, not really necessary....
-	if (curr->get_node()->get_read_from_past_size() <= 1)
-		return true;
-
-	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
-	int tid = id_to_int(curr->get_tid());
-	ASSERT(tid < (int)thrd_lists->size());
-	action_list_t *list = &(*thrd_lists)[tid];
-	action_list_t::reverse_iterator rit = list->rbegin();
-	ASSERT((*rit) == curr);
-	/* Skip past curr */
-	rit++;
-
-	action_list_t::reverse_iterator ritcopy = rit;
-	/* See if we have enough reads from the same value */
-	for (int count = 0; count < params->maxreads; ritcopy++, count++) {
-		if (ritcopy == list->rend())
-			return true;
-		ModelAction *act = *ritcopy;
-		if (!act->is_read())
-			return true;
-		if (act->get_reads_from() && !act->get_reads_from()->equals(rf))
-			return true;
-		if (act->get_node()->get_read_from_past_size() <= 1)
-			return true;
-	}
-	for (int i = 0; i < curr->get_node()->get_read_from_past_size(); i++) {
-		const ModelAction *write = curr->get_node()->get_read_from_past(i);
-		if (should_read_instead(curr, rf, write))
-			return false; /* liveness failure */
-	}
-	return true;
 }
 
 /**
@@ -1378,11 +885,6 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
 			}
 		}
 	}
-
-	/*
-	 * All compatible, thread-exclusive promises must be ordered after any
-	 * concrete loads from the same thread
-	 */
 
 	return added;
 }
@@ -1564,16 +1066,11 @@ bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *
  * @param release_heads A pass-by-reference style return parameter. After
  * execution of this function, release_heads will contain the heads of all the
  * relevant release sequences, if any exists with certainty
- * @param pending A pass-by-reference style return parameter which is only used
- * when returning false (i.e., uncertain). Returns most information regarding
- * an uncertain release sequence, including any write operations that might
- * break the sequence.
  * @return true, if the ModelExecution is certain that release_heads is complete;
  * false otherwise
  */
 bool ModelExecution::release_seq_heads(const ModelAction *rf,
-		rel_heads_list_t *release_heads,
-		struct release_seq *pending) const
+		rel_heads_list_t *release_heads) const
 {
 	/* Only check for release sequences if there are no cycles */
 	if (mo_graph->checkForCycles())
@@ -1600,11 +1097,7 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
 		if (rf->is_acquire() && rf->is_release())
 			return true; /* complete */
 	};
-	if (!rf) {
-		/* read from future: need to settle this later */
-		pending->rf = NULL;
-		return false; /* incomplete */
-	}
+	ASSERT(rf); // Needs to be real write
 
 	if (rf->is_release())
 		return true; /* complete */
@@ -1620,99 +1113,7 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
 	if (fence_release)
 		release_heads->push_back(fence_release);
 
-	int tid = id_to_int(rf->get_tid());
-	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(rf->get_location());
-	action_list_t *list = &(*thrd_lists)[tid];
-	action_list_t::const_reverse_iterator rit;
-
-	/* Find rf in the thread list */
-	rit = std::find(list->rbegin(), list->rend(), rf);
-	ASSERT(rit != list->rend());
-
-	/* Find the last {write,fence}-release */
-	for (; rit != list->rend(); rit++) {
-		if (fence_release && *(*rit) < *fence_release)
-			break;
-		if ((*rit)->is_release())
-			break;
-	}
-	if (rit == list->rend()) {
-		/* No write-release in this thread */
-		return true; /* complete */
-	} else if (fence_release && *(*rit) < *fence_release) {
-		/* The fence-release is more recent (and so, "stronger") than
-		 * the most recent write-release */
-		return true; /* complete */
-	} /* else, need to establish contiguous release sequence */
-	ModelAction *release = *rit;
-
-	ASSERT(rf->same_thread(release));
-
-	pending->writes.clear();
-
-	bool certain = true;
-	for (unsigned int i = 0; i < thrd_lists->size(); i++) {
-		if (id_to_int(rf->get_tid()) == (int)i)
-			continue;
-		list = &(*thrd_lists)[i];
-
-		/* Can we ensure no future writes from this thread may break
-		 * the release seq? */
-		bool future_ordered = false;
-
-		ModelAction *last = get_last_action(int_to_id(i));
-		Thread *th = get_thread(int_to_id(i));
-		if ((last && rf->happens_before(last)) ||
-				!is_enabled(th) ||
-				th->is_complete())
-			future_ordered = true;
-
-		ASSERT(!th->is_model_thread() || future_ordered);
-
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
-			const ModelAction *act = *rit;
-			/* Reach synchronization -> this thread is complete */
-			if (act->happens_before(release))
-				break;
-			if (rf->happens_before(act)) {
-				future_ordered = true;
-				continue;
-			}
-
-			/* Only non-RMW writes can break release sequences */
-			if (!act->is_write() || act->is_rmw())
-				continue;
-
-			/* Check modification order */
-			if (mo_graph->checkReachable(rf, act)) {
-				/* rf --mo--> act */
-				future_ordered = true;
-				continue;
-			}
-			if (mo_graph->checkReachable(act, release))
-				/* act --mo--> release */
-				break;
-			if (mo_graph->checkReachable(release, act) &&
-			              mo_graph->checkReachable(act, rf)) {
-				/* release --mo-> act --mo--> rf */
-				return true; /* complete */
-			}
-			/* act may break release sequence */
-			pending->writes.push_back(act);
-			certain = false;
-		}
-		if (!future_ordered)
-			certain = false; /* This thread is uncertain */
-	}
-
-	if (certain) {
-		release_heads->push_back(release);
-		pending->writes.clear();
-	} else {
-		pending->release = release;
-		pending->rf = rf;
-	}
-	return certain;
+	return true; /* complete */
 }
 
 /**
@@ -1736,100 +1137,8 @@ void ModelExecution::get_release_seq_heads(ModelAction *acquire,
 		ModelAction *read, rel_heads_list_t *release_heads)
 {
 	const ModelAction *rf = read->get_reads_from();
-	struct release_seq *sequence = (struct release_seq *)snapshot_calloc(1, sizeof(struct release_seq));
-	sequence->acquire = acquire;
-	sequence->read = read;
 
-	if (!release_seq_heads(rf, release_heads, sequence)) {
-		/* add act to 'lazy checking' list */
-		pending_rel_seqs.push_back(sequence);
-	} else {
-		snapshot_free(sequence);
-	}
-}
-
-/**
- * @brief Propagate a modified clock vector to actions later in the execution
- * order
- *
- * After an acquire operation lazily completes a release-sequence
- * synchronization, we must update all clock vectors for operations later than
- * the acquire in the execution order.
- *
- * @param acquire The ModelAction whose clock vector must be propagated
- * @param work The work queue to which we can add work items, if this
- * propagation triggers more updates (e.g., to the modification order)
- */
-void ModelExecution::propagate_clockvector(ModelAction *acquire, work_queue_t *work)
-{
-	/* Re-check read-acquire for mo_graph edges */
-	work->push_back(MOEdgeWorkEntry(acquire));
-
-	/* propagate synchronization to later actions */
-	action_list_t::reverse_iterator rit = action_trace.rbegin();
-	for (; (*rit) != acquire; rit++) {
-		ModelAction *propagate = *rit;
-		if (acquire->happens_before(propagate)) {
-			synchronize(acquire, propagate);
-			/* Re-check 'propagate' for mo_graph edges */
-			work->push_back(MOEdgeWorkEntry(propagate));
-		}
-	}
-}
-
-/**
- * Attempt to resolve all stashed operations that might synchronize with a
- * release sequence for a given location. This implements the "lazy" portion of
- * determining whether or not a release sequence was contiguous, since not all
- * modification order information is present at the time an action occurs.
- *
- * @param location The location/object that should be checked for release
- * sequence resolutions. A NULL value means to check all locations.
- * @param work_queue The work queue to which to add work items as they are
- * generated
- * @return True if any updates occurred (new synchronization, new mo_graph
- * edges)
- */
-bool ModelExecution::resolve_release_sequences(void *location, work_queue_t *work_queue)
-{
-	bool updated = false;
-	SnapVector<struct release_seq *>::iterator it = pending_rel_seqs.begin();
-	while (it != pending_rel_seqs.end()) {
-		struct release_seq *pending = *it;
-		ModelAction *acquire = pending->acquire;
-		const ModelAction *read = pending->read;
-
-		/* Only resolve sequences on the given location, if provided */
-		if (location && read->get_location() != location) {
-			it++;
-			continue;
-		}
-
-		const ModelAction *rf = read->get_reads_from();
-		rel_heads_list_t release_heads;
-		bool complete;
-		complete = release_seq_heads(rf, &release_heads, pending);
-		for (unsigned int i = 0; i < release_heads.size(); i++)
-			if (!acquire->has_synchronized_with(release_heads[i]))
-				if (synchronize(release_heads[i], acquire))
-					updated = true;
-
-		if (updated) {
-			/* Propagate the changed clock vector */
-			propagate_clockvector(acquire, work_queue);
-		}
-		if (complete) {
-			it = pending_rel_seqs.erase(it);
-			snapshot_free(pending);
-		} else {
-			it++;
-		}
-	}
-
-	// If we resolved promises or data races, see if we have realized a data race.
-	checkDataRaces();
-
-	return updated;
+	release_seq_heads(rf, release_heads);
 }
 
 /**
@@ -2016,7 +1325,7 @@ ClockVector * ModelExecution::get_cv(thread_id_t tid) const
  * @param curr is the current ModelAction that we are exploring; it must be a
  * 'read' operation.
  */
-void ModelExecution::build_may_read_from(ModelAction *curr)
+ModelVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *curr)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;
@@ -2027,6 +1336,8 @@ void ModelExecution::build_may_read_from(ModelAction *curr)
 	if (curr->is_seqcst())
 		last_sc_write = get_last_seq_cst_write(curr);
 
+	ModelVector<ModelAction *> * rf_set = new ModelVector<ModelAction *>();
+	
 	/* Iterate over all threads */
 	for (i = 0; i < thrd_lists->size(); i++) {
 		/* Iterate over actions in thread, starting from most recent */
@@ -2044,15 +1355,13 @@ void ModelExecution::build_may_read_from(ModelAction *curr)
 
 			if (curr->is_seqcst() && (act->is_seqcst() || (last_sc_write != NULL && act->happens_before(last_sc_write))) && act != last_sc_write)
 				allow_read = false;
-			else if (curr->get_sleep_flag() && !curr->is_seqcst() && !sleep_can_read_from(curr, act))
-				allow_read = false;
 
 			if (allow_read) {
 				/* Only add feasible reads */
 				mo_graph->startChanges();
 				r_modification_order(curr, act);
 				if (!is_infeasible())
-					curr->get_node()->add_read_from_past(act);
+				  rf_set->push_back(act);
 				mo_graph->rollbackChanges();
 			}
 
@@ -2062,36 +1371,12 @@ void ModelExecution::build_may_read_from(ModelAction *curr)
 		}
 	}
 
-	/* We may find no valid may-read-from only if the execution is doomed */
-	if (!curr->get_node()->read_from_size()) {
-		priv->no_valid_reads = true;
-		set_assert();
-	}
-
 	if (DBG_ENABLED()) {
 		model_print("Reached read action:\n");
 		curr->print();
-		model_print("Printing read_from_past\n");
-		curr->get_node()->print_read_from_past();
 		model_print("End printing read_from_past\n");
 	}
-}
-
-bool ModelExecution::sleep_can_read_from(ModelAction *curr, const ModelAction *write)
-{
-	for ( ; write != NULL; write = write->get_reads_from()) {
-		/* UNINIT actions don't have a Node, and they never sleep */
-		if (write->is_uninitialized())
-			return true;
-		Node *prevnode = write->get_node()->get_parent();
-
-		bool thread_sleep = prevnode->enabled_status(curr->get_tid()) == THREAD_SLEEP_SET;
-		if (write->is_release() && thread_sleep)
-			return true;
-		if (!write->is_rmw())
-			return false;
-	}
-	return true;
+	return rf_set;
 }
 
 /**
@@ -2181,8 +1466,6 @@ void ModelExecution::print_summary() const
 
 	model_print("Execution trace %d:", get_execution_number());
 	if (isfeasibleprefix()) {
-		if (is_yieldblocked())
-			model_print(" YIELD BLOCKED");
 		if (scheduler->all_threads_sleeping())
 			model_print(" SLEEP-SET REDUNDANT");
 		if (have_bug_reports())
@@ -2281,16 +1564,15 @@ Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) cons
 	if (curr->is_rmwr())
 		return get_thread(curr);
 	if (curr->is_write()) {
-//		std::memory_order order = curr->get_mo(); 
-//		switch(order) {
-//			case std::memory_order_relaxed: 
-//				return get_thread(curr);
-//			case std::memory_order_release:
-//				return get_thread(curr);
-//			defalut:
-//				return NULL;
-//		}	
-		return NULL;
+		std::memory_order order = curr->get_mo(); 
+		switch(order) {
+			case std::memory_order_relaxed: 
+				return get_thread(curr);
+			case std::memory_order_release:
+				return get_thread(curr);
+			default:
+				return NULL;
+		}	
 	}
 
 	/* Follow CREATE with the created thread */

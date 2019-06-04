@@ -21,24 +21,6 @@ struct fairness_info {
 	bool priority;
 };
 
-/**
- * @brief Types of read-from relations
- *
- * Our "may-read-from" set is composed of multiple types of reads, and we have
- * to iterate through all of them in the backtracking search. This enumeration
- * helps to identify which type of read-from we are currently observing.
- */
-typedef enum {
-	READ_FROM_PAST, /**< @brief Read from a prior, existing store */
-	READ_FROM_NONE, /**< @brief A NULL state, which should not be reached */
-} read_from_type_t;
-
-#define YIELD_E 1
-#define YIELD_D 2
-#define YIELD_S 4
-#define YIELD_P 8
-#define YIELD_INDEX(tid1, tid2, num_threads) (tid1*num_threads+tid2)
-
 
 /**
  * @brief A single node in a NodeStack
@@ -51,91 +33,34 @@ typedef enum {
  */
 class Node {
 public:
-	Node(const struct model_params *params, ModelAction *act, Node *par,
-			int nthreads, Node *prevfairness);
+	Node(ModelAction *act, Node *par,
+			int nthreads);
 	~Node();
-	/* return true = thread choice has already been explored */
-	bool has_been_explored(thread_id_t tid) const;
-	/* return true = backtrack set is empty */
-	bool backtrack_empty() const;
 
-	void clear_backtracking();
-	void explore_child(ModelAction *act, enabled_type_t *is_enabled);
-	/* return false = thread was already in backtrack */
-	bool set_backtrack(thread_id_t id);
-	thread_id_t get_next_backtrack();
 	bool is_enabled(Thread *t) const;
 	bool is_enabled(thread_id_t tid) const;
-	enabled_type_t enabled_status(thread_id_t tid) const;
 
 	ModelAction * get_action() const { return action; }
 	void set_uninit_action(ModelAction *act) { uninit_action = act; }
 	ModelAction * get_uninit_action() const { return uninit_action; }
 
-	bool has_priority(thread_id_t tid) const;
-	void update_yield(Scheduler *);
-	bool has_priority_over(thread_id_t tid, thread_id_t tid2) const;
 	int get_num_threads() const { return num_threads; }
 	/** @return the parent Node to this Node; that is, the action that
 	 * occurred previously in the stack. */
 	Node * get_parent() const { return parent; }
 
-	read_from_type_t get_read_from_status();
-	bool increment_read_from();
-	bool read_from_empty() const;
-	unsigned int read_from_size() const;
 
-	void print_read_from_past();
-	void add_read_from_past(const ModelAction *act);
-	const ModelAction * get_read_from_past() const;
-	const ModelAction * get_read_from_past(int i) const;
-	int get_read_from_past_size() const;
-
-	enabled_type_t *get_enabled_array() {return enabled_array;}
-
-	void set_misc_max(int i);
-	int get_misc() const;
-	bool increment_misc();
-	bool misc_empty() const;
-
-	bool increment_behaviors();
 
 	void print() const;
 
 	MEMALLOC
 private:
-	void explore(thread_id_t tid);
-	int get_yield_data(int tid1, int tid2) const;
-	bool read_from_past_empty() const;
-	bool increment_read_from_past();
-	read_from_type_t read_from_status;
-	const struct model_params * get_params() const { return params; }
-
 	ModelAction * const action;
-
-	const struct model_params * const params;
 
 	/** @brief ATOMIC_UNINIT action which was created at this Node */
 	ModelAction *uninit_action;
-
 	Node * const parent;
 	const int num_threads;
-	ModelVector<bool> explored_children;
-	ModelVector<bool> backtrack;
-	ModelVector<struct fairness_info> fairness;
-	int numBacktracks;
-	enabled_type_t *enabled_array;
-
-	/**
-	 * The set of past ModelActions that this the action at this Node may
-	 * read from. Only meaningful if this Node represents a 'read' action.
-	 */
-	ModelVector<const ModelAction *> read_from_past;
-	unsigned int read_from_past_idx;
-
-	int misc_index;
-	int misc_max;
-	int * yield_data;
 };
 
 typedef ModelVector<Node *> node_list_t;
@@ -155,11 +80,10 @@ public:
 
 	void register_engine(const ModelExecution *exec);
 
-	ModelAction * explore_action(ModelAction *act, enabled_type_t * is_enabled);
+	ModelAction * explore_action(ModelAction *act);
 	Node * get_head() const;
 	Node * get_next() const;
 	void reset_execution();
-	void pop_restofstack(int numAhead);
 	void full_reset();
 	int get_total_nodes() { return total_nodes; }
 

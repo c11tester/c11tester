@@ -181,7 +181,6 @@ public:
 
 	bool equals(const ModelAction *x) const { return this == x; }
 
-	bool may_read_from(const ModelAction *write) const;
 	MEMALLOC
 
 	void set_value(uint64_t val) { value = val; }
