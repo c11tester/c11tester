@@ -15,6 +15,7 @@
 #include "model.h"
 #include "params.h"
 #include "snapshot-interface.h"
+#include "plugins.h"
 
 static void param_defaults(struct model_params *params)
 {
@@ -27,6 +28,7 @@ static void param_defaults(struct model_params *params)
 
 static void print_usage(const char *program_name, struct model_params *params)
 {
+	ModelVector<TraceAnalysis *> * registeredanalysis=getRegisteredTraceAnalysis();
 	/* Reset defaults before printing */
 	param_defaults(params);
 
@@ -65,8 +67,27 @@ static void print_usage(const char *program_name, struct model_params *params)
 		params->verbose,
 		params->uninitvalue,
 		params->maxexecutions);
-
+	model_print("Analysis plugins:\n");
+	for(unsigned int i=0;i<registeredanalysis->size();i++) {
+		TraceAnalysis * analysis=(*registeredanalysis)[i];
+		model_print("%s\n", analysis->name());
+	}
 	exit(EXIT_SUCCESS);
+}
+
+bool install_plugin(char * name) {
+	ModelVector<TraceAnalysis *> * registeredanalysis=getRegisteredTraceAnalysis();
+	ModelVector<TraceAnalysis *> * installedanalysis=getInstalledTraceAnalysis();
+
+	for(unsigned int i=0;i<registeredanalysis->size();i++) {
+		TraceAnalysis * analysis=(*registeredanalysis)[i];
+		if (strcmp(name, analysis->name())==0) {
+			installedanalysis->push_back(analysis);
+			return false;
+		}
+	}
+	model_print("Analysis %s Not Found\n", name);
+	return true;
 }
 
 static void parse_options(struct model_params *params, int argc, char **argv)
@@ -105,7 +126,7 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		case 'u':
 			params->uninitvalue = atoi(optarg);
 			break;
-/**		case 't':
+		case 't':
 			if (install_plugin(optarg))
 				error = true;
 			break;
@@ -116,7 +137,6 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 					error = true;
 			}
 			break;
-*/
 		default: /* '?' */
 			error = true;
 			break;
@@ -140,12 +160,25 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 int main_argc;
 char **main_argv;
 
+static void install_trace_analyses(ModelExecution *execution)
+{
+	ModelVector<TraceAnalysis *> * installedanalysis=getInstalledTraceAnalysis();
+	for(unsigned int i=0;i<installedanalysis->size();i++) {
+		TraceAnalysis * ta=(*installedanalysis)[i];
+		ta->setExecution(execution);
+		model->add_trace_analysis(ta);
+		/** Call the installation event for each installed plugin */
+		ta->actionAtInstallation();
+	}
+}
+
 /** The model_main function contains the main model checking loop. */
 static void model_main()
 {
 	struct model_params params;
 
 	param_defaults(&params);
+	register_plugins();
 
 	parse_options(&params, main_argc, main_argv);
 
@@ -154,8 +187,8 @@ static void model_main()
 
 	snapshot_stack_init();
 
-	model = new ModelChecker(params);	// L: Model thread is created
-//	install_trace_analyses(model->get_execution()); 	L: disable plugin
+	model = new ModelChecker(params);
+	install_trace_analyses(model->get_execution());
 
 	snapshot_record(0);
 	model->run();
