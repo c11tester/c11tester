@@ -11,16 +11,7 @@
 #include "mymemory.h"
 #include "schedule.h"
 #include "stl-model.h"
-
-class ModelAction;
-class Thread;
-
-struct fairness_info {
-	unsigned int enabled_count;
-	unsigned int turns;
-	bool priority;
-};
-
+#include "classlist.h"
 
 /**
  * @brief A single node in a NodeStack
@@ -33,24 +24,12 @@ struct fairness_info {
  */
 class Node {
 public:
-	Node(ModelAction *act, Node *par,
-			int nthreads);
+	Node(ModelAction *act);
 	~Node();
-
-	bool is_enabled(Thread *t) const;
-	bool is_enabled(thread_id_t tid) const;
 
 	ModelAction * get_action() const { return action; }
 	void set_uninit_action(ModelAction *act) { uninit_action = act; }
 	ModelAction * get_uninit_action() const { return uninit_action; }
-
-	int get_num_threads() const { return num_threads; }
-	/** @return the parent Node to this Node; that is, the action that
-	 * occurred previously in the stack. */
-	Node * get_parent() const { return parent; }
-
-
-
 	void print() const;
 
 	MEMALLOC
@@ -59,8 +38,6 @@ private:
 
 	/** @brief ATOMIC_UNINIT action which was created at this Node */
 	ModelAction *uninit_action;
-	Node * const parent;
-	const int num_threads;
 };
 
 typedef ModelVector<Node *> node_list_t;
@@ -79,20 +56,16 @@ public:
 	~NodeStack();
 
 	void register_engine(const ModelExecution *exec);
-
 	ModelAction * explore_action(ModelAction *act);
 	Node * get_head() const;
 	Node * get_next() const;
 	void reset_execution();
 	void full_reset();
-	int get_total_nodes() { return total_nodes; }
-
 	void print() const;
 
 	MEMALLOC
 private:
 	node_list_t node_list;
-
 	const struct model_params * get_params() const;
 
 	/** @brief The model-checker execution object */
@@ -105,8 +78,6 @@ private:
 	 * current head Node. It is negative when the list is empty.
 	 */
 	int head_idx;
-
-	int total_nodes;
 };
 
 #endif /* __NODESTACK_H__ */

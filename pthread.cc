@@ -14,38 +14,6 @@
 #include "model.h"
 #include "execution.h"
 
-static void param_defaults(struct model_params *params)
-{
-        params->enabledcount = 1;
-        params->bound = 0;
-        params->verbose = !!DBG_ENABLED();
-        params->uninitvalue = 0;
-        params->maxexecutions = 0;
-}
-
-static void model_main()
-{
-        struct model_params params;
-
-        param_defaults(&params);
-
-        //parse_options(&params, main_argc, main_argv);
-
-        //Initialize race detector
-        initRaceDetector();
-
-        snapshot_stack_init();
-
-        model = new ModelChecker(params);       // L: Model thread is created
-//      install_trace_analyses(model->get_execution());         L: disable plugin
-
-        snapshot_record(0);
-        model->run();
-        delete model;
-
-        DEBUG("Exiting\n");
-}
-
 int pthread_create(pthread_t *t, const pthread_attr_t * attr,
           pthread_start_t start_routine, void * arg) {
 	struct pthread_params params = { start_routine, arg };
@@ -80,7 +48,7 @@ void pthread_exit(void *value_ptr) {
 
 int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
 	if (!model) {
-		snapshot_system_init(10000, 1024, 1024, 40000, &model_main);
+	  model = new ModelChecker();
 	}
 
 	cdsc::mutex *m = new cdsc::mutex();

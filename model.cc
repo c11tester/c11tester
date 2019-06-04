@@ -21,17 +21,14 @@
 ModelChecker *model;
 
 /** @brief Constructor */
-ModelChecker::ModelChecker(struct model_params params) :
+ModelChecker::ModelChecker() :
 	/* Initialize default scheduler */
-	params(params),
+	params(),
 	restart_flag(false),
-	exit_flag(false),
 	scheduler(new Scheduler()),
 	node_stack(new NodeStack()),
-	execution(new ModelExecution(this, &this->params, scheduler, node_stack)),
+	execution(new ModelExecution(this, scheduler, node_stack)),
 	execution_number(1),
-	diverge(NULL),
-	earliest_diverge(NULL),
 	trace_analyses(),
 	inspect_plugin(NULL)
 {
@@ -43,6 +40,12 @@ ModelChecker::~ModelChecker()
 {
 	delete node_stack;
 	delete scheduler;
+}
+
+/** Method to set parameters */
+void ModelChecker::setParams(struct model_params params) {
+  this->params = params;
+  execution->setParams(&params);
 }
 
 /**
@@ -186,8 +189,6 @@ void ModelChecker::print_stats() const
 	model_print("Number of buggy executions: %d\n", stats.num_buggy_executions);
 	model_print("Number of infeasible executions: %d\n", stats.num_infeasible);
 	model_print("Total executions: %d\n", stats.num_total);
-	if (params.verbose)
-		model_print("Total nodes created: %d\n", node_stack->get_total_nodes());
 }
 
 /**
@@ -201,13 +202,6 @@ void ModelChecker::print_execution(bool printbugs) const
 	print_program_output();
 
 	if (params.verbose >= 3) {
-		model_print("\nEarliest divergence point since last feasible execution:\n");
-		if (earliest_diverge)
-			earliest_diverge->print();
-		else
-			model_print("(Not set)\n");
-
-		model_print("\n");
 		print_stats();
 	}
 
@@ -260,37 +254,7 @@ bool ModelChecker::next_execution()
 	execution_number++;
 	reset_to_initial_state();
 	node_stack->full_reset();
-	diverge = NULL;
 	return false;
-/* test
-	if (complete)
-		earliest_diverge = NULL;
-
-	if (exit_flag)
-		return false;
-
-//	diverge = execution->get_next_backtrack();
-	if (diverge == NULL) {
-		execution_number++;
-		reset_to_initial_state();
-		model_print("Does not diverge\n");
-		return false;
-	} 
-
-	if (DBG_ENABLED()) {
-		model_print("Next execution will diverge at:\n");
-		diverge->print();
-	}
-
-	execution_number++;
-
-	if (params.maxexecutions != 0 && stats.num_complete >= params.maxexecutions)
-		return false;
-
-	reset_to_initial_state();
-	return true;
-*/
-
 }
 
 /** @brief Run trace analyses on complete trace */
@@ -376,17 +340,7 @@ bool ModelChecker::should_terminate_execution()
 		execution->set_assert();
 		return true;
 	}
-
-	if (execution->too_many_steps())
-		return true;
 	return false;
-}
-
-/** @brief Exit ModelChecker upon returning to the run loop of the
- *	model checker. */
-void ModelChecker::exit_model_checker()
-{
-	exit_flag = true;
 }
 
 /** @brief Restart ModelChecker upon returning to the run loop of the
@@ -399,8 +353,6 @@ void ModelChecker::restart()
 void ModelChecker::do_restart()
 {
 	restart_flag = false;
-	diverge = NULL;
-	earliest_diverge = NULL;
 	reset_to_initial_state();
 	node_stack->full_reset();
 	memset(&stats,0,sizeof(struct execution_stats));
@@ -410,11 +362,11 @@ void ModelChecker::do_restart()
 /** @brief Run ModelChecker for the user program */
 void ModelChecker::run()
 {
-	int i = 0;
 	//Need to initial random number generator state to avoid resets on rollback
 	char random_state[256];
 	initstate(423121, random_state, sizeof(random_state));
-	do {
+
+	for(int exec = 0; exec < params.maxexecutions; exec++) {
 		thrd_t user_thread;
 		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL); // L: user_main_wrapper passes the user program
 		execution->add_thread(t);
@@ -483,10 +435,9 @@ void ModelChecker::run()
 			t = execution->take_step(curr);
 		} while (!should_terminate_execution());
 		next_execution();
-		i++;
 		//restore random number generator state after rollback
 		setstate(random_state);
-	} while (i<5); // while (has_next);
+	}
 
 	model_print("******* Model-checking complete: *******\n");
 	print_stats();

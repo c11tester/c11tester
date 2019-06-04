@@ -7,11 +7,7 @@
 
 #include "mymemory.h"
 #include "modeltypes.h"
-
-/* Forward declaration */
-class Thread;
-class Node;
-class ModelExecution;
+#include "classlist.h"
 
 typedef enum enabled_type {
 	THREAD_DISABLED,

@@ -7,9 +7,7 @@
 
 #include "mymemory.h"
 #include "modeltypes.h"
-
-/* Forward declaration */
-class ModelAction;
+#include "classlist.h"
 
 class ClockVector {
 public:

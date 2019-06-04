@@ -17,17 +17,7 @@
 
 #include "mutex.h"
 #include <condition_variable>
-
-/* Forward declaration */
-class Node;
-class NodeStack;
-class CycleGraph;
-class Scheduler;
-class Thread;
-class ClockVector;
-struct model_snapshot_members;
-class ModelChecker;
-struct bug_message;
+#include "classlist.h"
 
 /** @brief Shorthand for a list of release sequence heads */
 typedef ModelVector<const ModelAction *> rel_heads_list_t;
@@ -62,13 +52,13 @@ struct release_seq {
 class ModelExecution {
 public:
 	ModelExecution(ModelChecker *m,
-			const struct model_params *params,
-			Scheduler *scheduler,
+      			Scheduler *scheduler,
 			NodeStack *node_stack);
 	~ModelExecution();
 
-	const struct model_params * get_params() const { return params; }
-
+	struct model_params * get_params() const { return params; }
+	void setParams(struct model_params * _params) {params = _params;}
+  
 	Thread * take_step(ModelAction *curr);
 
 	void print_summary() const;
@@ -110,7 +100,6 @@ public:
 	void print_infeasibility(const char *prefix) const;
 	bool is_infeasible() const;
 	bool is_deadlocked() const;
-	bool too_many_steps() const;
 
 	action_list_t * get_action_trace() { return &action_trace; }
 
@@ -124,7 +113,7 @@ private:
 
 	ModelChecker *model;
 
-	const model_params * const params;
+  struct model_params * params;
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;

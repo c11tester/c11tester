@@ -19,11 +19,9 @@
 
 static void param_defaults(struct model_params *params)
 {
-	params->enabledcount = 1;
-	params->bound = 0;
 	params->verbose = !!DBG_ENABLED();
 	params->uninitvalue = 0;
-	params->maxexecutions = 0;
+	params->maxexecutions = 10;
 }
 
 static void print_usage(const char *program_name, struct model_params *params)
@@ -44,10 +42,6 @@ static void print_usage(const char *program_name, struct model_params *params)
 "\n"
 "Model-checker options:\n"
 "-h, --help                  Display this help message and exit\n"
-"-e, --enabled=COUNT         Enabled count.\n"
-"                              Default: %d\n"
-"-b, --bound=MAX             Upper length bound.\n"
-"                              Default: %d\n"
 "-v[NUM], --verbose[=NUM]    Print verbose execution information. NUM is optional:\n"
 "                              0 is quiet; 1 shows valid executions; 2 is noisy;\n"
 "                              3 is noisier.\n"
@@ -62,8 +56,6 @@ static void print_usage(const char *program_name, struct model_params *params)
 "                            -o help for a list of options\n"
 " --                         Program arguments follow.\n\n",
 		program_name,
-		params->enabledcount,
-		params->bound,
 		params->verbose,
 		params->uninitvalue,
 		params->maxexecutions);
@@ -92,11 +84,9 @@ bool install_plugin(char * name) {
 
 static void parse_options(struct model_params *params, int argc, char **argv)
 {
-	const char *shortopts = "ht:o:e:b:u:x:v::";
+	const char *shortopts = "ht:o:u:x:v::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
-		{"enabled", required_argument, NULL, 'e'},
-		{"bound", required_argument, NULL, 'b'},
 		{"verbose", optional_argument, NULL, 'v'},
 		{"uninitialized", required_argument, NULL, 'u'},
 		{"analysis", required_argument, NULL, 't'},
@@ -113,12 +103,6 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 			break;
 		case 'x':
 			params->maxexecutions = atoi(optarg);
-			break;
-		case 'e':
-			params->enabledcount = atoi(optarg);
-			break;
-		case 'b':
-			params->bound = atoi(optarg);
 			break;
 		case 'v':
 			params->verbose = optarg ? atoi(optarg) : 1;
@@ -187,7 +171,9 @@ static void model_main()
 
 	snapshot_stack_init();
 
-	model = new ModelChecker(params);
+	if (!model)
+	  model = new ModelChecker();
+	model->setParams(params);
 	install_trace_analyses(model->get_execution());
 
 	snapshot_record(0);

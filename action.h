@@ -12,10 +12,7 @@
 #include "memoryorder.h"
 #include "modeltypes.h"
 #include "pthread.h"
-
-/* Forward declarations */
-class ClockVector;
-class Thread;
+#include "classlist.h"
 
 namespace cdsc {
 	class mutex;
@@ -78,9 +75,6 @@ typedef enum action_type {
 	NOOP
 } action_type_t;
 
-/* Forward declaration */
-class Node;
-class ClockVector;
 
 /**
  * @brief Represents a single atomic action

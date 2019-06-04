@@ -56,11 +56,10 @@ struct model_snapshot_members {
 
 /** @brief Constructor */
 ModelExecution::ModelExecution(ModelChecker *m,
-		const struct model_params *params,
 		Scheduler *scheduler,
 		NodeStack *node_stack) :
 	model(m),
-	params(params),
+	params(NULL),
 	scheduler(scheduler),
 	action_trace(),
 	thread_map(2), /* We'll always need at least 2 threads */
@@ -1583,12 +1582,6 @@ Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) cons
 		return curr->get_thread_operand();
 	}
 	return NULL;
-}
-
-/** @return True if the execution has taken too many steps */
-bool ModelExecution::too_many_steps() const
-{
-	return params->bound != 0 && priv->used_sequence_numbers > params->bound;
 }
 
 /**

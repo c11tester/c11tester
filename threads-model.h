@@ -12,6 +12,7 @@
 #include "modeltypes.h"
 #include "stl-model.h"
 #include "context.h"
+#include "classlist.h"
 
 struct thread_params {
 	thrd_start_t func;
@@ -35,7 +36,6 @@ typedef enum thread_state {
 	THREAD_COMPLETED
 } thread_state;
 
-class ModelAction;
 
 /** @brief A Thread is created for each user-space thread */
 class Thread {

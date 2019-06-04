@@ -21,16 +21,12 @@
  * parent.
  *
  * @param act The ModelAction to associate with this Node. May be NULL.
- * @param par The parent Node in the NodeStack. May be NULL if there is no
- * parent.
  * @param nthreads The number of threads which exist at this point in the
  * execution trace.
  */
-Node::Node(ModelAction *act, Node *par, int nthreads) :
+Node::Node(ModelAction *act) :
 	action(act),
-	uninit_action(NULL),
-	parent(par),
-	num_threads(nthreads)
+	uninit_action(NULL)
 {
 	ASSERT(act);
 	act->set_node(this);
@@ -52,10 +48,8 @@ void Node::print() const
 
 NodeStack::NodeStack() :
 	node_list(),
-	head_idx(-1),
-	total_nodes(0)
+	head_idx(-1)
 {
-	total_nodes++;
 }
 
 NodeStack::~NodeStack()
@@ -96,14 +90,7 @@ ModelAction * NodeStack::explore_action(ModelAction *act)
 {
 	DBG();
 
-	/* Record action */
-	Node *head = get_head();
-
-	int next_threads = execution->get_num_threads();
-	if (act->get_type() == THREAD_CREATE || act->get_type() == PTHREAD_CREATE ) // may need to be changed
-		next_threads++;
-	node_list.push_back(new Node(act, head, next_threads));
-	total_nodes++;
+	node_list.push_back(new Node(act));
 	head_idx++;
 	return NULL;
 }
@@ -116,7 +103,6 @@ void NodeStack::full_reset()
 		delete node_list[i];
 	node_list.clear();
 	reset_execution();
-	total_nodes = 1;
 }
 
 Node * NodeStack::get_head() const

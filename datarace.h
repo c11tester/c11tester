@@ -8,9 +8,7 @@
 #include "config.h"
 #include <stdint.h>
 #include "modeltypes.h"
-
-/* Forward declaration */
-class ModelAction;
+#include "classlist.h"
 
 struct ShadowTable {
 	void * array[65536];

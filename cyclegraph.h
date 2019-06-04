@@ -16,9 +16,7 @@
 #include "config.h"
 #include "mymemory.h"
 #include "stl-model.h"
-
-class CycleNode;
-class ModelAction;
+#include "classlist.h"
 
 /** @brief A graph of Model Actions for tracking cycles. */
 class CycleGraph {

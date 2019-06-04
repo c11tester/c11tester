@@ -6,8 +6,6 @@
  * the model checker.
  */
 struct model_params {
-	unsigned int enabledcount;
-	unsigned int bound;
 	unsigned int uninitvalue;
 	int maxexecutions;
 
