@@ -42,8 +42,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	last_fence_release(NULL),
 	node(NULL),
 	seq_number(ACTION_INITIAL_CLOCK),
-	cv(NULL),
-	sleep_flag(false)
+	cv(NULL)
 {
 	/* References to NULL atomic variables can end up here */
 	ASSERT(loc || type == ATOMIC_FENCE);

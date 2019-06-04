@@ -104,22 +104,6 @@ Thread * ModelChecker::get_next_thread()
 }
 
 /**
- * We need to know what the next actions of all threads in the sleep
- * set will be.  This method computes them and stores the actions at
- * the corresponding thread object's pending action.
- */
-void ModelChecker::execute_sleep_set()
-{
-	for (unsigned int i = 0; i < get_num_threads(); i++) {
-		thread_id_t tid = int_to_id(i);
-		Thread *thr = get_thread(tid);
-		if (scheduler->is_sleep_set(thr) && thr->get_pending()) {
-			thr->get_pending()->set_sleep_flag();
-		}
-	}
-}
-
-/**
  * @brief Assert a bug in the executing program.
  *
  * Use this function to assert any sort of bug in the user program. If the

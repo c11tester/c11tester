@@ -175,8 +175,6 @@ public:
 	void process_rmw(ModelAction * act);
 	void copy_typeandorder(ModelAction * act);
 
-	void set_sleep_flag() { sleep_flag=true; }
-	bool get_sleep_flag() { return sleep_flag; }
 	unsigned int hash() const;
 
 	bool equals(const ModelAction *x) const { return this == x; }
@@ -245,8 +243,6 @@ private:
 	 * vectors for all operations.
 	 */
 	ClockVector *cv;
-
-	bool sleep_flag;
 };
 
 #endif /* __ACTION_H__ */

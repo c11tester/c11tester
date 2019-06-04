@@ -92,8 +92,6 @@ private:
 
 	unsigned int get_num_threads() const;
 
-	void execute_sleep_set();
-
 	bool next_execution();
 	bool should_terminate_execution();
 
