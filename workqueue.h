@@ -28,12 +28,6 @@ class WorkQueueEntry {
 	model_work_t type;
 
 	/**
-	 * @brief Object affected
-	 * @see CheckRelSeqWorkEntry
-	 */
-	void *location;
-
-	/**
 	 * @brief The ModelAction to work on
 	 * @see MOEdgeWorkEntry
 	 */
@@ -55,28 +49,7 @@ class CheckCurrWorkEntry : public WorkQueueEntry {
 	 */
 	CheckCurrWorkEntry(ModelAction *curr) {
 		type = WORK_CHECK_CURR_ACTION;
-		location = NULL;
 		action = curr;
-	}
-};
-
-/**
- * @brief Work: check an object location for resolved release sequences
- *
- * This WorkQueueEntry checks synchronization and the mo_graph for resolution
- * of any release sequences. The object @a location is the only relevant
- * parameter to this entry.
- */
-class CheckRelSeqWorkEntry : public WorkQueueEntry {
- public:
-	/**
-	 * @brief Constructor for a "check release sequences" work entry
-	 * @param l The location which must be checked for release sequences
-	 */
-	CheckRelSeqWorkEntry(void *l) {
-		type = WORK_CHECK_RELEASE_SEQ;
-		location = l;
-		action = NULL;
 	}
 };
 
@@ -96,7 +69,6 @@ class MOEdgeWorkEntry : public WorkQueueEntry {
 	 */
 	MOEdgeWorkEntry(ModelAction *updated) {
 		type = WORK_CHECK_MO_EDGES;
-		location = NULL;
 		action = updated;
 	}
 };

@@ -71,7 +71,6 @@ public:
 	const struct model_params * get_params() const { return params; }
 
 	Thread * take_step(ModelAction *curr);
-	void fixup_release_sequences();
 
 	void print_summary() const;
 #if SUPPORT_MOD_ORDER_DUMP
@@ -110,7 +109,6 @@ public:
 	bool is_complete_execution() const;
 
 	void print_infeasibility(const char *prefix) const;
-	bool is_feasible_prefix_ignore_relseq() const;
 	bool is_infeasible() const;
 	bool is_deadlocked() const;
 	bool is_yieldblocked() const;
@@ -154,7 +152,6 @@ private:
 	bool process_mutex(ModelAction *curr);
 
 	bool process_thread_action(ModelAction *curr);
-	void process_relseq_fixup(ModelAction *curr, work_queue_t *work_queue);
 	bool read_from(ModelAction *act, const ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
 
@@ -168,7 +165,6 @@ private:
 	ModelAction * get_last_conflict(ModelAction *act) const;
 	void set_backtracking(ModelAction *act);
 	bool set_latest_backtrack(ModelAction *act);
-	void compute_relseq_breakwrites(ModelAction *curr);
 
 	void check_curr_backtracking(ModelAction *curr);
 	void add_action_to_lists(ModelAction *act);
@@ -187,7 +183,6 @@ private:
 	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads, struct release_seq *pending) const;
 	void propagate_clockvector(ModelAction *acquire, work_queue_t *work);
 	bool resolve_release_sequences(void *location, work_queue_t *work_queue);
-	void add_future_value(const ModelAction *writer, ModelAction *reader);
 	ModelAction * get_uninitialized_action(const ModelAction *curr) const;
 
 	action_list_t action_trace;

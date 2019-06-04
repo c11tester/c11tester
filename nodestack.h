@@ -98,11 +98,6 @@ public:
 	bool increment_misc();
 	bool misc_empty() const;
 
-	void add_relseq_break(const ModelAction *write);
-	const ModelAction * get_relseq_break() const;
-	bool increment_relseq_break();
-	bool relseq_break_empty() const;
-
 	bool increment_behaviors();
 
 	void print() const;
@@ -113,8 +108,6 @@ private:
 	int get_yield_data(int tid1, int tid2) const;
 	bool read_from_past_empty() const;
 	bool increment_read_from_past();
-	bool future_value_empty() const;
-	bool increment_future_value();
 	read_from_type_t read_from_status;
 	const struct model_params * get_params() const { return params; }
 
@@ -139,9 +132,6 @@ private:
 	 */
 	ModelVector<const ModelAction *> read_from_past;
 	unsigned int read_from_past_idx;
-
-	ModelVector<const ModelAction *> relseq_break_writes;
-	int relseq_break_index;
 
 	int misc_index;
 	int misc_max;

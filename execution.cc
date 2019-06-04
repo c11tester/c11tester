@@ -745,9 +745,6 @@ bool ModelExecution::process_mutex(ModelAction *curr)
  */
 bool ModelExecution::process_write(ModelAction *curr, work_queue_t *work)
 {
-	/* Readers to which we may send our future value */
-	ModelVector<ModelAction *> send_fv;
-
 
 	bool updated_mod_order = w_modification_order(curr);
 
@@ -886,61 +883,6 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 }
 
 /**
- * @brief Process the current action for release sequence fixup activity
- *
- * Performs model-checker release sequence fixups for the current action,
- * forcing a single pending release sequence to break (with a given, potential
- * "loose" write) or to complete (i.e., synchronize). If a pending release
- * sequence forms a complete release sequence, then we must perform the fixup
- * synchronization, mo_graph additions, etc.
- *
- * @param curr The current action; must be a release sequence fixup action
- * @param work_queue The work queue to which to add work items as they are
- * generated
- */
-void ModelExecution::process_relseq_fixup(ModelAction *curr, work_queue_t *work_queue)
-{
-	const ModelAction *write = curr->get_node()->get_relseq_break();
-	struct release_seq *sequence = pending_rel_seqs.back();
-	pending_rel_seqs.pop_back();
-	ASSERT(sequence);
-	ModelAction *acquire = sequence->acquire;
-	const ModelAction *rf = sequence->rf;
-	const ModelAction *release = sequence->release;
-	ASSERT(acquire);
-	ASSERT(release);
-	ASSERT(rf);
-	ASSERT(release->same_thread(rf));
-
-	if (write == NULL) {
-		/**
-		 * @todo Forcing a synchronization requires that we set
-		 * modification order constraints. For instance, we can't allow
-		 * a fixup sequence in which two separate read-acquire
-		 * operations read from the same sequence, where the first one
-		 * synchronizes and the other doesn't. Essentially, we can't
-		 * allow any writes to insert themselves between 'release' and
-		 * 'rf'
-		 */
-
-		/* Must synchronize */
-		if (!synchronize(release, acquire))
-			return;
-
-		/* Propagate the changed clock vector */
-		propagate_clockvector(acquire, work_queue);
-	} else {
-		/* Break release sequence with new edges:
-		 *   release --mo--> write --mo--> rf */
-		mo_graph->addEdge(release, write);
-		mo_graph->addEdge(write, rf);
-	}
-
-	/* See if we have realized a data race */
-	checkDataRaces();
-}
-
-/**
  * Initialize the current action by performing one or more of the following
  * actions, as appropriate: merging RMWR and RMWC/RMW actions, stepping forward
  * in the NodeStack, manipulating backtracking sets, allocating and
@@ -995,9 +937,7 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		 * Perform one-time actions when pushing new ModelAction onto
 		 * NodeStack
 		 */
-		if (newcurr->is_relseq_fixup())
-			compute_relseq_breakwrites(newcurr);
-		else if (newcurr->is_wait())
+		if (newcurr->is_wait())
 			newcurr->get_node()->set_misc_max(2);
 		else if (newcurr->is_notify_one()) {
 			newcurr->get_node()->set_misc_max(get_safe_ptr_action(&condvar_waiters_map, newcurr->get_location())->size());
@@ -1129,45 +1069,30 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 		switch (work.type) {
 		case WORK_CHECK_CURR_ACTION: {
 			ModelAction *act = work.action;
-			bool update = false; /* update this location's release seq's */
-			bool update_all = false; /* update all release seq's */
 
-			if (process_thread_action(curr))
-				update_all = true;
+			process_thread_action(curr);
 
-			if (act->is_read() && !second_part_of_rmw && process_read(act))
-				update = true;
+			if (act->is_read() && !second_part_of_rmw)
+			  process_read(act);
 
-			if (act->is_write() && process_write(act, &work_queue))
-				update = true;
+			if (act->is_write())
+			  process_write(act, &work_queue);
+			
+			if (act->is_fence())
+			  process_fence(act);
+			
+			if (act->is_mutex_op())
+			  process_mutex(act);
 
-			if (act->is_fence() && process_fence(act))
-				update_all = true;
-
-			if (act->is_mutex_op() && process_mutex(act))
-				update_all = true;
-
-			if (act->is_relseq_fixup())
-				process_relseq_fixup(curr, &work_queue);
-
-			if (update_all)
-				work_queue.push_back(CheckRelSeqWorkEntry(NULL));
-			else if (update)
-				work_queue.push_back(CheckRelSeqWorkEntry(act->get_location()));
 			break;
 		}
-		case WORK_CHECK_RELEASE_SEQ:
-			resolve_release_sequences(work.location, &work_queue);
-			break;
 		case WORK_CHECK_MO_EDGES: {
 			/** @todo Complete verification of work_queue */
 			ModelAction *act = work.action;
-			bool updated = false;
 
 			if (act->is_read()) {
 				const ModelAction *rf = act->get_reads_from();
-				if (r_modification_order(act, rf))
-				  updated = true;
+				r_modification_order(act, rf);
 				if (act->is_seqcst()) {
 				  ModelAction *last_sc_write = get_last_seq_cst_write(act);
 				  if (last_sc_write != NULL && rf->happens_before(last_sc_write)) {
@@ -1176,13 +1101,9 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 				}
 			}
 			if (act->is_write()) {
-				if (w_modification_order(act))
-					updated = true;
+			  w_modification_order(act);
 			}
 			mo_graph->commitChanges();
-
-			if (updated)
-				work_queue.push_back(CheckRelSeqWorkEntry(act->get_location()));
 			break;
 		}
 		default:
@@ -1203,8 +1124,7 @@ void ModelExecution::check_curr_backtracking(ModelAction *curr)
 
 	if ((parnode && !parnode->backtrack_empty()) ||
 			 !currnode->misc_empty() ||
-			 !currnode->read_from_empty() ||
-			 !currnode->relseq_break_empty()) {
+	    !currnode->read_from_empty()) {
 		set_latest_backtrack(curr);
 	}
 }
@@ -1216,7 +1136,7 @@ void ModelExecution::check_curr_backtracking(ModelAction *curr)
  */
 bool ModelExecution::isfeasibleprefix() const
 {
-	return pending_rel_seqs.size() == 0 && is_feasible_prefix_ignore_relseq();
+  return !is_infeasible();
 }
 
 /**
@@ -1240,16 +1160,6 @@ void ModelExecution::print_infeasibility(const char *prefix) const
 		ptr += sprintf(ptr, "[bad sc read]");
 	if (ptr != buf)
 		model_print("%s: %s", prefix ? prefix : "Infeasible", buf);
-}
-
-/**
- * Returns whether the current completed trace is feasible, except for pending
- * release sequences.
- */
-bool ModelExecution::is_feasible_prefix_ignore_relseq() const
-{
-  return !is_infeasible() ;
-
 }
 
 /**
@@ -1852,8 +1762,6 @@ void ModelExecution::get_release_seq_heads(ModelAction *acquire,
  */
 void ModelExecution::propagate_clockvector(ModelAction *acquire, work_queue_t *work)
 {
-	/* Re-check all pending release sequences */
-	work->push_back(CheckRelSeqWorkEntry(NULL));
 	/* Re-check read-acquire for mo_graph edges */
 	work->push_back(MOEdgeWorkEntry(acquire));
 
@@ -2099,29 +2007,6 @@ ModelAction * ModelExecution::get_parent_action(thread_id_t tid) const
 ClockVector * ModelExecution::get_cv(thread_id_t tid) const
 {
 	return get_parent_action(tid)->get_cv();
-}
-
-/**
- * Compute the set of writes that may break the current pending release
- * sequence. This information is extracted from previou release sequence
- * calculations.
- *
- * @param curr The current ModelAction. Must be a release sequence fixup
- * action.
- */
-void ModelExecution::compute_relseq_breakwrites(ModelAction *curr)
-{
-	if (pending_rel_seqs.empty())
-		return;
-
-	struct release_seq *pending = pending_rel_seqs.back();
-	for (unsigned int i = 0; i < pending->writes.size(); i++) {
-		const ModelAction *write = pending->writes[i];
-		curr->get_node()->add_relseq_break(write);
-	}
-
-	/* NULL means don't break the sequence; just synchronize */
-	curr->get_node()->add_relseq_break(NULL);
 }
 
 /**
@@ -2445,26 +2330,3 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	return action_select_next_thread(curr);
 }
 
-/**
- * Launch end-of-execution release sequence fixups only when
- * the execution is otherwise feasible AND there are:
- *
- * (1) pending release sequences
- * (2) pending assertions that could be invalidated by a change
- * in clock vectors (i.e., data races)
- * (3) no pending promises
- */
-void ModelExecution::fixup_release_sequences()
-{
-	while (!pending_rel_seqs.empty() &&
-			is_feasible_prefix_ignore_relseq() &&
-			haveUnrealizedRaces()) {
-		model_print("*** WARNING: release sequence fixup action "
-				"(%zu pending release seuqence(s)) ***\n",
-				pending_rel_seqs.size());
-		ModelAction *fixup = new ModelAction(MODEL_FIXUP_RELSEQ,
-				std::memory_order_seq_cst, NULL, VALUE_NONE,
-				model_thread);
-		take_step(fixup);
-	};
-}

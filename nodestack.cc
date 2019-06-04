@@ -42,8 +42,6 @@ Node::Node(const struct model_params *params, ModelAction *act, Node *par,
 	enabled_array(NULL),
 	read_from_past(),
 	read_from_past_idx(0),
-	relseq_break_writes(),
-	relseq_break_index(0),
 	misc_index(0),
 	misc_max(0),
 	yield_data(NULL)
@@ -175,7 +173,6 @@ void Node::print() const
 	model_print("\n");
 
 	model_print("          misc: %s\n", misc_empty() ? "empty" : "non-empty");
-	model_print("          rel seq break: %s\n", relseq_break_empty() ? "empty" : "non-empty");
 }
 
 /****************************** threads backtracking **************************/
@@ -442,61 +439,6 @@ bool Node::increment_read_from_past()
 
 /************************** end read from past ********************************/
 
-/*********************** breaking release sequences ***************************/
-
-/**
- * Add a write ModelAction to the set of writes that may break the release
- * sequence. This is used during replay exploration of pending release
- * sequences. This Node must correspond to a release sequence fixup action.
- *
- * @param write The write that may break the release sequence. NULL means we
- * allow the release sequence to synchronize.
- */
-void Node::add_relseq_break(const ModelAction *write)
-{
-	relseq_break_writes.push_back(write);
-}
-
-/**
- * Get the write that may break the current pending release sequence,
- * according to the replay / divergence pattern.
- *
- * @return A write that may break the release sequence. If NULL, that means
- * the release sequence should not be broken.
- */
-const ModelAction * Node::get_relseq_break() const
-{
-	if (relseq_break_index < (int)relseq_break_writes.size())
-		return relseq_break_writes[relseq_break_index];
-	else
-		return NULL;
-}
-
-/**
- * Increments the index into the relseq_break_writes set to explore the next
- * item.
- * @return Returns false if we have explored all values.
- */
-bool Node::increment_relseq_break()
-{
-	DBG();
-	if (relseq_break_index < ((int)relseq_break_writes.size())) {
-		relseq_break_index++;
-		return (relseq_break_index < ((int)relseq_break_writes.size()));
-	}
-	return false;
-}
-
-/**
- * @return True if all writes that may break the release sequence have been
- * explored
- */
-bool Node::relseq_break_empty() const
-{
-	return ((relseq_break_index + 1) >= ((int)relseq_break_writes.size()));
-}
-
-/******************* end breaking release sequences ***************************/
 
 /**
  * Increments some behavior's index, if a new behavior is available
@@ -509,9 +451,6 @@ bool Node::increment_behaviors()
 		return true;
 	/* read from a different value */
 	if (increment_read_from())
-		return true;
-	/* resolve a release sequence differently */
-	if (increment_relseq_break())
 		return true;
 	return false;
 }

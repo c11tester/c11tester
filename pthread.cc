@@ -17,14 +17,11 @@
 static void param_defaults(struct model_params *params)
 {
         params->maxreads = 0;
-        params->maxfuturedelay = 6;
         params->fairwindow = 0;
         params->yieldon = false;
         params->yieldblock = false;
         params->enabledcount = 1;
         params->bound = 0;
-        params->maxfuturevalues = 0;
-        params->expireslop = 4;
         params->verbose = !!DBG_ENABLED();
         params->uninitvalue = 0;
         params->maxexecutions = 0;

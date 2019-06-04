@@ -544,7 +544,6 @@ void ModelChecker::run()
 		i++;
 	} while (i<2); // while (has_next);
 
-	execution->fixup_release_sequences();
 
 	model_print("******* Model-checking complete: *******\n");
 	print_stats();

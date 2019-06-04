@@ -19,14 +19,11 @@
 static void param_defaults(struct model_params *params)
 {
 	params->maxreads = 0;
-	params->maxfuturedelay = 6;
 	params->fairwindow = 0;
 	params->yieldon = false;
 	params->yieldblock = false;
 	params->enabledcount = 1;
 	params->bound = 0;
-	params->maxfuturevalues = 0;
-	params->expireslop = 4;
 	params->verbose = !!DBG_ENABLED();
 	params->uninitvalue = 0;
 	params->maxexecutions = 0;
@@ -52,15 +49,6 @@ static void print_usage(const char *program_name, struct model_params *params)
 "-m, --liveness=NUM          Maximum times a thread can read from the same write\n"
 "                              while other writes exist.\n"
 "                              Default: %d\n"
-"-M, --maxfv=NUM             Maximum number of future values that can be sent to\n"
-"                              the same read.\n"
-"                              Default: %d\n"
-"-s, --maxfvdelay=NUM        Maximum actions that the model checker will wait for\n"
-"                              a write from the future past the expected number\n"
-"                              of actions.\n"
-"                              Default: %d\n"
-"-S, --fvslop=NUM            Future value expiration sloppiness.\n"
-"                              Default: %u\n"
 "-y, --yield                 Enable CHESS-like yield-based fairness support\n"
 "                              (requires thrd_yield() in test program).\n"
 "                              Default: %s\n"
@@ -89,16 +77,13 @@ static void print_usage(const char *program_name, struct model_params *params)
 " --                         Program arguments follow.\n\n",
 		program_name,
 		params->maxreads,
-		params->maxfuturevalues,
-		params->maxfuturedelay,
-		params->expireslop,
 		params->yieldon ? "enabled" : "disabled",
 		params->yieldblock ? "enabled" : "disabled",
 		params->fairwindow,
 		params->enabledcount,
 		params->bound,
 		params->verbose,
-    params->uninitvalue,
+		params->uninitvalue,
 		params->maxexecutions);
 
 	exit(EXIT_SUCCESS);
@@ -106,13 +91,10 @@ static void print_usage(const char *program_name, struct model_params *params)
 
 static void parse_options(struct model_params *params, int argc, char **argv)
 {
-	const char *shortopts = "hyYt:o:m:M:s:S:f:e:b:u:x:v::";
+	const char *shortopts = "hyYt:o:m:f:e:b:u:x:v::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"liveness", required_argument, NULL, 'm'},
-		{"maxfv", required_argument, NULL, 'M'},
-		{"maxfvdelay", required_argument, NULL, 's'},
-		{"fvslop", required_argument, NULL, 'S'},
 		{"fairness", required_argument, NULL, 'f'},
 		{"yield", no_argument, NULL, 'y'},
 		{"yieldblock", no_argument, NULL, 'Y'},
@@ -135,12 +117,6 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		case 'x':
 			params->maxexecutions = atoi(optarg);
 			break;
-		case 's':
-			params->maxfuturedelay = atoi(optarg);
-			break;
-		case 'S':
-			params->expireslop = atoi(optarg);
-			break;
 		case 'f':
 			params->fairwindow = atoi(optarg);
 			break;
@@ -152,9 +128,6 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 			break;
 		case 'm':
 			params->maxreads = atoi(optarg);
-			break;
-		case 'M':
-			params->maxfuturevalues = atoi(optarg);
 			break;
 		case 'v':
 			params->verbose = optarg ? atoi(optarg) : 1;

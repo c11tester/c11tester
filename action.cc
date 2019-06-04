@@ -46,7 +46,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	sleep_flag(false)
 {
 	/* References to NULL atomic variables can end up here */
-	ASSERT(loc || type == ATOMIC_FENCE || type == MODEL_FIXUP_RELSEQ);
+	ASSERT(loc || type == ATOMIC_FENCE);
 
 	Thread *t = thread ? thread : thread_current();
 	this->tid = t->get_id();
@@ -88,11 +88,6 @@ bool ModelAction::is_thread_start() const
 bool ModelAction::is_thread_join() const
 {
 	return type == THREAD_JOIN || type == PTHREAD_JOIN;
-}
-
-bool ModelAction::is_relseq_fixup() const
-{
-	return type == MODEL_FIXUP_RELSEQ;
 }
 
 bool ModelAction::is_mutex_op() const
@@ -535,7 +530,6 @@ bool ModelAction::happens_before(const ModelAction *act) const
 const char * ModelAction::get_type_str() const
 {
 	switch (this->type) {
-		case MODEL_FIXUP_RELSEQ: return "relseq fixup";
 		case THREAD_CREATE: return "thread create";
 		case THREAD_START: return "thread start";
 		case THREAD_YIELD: return "thread yield";
