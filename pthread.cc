@@ -1,7 +1,7 @@
 #include "common.h"
 #include "threads-model.h"
 #include "action.h"
-#include "pthread.h"
+#include "mypthread.h"
 
 #include "snapshot-interface.h"
 #include "datarace.h"
@@ -44,6 +44,7 @@ int pthread_join(pthread_t t, void **value_ptr) {
 void pthread_exit(void *value_ptr) {
 	Thread * th = thread_current();
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, th));
+	while(1) ; //make warning goaway
 }
 
 int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
@@ -121,7 +122,7 @@ int pthread_mutex_timedlock (pthread_mutex_t *__restrict p_mutex,
 
 pthread_t pthread_self() {
 	Thread* th = model->get_current_thread();
-	return th->get_id();
+	return (pthread_t)th->get_id();
 }
 
 int pthread_key_delete(pthread_key_t) {

@@ -14,7 +14,7 @@
 #include "modeltypes.h"
 #include "stl-model.h"
 #include "params.h"
-
+#include "mypthread.h"
 #include "mutex.h"
 #include <condition_variable>
 #include "classlist.h"
@@ -70,7 +70,7 @@ public:
 	Thread * get_thread(thread_id_t tid) const;
 	Thread * get_thread(const ModelAction *act) const;
 
-	pthread_t get_pthread_counter() { return pthread_counter; }
+	uint32_t get_pthread_counter() { return pthread_counter; }
 	void incr_pthread_counter() { pthread_counter++; }
 	Thread * get_pthread(pthread_t pid);
 
@@ -156,7 +156,7 @@ private:
 	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;
 	SnapVector<Thread *> pthread_map;
-	pthread_t pthread_counter;
+  uint32_t pthread_counter;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */

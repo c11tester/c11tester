@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #include "mymemory.h"
-#include <threads.h>
+#include "threads.h"
 #include "modeltypes.h"
 #include "stl-model.h"
 #include "context.h"

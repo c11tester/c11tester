@@ -2,9 +2,11 @@
 #include <stdlib.h>
 
 #include "action.h"
+
 #include "clockvector.h"
 #include "common.h"
 #include "threads-model.h"
+
 
 /**
  * Constructs a new ClockVector, given a parent ClockVector and a first

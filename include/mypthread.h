@@ -3,32 +3,12 @@
  * @brief C11 pthread.h interface header
  */
 #ifndef PTHREAD_H
-#define PTHREAD_H 1
+#define PTHREAD_H
 
 #include <threads.h>
 #include <sched.h>
-#include <bits/pthreadtypes.h>
+//#include <bits/pthreadtypes.h>
 #include <pthread.h>
-
-/* Mutex types.  */
-enum
-{
-  PTHREAD_MUTEX_TIMED_NP,
-  PTHREAD_MUTEX_RECURSIVE_NP,
-  PTHREAD_MUTEX_ERRORCHECK_NP,
-  PTHREAD_MUTEX_ADAPTIVE_NP
-#if defined __USE_UNIX98 || defined __USE_XOPEN2K8
-  ,
-  PTHREAD_MUTEX_NORMAL = PTHREAD_MUTEX_TIMED_NP,
-  PTHREAD_MUTEX_RECURSIVE = PTHREAD_MUTEX_RECURSIVE_NP,
-  PTHREAD_MUTEX_ERRORCHECK = PTHREAD_MUTEX_ERRORCHECK_NP,
-  PTHREAD_MUTEX_DEFAULT = PTHREAD_MUTEX_NORMAL
-#endif
-#ifdef __USE_GNU
-  /* For compatibility.  */ 
-  , PTHREAD_MUTEX_FAST_NP = PTHREAD_MUTEX_TIMED_NP
-#endif
-};
 
 typedef void *(*pthread_start_t)(void *);
 
@@ -58,7 +38,6 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
     pthread_mutex_t *p_mutex, const struct timespec *abstime);
 int pthread_cond_signal(pthread_cond_t *);
 
-void pthread_cleanup_push(void (*routine)(void*), void *arg );
 
 int user_main(int, char**);
 

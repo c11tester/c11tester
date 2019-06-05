@@ -495,7 +495,7 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		break;
 	}
 	case PTHREAD_CREATE: {
-		(*(pthread_t *)curr->get_location()) = pthread_counter++;	
+	  (*(uint32_t *)curr->get_location()) = pthread_counter++;
 
 		struct pthread_params *params = (struct pthread_params *)curr->get_value();
 		Thread *th = new Thread(get_next_id(), NULL, params->func, params->arg, get_thread(curr));
@@ -1522,7 +1522,13 @@ Thread * ModelExecution::get_thread(const ModelAction *act) const
  * @return A Thread reference
  */
 Thread * ModelExecution::get_pthread(pthread_t pid) {
-        if (pid < pthread_counter + 1) return pthread_map[pid];
+  union {
+    pthread_t p;
+    uint32_t v;
+  } x;
+  x.p = pid;
+  uint32_t thread_id = x.v;
+  if (thread_id < pthread_counter + 1) return pthread_map[thread_id];
         else return NULL;
 }
 
