@@ -7,6 +7,7 @@
 #include "model.h"
 #include "nodestack.h"
 #include "execution.h"
+#include "fuzzer.h"
 
 /**
  * Format an "enabled_type_t" for printing
@@ -203,29 +204,19 @@ void Scheduler::wake(Thread *t)
  */
 Thread * Scheduler::select_next_thread(Node *n)
 {
-	int avail_threads = enabled_len;	// number of available threads
-	int thread_list[enabled_len];	// keep a list of threads to select from
-	for (int i = 0; i< enabled_len; i++){
-		thread_list[i] = i;
+	int avail_threads = 0;
+	int thread_list[enabled_len];
+	for (int i = 0; i< enabled_len; i++) {
+	  if (enabled[i] == THREAD_ENABLED)
+	    thread_list[avail_threads++] = i;
 	}
 
-	while (avail_threads > 0) {
-		int random_index = random() % avail_threads;
-		curr_thread_index = thread_list[random_index];	// randomly select a thread from available threads
-		
-		// curr_thread_index = (curr_thread_index + i + 1) % enabled_len;
-		thread_id_t curr_tid = int_to_id(curr_thread_index);
-		
-		if (enabled[curr_thread_index] == THREAD_ENABLED) {
-			return model->get_thread(curr_tid);
-		} else {	// remove this threads from available threads 
-			thread_list[random_index] = thread_list[avail_threads - 1]; 
-			avail_threads--;
-		}
-	}
-	
-	/* No thread was enabled */
-	return NULL;
+	if (avail_threads == 0)
+	    return NULL; // No threads availablex
+	    
+	Thread * thread = execution->getFuzzer()->selectThread(n, thread_list, avail_threads);
+	curr_thread_index = id_to_int(thread->get_id());
+	return thread;
 }
 
 void Scheduler::set_scheduler_thread(thread_id_t tid) {

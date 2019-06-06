@@ -102,7 +102,7 @@ public:
 	bool is_deadlocked() const;
 
 	action_list_t * get_action_trace() { return &action_trace; }
-
+  Fuzzer * getFuzzer();
 	CycleGraph * const get_mo_graph() { return mo_graph; }
   HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
   HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
@@ -206,6 +206,8 @@ private:
 	 */
 	CycleGraph * const mo_graph;
 
+  Fuzzer * fuzzer;
+  
 	Thread * action_select_next_thread(const ModelAction *curr) const;
 };
 

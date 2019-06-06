@@ -4,7 +4,7 @@ OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
 	   nodestack.o clockvector.o main.o snapshot-interface.o cyclegraph.o \
 	   datarace.o impatomic.o cmodelint.o \
 	   snapshot.o malloc.o mymemory.o common.o mutex.o conditionvariable.o \
-	   context.o execution.o libannotate.o plugins.o pthread.o futex.o
+	   context.o execution.o libannotate.o plugins.o pthread.o futex.o fuzzer.o
 
 CPPFLAGS += -Iinclude -I.
 LDFLAGS := -ldl -lrt -rdynamic

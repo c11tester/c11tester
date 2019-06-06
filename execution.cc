@@ -14,6 +14,7 @@
 #include "datarace.h"
 #include "threads-model.h"
 #include "bugmessage.h"
+#include "fuzzer.h"
 
 #define INITIAL_THREAD_ID	0
 
@@ -25,10 +26,7 @@ struct model_snapshot_members {
 		/* First thread created will have id INITIAL_THREAD_ID */
 		next_thread_id(INITIAL_THREAD_ID),
 		used_sequence_numbers(0),
-		next_backtrack(NULL),
 		bugs(),
-		too_many_reads(false),
-		no_valid_reads(false),
 		bad_synchronization(false),
 		bad_sc_read(false),
 		asserted(false)
@@ -42,10 +40,7 @@ struct model_snapshot_members {
 
 	unsigned int next_thread_id;
 	modelclock_t used_sequence_numbers;
-	ModelAction *next_backtrack;
 	SnapVector<bug_message *> bugs;
-	bool too_many_reads;
-	bool no_valid_reads;
 	/** @brief Incorrectly-ordered synchronization was made */
 	bool bad_synchronization;
 	bool bad_sc_read;
@@ -73,7 +68,8 @@ ModelExecution::ModelExecution(ModelChecker *m,
 	thrd_last_fence_release(),
 	node_stack(node_stack),
 	priv(new struct model_snapshot_members()),
-	mo_graph(new CycleGraph())
+	mo_graph(new CycleGraph()),
+	fuzzer(new Fuzzer())
 {
 	/* Initialize a model-checker thread, for special ModelActions */
 	model_thread = new Thread(get_next_id());
@@ -289,14 +285,13 @@ bool ModelExecution::is_complete_execution() const
  */
 bool ModelExecution::process_read(ModelAction *curr, ModelVector<ModelAction *> * rf_set)
 {
-	int random_index = random() % rf_set->size();
 	bool updated = false;
 		
-	const ModelAction *rf = (*rf_set)[random_index];
+	const ModelAction *rf = fuzzer->selectWrite(curr, rf_set);
+
 	ASSERT(rf);
 	
 	mo_graph->startChanges();
-	
 	updated = r_modification_order(curr, rf);
 	read_from(curr, rf);
 	mo_graph->commitChanges();
@@ -380,20 +375,8 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	}
 	case ATOMIC_NOTIFY_ONE: {
 		action_list_t *waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
-
-		//BCD -- TOFIX FUZZER
-		//THIS SHOULD BE A RANDOM CHOICE
-		//		int wakeupthread = curr->get_node()->get_misc();
-		int wakeupthread = 0;
-		action_list_t::iterator it = waiters->begin();
-
-		// WL
-		if (it == waiters->end())
-			break;
-
-		advance(it, wakeupthread);
-		scheduler->wake(get_thread(*it));
-		waiters->erase(it);
+		Thread * thread = fuzzer->selectNotify(waiters);
+		scheduler->wake(thread);
 		break;
 	}
 
@@ -750,10 +733,6 @@ void ModelExecution::print_infeasibility(const char *prefix) const
 	char *ptr = buf;
 	if (mo_graph->checkForCycles())
 		ptr += sprintf(ptr, "[mo cycle]");
-	if (priv->too_many_reads)
-		ptr += sprintf(ptr, "[too many reads]");
-	if (priv->no_valid_reads)
-		ptr += sprintf(ptr, "[no valid reads-from]");
 	if (priv->bad_synchronization)
 		ptr += sprintf(ptr, "[bad sw ordering]");
 	if (priv->bad_sc_read)
@@ -771,8 +750,6 @@ void ModelExecution::print_infeasibility(const char *prefix) const
 bool ModelExecution::is_infeasible() const
 {
 	return mo_graph->checkForCycles() ||
-		priv->no_valid_reads ||
-		priv->too_many_reads ||
 		priv->bad_synchronization ||
 	  priv->bad_sc_read;
 }
@@ -1611,3 +1588,6 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	return action_select_next_thread(curr);
 }
 
+Fuzzer * ModelExecution::getFuzzer() {
+  return fuzzer;
+}
