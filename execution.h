@@ -52,13 +52,13 @@ struct release_seq {
 class ModelExecution {
 public:
 	ModelExecution(ModelChecker *m,
-      			Scheduler *scheduler,
-			NodeStack *node_stack);
+								 Scheduler *scheduler,
+								 NodeStack *node_stack);
 	~ModelExecution();
 
 	struct model_params * get_params() const { return params; }
 	void setParams(struct model_params * _params) {params = _params;}
-  
+
 	Thread * take_step(ModelAction *curr);
 
 	void print_summary() const;
@@ -102,18 +102,18 @@ public:
 	bool is_deadlocked() const;
 
 	action_list_t * get_action_trace() { return &action_trace; }
-  Fuzzer * getFuzzer();
+	Fuzzer * getFuzzer();
 	CycleGraph * const get_mo_graph() { return mo_graph; }
-  HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
-  HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
-  
+	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
+	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
+
 	SNAPSHOTALLOC
 private:
 	int get_execution_number() const;
 
 	ModelChecker *model;
 
-  struct model_params * params;
+	struct model_params * params;
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
@@ -128,7 +128,7 @@ private:
 	bool next_execution();
 	ModelAction * check_current_action(ModelAction *curr);
 	bool initialize_curr_action(ModelAction **curr);
-  bool process_read(ModelAction *curr, ModelVector<ModelAction *> * rf_set);
+	bool process_read(ModelAction *curr, ModelVector<ModelAction *> * rf_set);
 	bool process_write(ModelAction *curr);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
@@ -142,7 +142,7 @@ private:
 	ModelAction * get_last_seq_cst_write(ModelAction *curr) const;
 	ModelAction * get_last_seq_cst_fence(thread_id_t tid, const ModelAction *before_fence) const;
 	ModelAction * get_last_unlock(ModelAction *curr) const;
-  ModelVector<ModelAction *> * build_may_read_from(ModelAction *curr);
+	ModelVector<ModelAction *> * build_may_read_from(ModelAction *curr);
 	ModelAction * process_rmw(ModelAction *curr);
 
 	template <typename rf_type>
@@ -150,13 +150,13 @@ private:
 
 	bool w_modification_order(ModelAction *curr);
 	void get_release_seq_heads(ModelAction *acquire, ModelAction *read, rel_heads_list_t *release_heads);
-  bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const;
+	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const;
 	ModelAction * get_uninitialized_action(const ModelAction *curr) const;
 
 	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;
 	SnapVector<Thread *> pthread_map;
-  uint32_t pthread_counter;
+	uint32_t pthread_counter;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */
@@ -168,7 +168,7 @@ private:
 
 	HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
 
-  HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
+	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
 	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> cond_map;
 
 	/**
@@ -206,9 +206,9 @@ private:
 	 */
 	CycleGraph * const mo_graph;
 
-  Fuzzer * fuzzer;
-  
+	Fuzzer * fuzzer;
+
 	Thread * action_select_next_thread(const ModelAction *curr) const;
 };
 
-#endif /* __EXECUTION_H__ */
+#endif/* __EXECUTION_H__ */

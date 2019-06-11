@@ -16,7 +16,7 @@
 #include "bugmessage.h"
 #include "fuzzer.h"
 
-#define INITIAL_THREAD_ID	0
+#define INITIAL_THREAD_ID       0
 
 /**
  * Structure for holding small ModelChecker members that should be snapshotted
@@ -33,7 +33,7 @@ struct model_snapshot_members {
 	{ }
 
 	~model_snapshot_members() {
-		for (unsigned int i = 0; i < bugs.size(); i++)
+		for (unsigned int i = 0;i < bugs.size();i++)
 			delete bugs[i];
 		bugs.clear();
 	}
@@ -51,13 +51,13 @@ struct model_snapshot_members {
 
 /** @brief Constructor */
 ModelExecution::ModelExecution(ModelChecker *m,
-		Scheduler *scheduler,
-		NodeStack *node_stack) :
+															 Scheduler *scheduler,
+															 NodeStack *node_stack) :
 	model(m),
 	params(NULL),
 	scheduler(scheduler),
 	action_trace(),
-	thread_map(2), /* We'll always need at least 2 threads */
+	thread_map(2),			/* We'll always need at least 2 threads */
 	pthread_map(0),
 	pthread_counter(0),
 	obj_map(),
@@ -67,8 +67,8 @@ ModelExecution::ModelExecution(ModelChecker *m,
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	node_stack(node_stack),
-	priv(new struct model_snapshot_members()),
-	mo_graph(new CycleGraph()),
+	priv(new struct model_snapshot_members ()),
+			 mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer())
 {
 	/* Initialize a model-checker thread, for special ModelActions */
@@ -81,7 +81,7 @@ ModelExecution::ModelExecution(ModelChecker *m,
 /** @brief Destructor */
 ModelExecution::~ModelExecution()
 {
-	for (unsigned int i = 0; i < get_num_threads(); i++)
+	for (unsigned int i = 0;i < get_num_threads();i++)
 		delete get_thread(int_to_id(i));
 
 	delete mo_graph;
@@ -173,7 +173,7 @@ bool ModelExecution::should_wake_up(const ModelAction *curr, const Thread *threa
 
 void ModelExecution::wake_up_sleeping_actions(ModelAction *curr)
 {
-	for (unsigned int i = 0; i < get_num_threads(); i++) {
+	for (unsigned int i = 0;i < get_num_threads();i++) {
 		Thread *thr = get_thread(int_to_id(i));
 		if (scheduler->is_sleep_set(thr)) {
 			if (should_wake_up(curr, thr))
@@ -250,7 +250,7 @@ void ModelExecution::set_assert()
 bool ModelExecution::is_deadlocked() const
 {
 	bool blocking_threads = false;
-	for (unsigned int i = 0; i < get_num_threads(); i++) {
+	for (unsigned int i = 0;i < get_num_threads();i++) {
 		thread_id_t tid = int_to_id(i);
 		if (is_enabled(tid))
 			return false;
@@ -270,7 +270,7 @@ bool ModelExecution::is_deadlocked() const
  */
 bool ModelExecution::is_complete_execution() const
 {
-	for (unsigned int i = 0; i < get_num_threads(); i++)
+	for (unsigned int i = 0;i < get_num_threads();i++)
 		if (is_enabled(int_to_id(i)))
 			return false;
 	return true;
@@ -285,26 +285,26 @@ bool ModelExecution::is_complete_execution() const
  */
 bool ModelExecution::process_read(ModelAction *curr, ModelVector<ModelAction *> * rf_set)
 {
-  while(true) {
-		
-    int index = fuzzer->selectWrite(curr, rf_set);
-    const ModelAction *rf = (*rf_set)[index];
+	while(true) {
 
-    
-    ASSERT(rf);
-    
-    mo_graph->startChanges();
-    bool updated = r_modification_order(curr, rf);
-    if (!is_infeasible()) {
-      read_from(curr, rf);
-      mo_graph->commitChanges();
-      get_thread(curr)->set_return_value(curr->get_return_value());
-      return updated;
-    }
-    mo_graph->rollbackChanges();
-    (*rf_set)[index] = rf_set->back();
-    rf_set->pop_back();
-  }
+		int index = fuzzer->selectWrite(curr, rf_set);
+		const ModelAction *rf = (*rf_set)[index];
+
+
+		ASSERT(rf);
+
+		mo_graph->startChanges();
+		bool updated = r_modification_order(curr, rf);
+		if (!is_infeasible()) {
+			read_from(curr, rf);
+			mo_graph->commitChanges();
+			get_thread(curr)->set_return_value(curr->get_return_value());
+			return updated;
+		}
+		mo_graph->rollbackChanges();
+		(*rf_set)[index] = rf_set->back();
+		rf_set->pop_back();
+	}
 }
 
 /**
@@ -341,7 +341,7 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		}
 		get_thread(curr)->set_return_value(1);
 	}
-		//otherwise fall into the lock case
+	//otherwise fall into the lock case
 	case ATOMIC_LOCK: {
 		if (curr->get_cv()->getClock(state->alloc_tid) <= state->alloc_clock)
 			assert_bug("Lock access before initialization");
@@ -357,7 +357,7 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	case ATOMIC_WAIT:
 	case ATOMIC_UNLOCK: {
 		/* wake up the other threads */
-		for (unsigned int i = 0; i < get_num_threads(); i++) {
+		for (unsigned int i = 0;i < get_num_threads();i++) {
 			Thread *t = get_thread(int_to_id(i));
 			Thread *curr_thrd = get_thread(curr);
 			if (t->waiting_on() == curr_thrd && t->get_pending()->is_lock())
@@ -368,14 +368,14 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		state->locked = NULL;
 
 		if (!curr->is_wait())
-			break; /* The rest is only for ATOMIC_WAIT */
+			break;									/* The rest is only for ATOMIC_WAIT */
 
 		break;
 	}
 	case ATOMIC_NOTIFY_ALL: {
 		action_list_t *waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
 		//activate all the waiting threads
-		for (action_list_t::iterator rit = waiters->begin(); rit != waiters->end(); rit++) {
+		for (action_list_t::iterator rit = waiters->begin();rit != waiters->end();rit++) {
 			scheduler->wake(get_thread(*rit));
 		}
 		waiters->clear();
@@ -430,7 +430,7 @@ bool ModelExecution::process_fence(ModelAction *curr)
 		action_list_t *list = &action_trace;
 		action_list_t::reverse_iterator rit;
 		/* Find X : is_read(X) && X --sb-> curr */
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
+		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
 			if (act == curr)
 				continue;
@@ -451,7 +451,7 @@ bool ModelExecution::process_fence(ModelAction *curr)
 			/* Establish hypothetical release sequences */
 			rel_heads_list_t release_heads;
 			get_release_seq_heads(curr, act, &release_heads);
-			for (unsigned int i = 0; i < release_heads.size(); i++)
+			for (unsigned int i = 0;i < release_heads.size();i++)
 				synchronize(release_heads[i], curr);
 			if (release_heads.size() != 0)
 				updated = true;
@@ -486,7 +486,7 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		break;
 	}
 	case PTHREAD_CREATE: {
-	  (*(uint32_t *)curr->get_location()) = pthread_counter++;
+		(*(uint32_t *)curr->get_location()) = pthread_counter++;
 
 		struct pthread_params *params = (struct pthread_params *)curr->get_value();
 		Thread *th = new Thread(get_next_id(), NULL, params->func, params->arg, get_thread(curr));
@@ -494,8 +494,8 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		add_thread(th);
 		th->set_creation(curr);
 
-	        if ( pthread_map.size() < pthread_counter )
-	                pthread_map.resize( pthread_counter );
+		if ( pthread_map.size() < pthread_counter )
+			pthread_map.resize( pthread_counter );
 		pthread_map[ pthread_counter-1 ] = th;
 
 		break;
@@ -504,28 +504,28 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		updated = true; /* trigger rel-seq checks */
+		updated = true;							/* trigger rel-seq checks */
 		break;
 	}
 	case PTHREAD_JOIN: {
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		updated = true; /* trigger rel-seq checks */
-		break; // WL: to be add (modified)
+		updated = true;							/* trigger rel-seq checks */
+		break;						// WL: to be add (modified)
 	}
 
 	case THREAD_FINISH: {
 		Thread *th = get_thread(curr);
 		/* Wake up any joining threads */
-		for (unsigned int i = 0; i < get_num_threads(); i++) {
+		for (unsigned int i = 0;i < get_num_threads();i++) {
 			Thread *waiting = get_thread(int_to_id(i));
 			if (waiting->waiting_on() == th &&
 					waiting->get_pending()->is_thread_join())
 				scheduler->wake(waiting);
 		}
 		th->complete();
-		updated = true; /* trigger rel-seq checks */
+		updated = true;							/* trigger rel-seq checks */
 		break;
 	}
 	case THREAD_START: {
@@ -579,7 +579,7 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		newcurr->create_cv(get_parent_action(newcurr->get_tid()));
 
 		*curr = newcurr;
-		return false; /* Action was explored previously */
+		return false;							/* Action was explored previously */
 	} else {
 		newcurr = *curr;
 
@@ -589,7 +589,7 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		/* Assign most recent release fence */
 		newcurr->set_last_fence_release(get_last_fence_release(newcurr->get_tid()));
 
-		return true; /* This was a new ModelAction */
+		return true;						/* This was a new ModelAction */
 	}
 }
 
@@ -615,7 +615,7 @@ bool ModelExecution::read_from(ModelAction *act, const ModelAction *rf)
 		rel_heads_list_t release_heads;
 		get_release_seq_heads(act, act, &release_heads);
 		int num_heads = release_heads.size();
-		for (unsigned int i = 0; i < release_heads.size(); i++)
+		for (unsigned int i = 0;i < release_heads.size();i++)
 			if (!synchronize(release_heads[i], act))
 				num_heads--;
 		return num_heads > 0;
@@ -699,25 +699,25 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	ModelVector<ModelAction *> * rf_set = NULL;
 	/* Build may_read_from set for newly-created actions */
 	if (newly_explored && curr->is_read())
-	  rf_set = build_may_read_from(curr);
+		rf_set = build_may_read_from(curr);
 
 	process_thread_action(curr);
-	
+
 	if (curr->is_read() && !second_part_of_rmw) {
-	  process_read(curr, rf_set);
-	  delete rf_set;
+		process_read(curr, rf_set);
+		delete rf_set;
 	} else {
-	  ASSERT(rf_set == NULL);
+		ASSERT(rf_set == NULL);
 	}
-	
+
 	if (curr->is_write())
-	  process_write(curr);
-	
+		process_write(curr);
+
 	if (curr->is_fence())
-	  process_fence(curr);
-	
+		process_fence(curr);
+
 	if (curr->is_mutex_op())
-	  process_mutex(curr);
+		process_mutex(curr);
 
 	return curr;
 }
@@ -729,7 +729,7 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
  */
 bool ModelExecution::isfeasibleprefix() const
 {
-  return !is_infeasible();
+	return !is_infeasible();
 }
 
 /**
@@ -760,8 +760,8 @@ void ModelExecution::print_infeasibility(const char *prefix) const
 bool ModelExecution::is_infeasible() const
 {
 	return mo_graph->checkForCycles() ||
-		priv->bad_synchronization ||
-	  priv->bad_sc_read;
+				 priv->bad_synchronization ||
+				 priv->bad_sc_read;
 }
 
 /** Close out a RMWR by converting previous RMWR into a RMW or READ. */
@@ -769,7 +769,7 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
 	ModelAction *lastread = get_last_action(act->get_tid());
 	lastread->process_rmw(act);
 	if (act->is_rmw()) {
-	  mo_graph->addRMWEdge(lastread->get_reads_from(), lastread);
+		mo_graph->addRMWEdge(lastread->get_reads_from(), lastread);
 		mo_graph->commitChanges();
 	}
 	return lastread;
@@ -806,7 +806,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
 		last_sc_write = get_last_seq_cst_write(curr);
 
 	/* Iterate over all threads */
-	for (i = 0; i < thrd_lists->size(); i++) {
+	for (i = 0;i < thrd_lists->size();i++) {
 		/* Last SC fence in thread i */
 		ModelAction *last_sc_fence_thread_local = NULL;
 		if (int_to_id((int)i) != curr->get_tid())
@@ -820,7 +820,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
 		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
+		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
 
 			/* Skip curr */
@@ -843,13 +843,13 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
 				}
 				/* C++, Section 29.3 statement 4 */
 				else if (act->is_seqcst() && last_sc_fence_local &&
-						*act < *last_sc_fence_local) {
+								 *act < *last_sc_fence_local) {
 					added = mo_graph->addEdge(act, rf) || added;
 					break;
 				}
 				/* C++, Section 29.3 statement 6 */
 				else if (last_sc_fence_thread_before &&
-						*act < *last_sc_fence_thread_before) {
+								 *act < *last_sc_fence_thread_before) {
 					added = mo_graph->addEdge(act, rf) || added;
 					break;
 				}
@@ -865,7 +865,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const rf_type *rf)
 				} else {
 					const ModelAction *prevrf = act->get_reads_from();
 					if (!prevrf->equals(rf))
-					  added = mo_graph->addEdge(prevrf, rf) || added;
+						added = mo_graph->addEdge(prevrf, rf) || added;
 				}
 				break;
 			}
@@ -908,7 +908,7 @@ bool ModelExecution::w_modification_order(ModelAction *curr)
 
 	if (curr->is_seqcst()) {
 		/* We have to at least see the last sequentially consistent write,
-			 so we are initialized. */
+		         so we are initialized. */
 		ModelAction *last_seq_cst = get_last_seq_cst_write(curr);
 		if (last_seq_cst != NULL) {
 			added = mo_graph->addEdge(last_seq_cst, curr) || added;
@@ -919,7 +919,7 @@ bool ModelExecution::w_modification_order(ModelAction *curr)
 	ModelAction *last_sc_fence_local = get_last_seq_cst_fence(curr->get_tid(), NULL);
 
 	/* Iterate over all threads */
-	for (i = 0; i < thrd_lists->size(); i++) {
+	for (i = 0;i < thrd_lists->size();i++) {
 		/* Last SC fence in thread i, before last SC fence in current thread */
 		ModelAction *last_sc_fence_thread_before = NULL;
 		if (last_sc_fence_local && int_to_id((int)i) != curr->get_tid())
@@ -928,7 +928,7 @@ bool ModelExecution::w_modification_order(ModelAction *curr)
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
 		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
+		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
 			if (act == curr) {
 				/*
@@ -973,11 +973,11 @@ bool ModelExecution::w_modification_order(ModelAction *curr)
 					added = mo_graph->addEdge(act, curr) || added;
 				else if (act->is_read()) {
 					//if previous read accessed a null, just keep going
-				  added = mo_graph->addEdge(act->get_reads_from(), curr) || added;
+					added = mo_graph->addEdge(act->get_reads_from(), curr) || added;
 				}
 				break;
 			} else if (act->is_read() && !act->could_synchronize_with(curr) &&
-			                             !act->same_thread(curr)) {
+								 !act->same_thread(curr)) {
 				/* We have an action that:
 				   (1) did not happen before us
 				   (2) is a read and we are a write
@@ -1011,13 +1011,13 @@ bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(reader->get_location());
 	unsigned int i;
 	/* Iterate over all threads */
-	for (i = 0; i < thrd_lists->size(); i++) {
+	for (i = 0;i < thrd_lists->size();i++) {
 		const ModelAction *write_after_read = NULL;
 
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
 		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
+		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
 
 			/* Don't disallow due to act == reader */
@@ -1056,13 +1056,13 @@ bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *
  * false otherwise
  */
 bool ModelExecution::release_seq_heads(const ModelAction *rf,
-		rel_heads_list_t *release_heads) const
+																			 rel_heads_list_t *release_heads) const
 {
 	/* Only check for release sequences if there are no cycles */
 	if (mo_graph->checkForCycles())
 		return false;
 
-	for ( ; rf != NULL; rf = rf->get_reads_from()) {
+	for ( ;rf != NULL;rf = rf->get_reads_from()) {
 		ASSERT(rf->is_write());
 
 		if (rf->is_release())
@@ -1070,7 +1070,7 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
 		else if (rf->get_last_fence_release())
 			release_heads->push_back(rf->get_last_fence_release());
 		if (!rf->is_rmw())
-			break; /* End of RMW chain */
+			break;									/* End of RMW chain */
 
 		/** @todo Need to be smarter here...  In the linux lock
 		 * example, this will run to the beginning of the program for
@@ -1081,12 +1081,12 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
 
 		/* acq_rel RMW is a sufficient stopping condition */
 		if (rf->is_acquire() && rf->is_release())
-			return true; /* complete */
+			return true;									/* complete */
 	};
-	ASSERT(rf); // Needs to be real write
+	ASSERT(rf);				// Needs to be real write
 
 	if (rf->is_release())
-		return true; /* complete */
+		return true;						/* complete */
 
 	/* else relaxed write
 	 * - check for fence-release in the same thread (29.8, stmt. 3)
@@ -1099,7 +1099,7 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
 	if (fence_release)
 		release_heads->push_back(fence_release);
 
-	return true; /* complete */
+	return true;			/* complete */
 }
 
 /**
@@ -1120,7 +1120,7 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
  * @see ModelExecution::release_seq_heads
  */
 void ModelExecution::get_release_seq_heads(ModelAction *acquire,
-		ModelAction *read, rel_heads_list_t *release_heads)
+																					 ModelAction *read, rel_heads_list_t *release_heads)
 {
 	const ModelAction *rf = read->get_reads_from();
 
@@ -1223,10 +1223,10 @@ ModelAction * ModelExecution::get_last_seq_cst_write(ModelAction *curr) const
 	action_list_t *list = obj_map.get(location);
 	/* Find: max({i in dom(S) | seq_cst(t_i) && isWrite(t_i) && samevar(t_i, t)}) */
 	action_list_t::reverse_iterator rit;
-	for (rit = list->rbegin(); (*rit) != curr; rit++)
+	for (rit = list->rbegin();(*rit) != curr;rit++)
 		;
-	rit++; /* Skip past curr */
-	for ( ; rit != list->rend(); rit++)
+	rit++;			/* Skip past curr */
+	for ( ;rit != list->rend();rit++)
 		if ((*rit)->is_write() && (*rit)->is_seqcst())
 			return *rit;
 	return NULL;
@@ -1251,7 +1251,7 @@ ModelAction * ModelExecution::get_last_seq_cst_fence(thread_id_t tid, const Mode
 	action_list_t::reverse_iterator rit = list->rbegin();
 
 	if (before_fence) {
-		for (; rit != list->rend(); rit++)
+		for (;rit != list->rend();rit++)
 			if (*rit == before_fence)
 				break;
 
@@ -1259,7 +1259,7 @@ ModelAction * ModelExecution::get_last_seq_cst_fence(thread_id_t tid, const Mode
 		rit++;
 	}
 
-	for (; rit != list->rend(); rit++)
+	for (;rit != list->rend();rit++)
 		if ((*rit)->is_fence() && (tid == (*rit)->get_tid()) && (*rit)->is_seqcst())
 			return *rit;
 	return NULL;
@@ -1280,7 +1280,7 @@ ModelAction * ModelExecution::get_last_unlock(ModelAction *curr) const
 	action_list_t *list = obj_map.get(location);
 	/* Find: max({i in dom(S) | isUnlock(t_i) && samevar(t_i, t)}) */
 	action_list_t::reverse_iterator rit;
-	for (rit = list->rbegin(); rit != list->rend(); rit++)
+	for (rit = list->rbegin();rit != list->rend();rit++)
 		if ((*rit)->is_unlock() || (*rit)->is_wait())
 			return *rit;
 	return NULL;
@@ -1305,19 +1305,19 @@ ClockVector * ModelExecution::get_cv(thread_id_t tid) const
 }
 
 bool valequals(uint64_t val1, uint64_t val2, int size) {
-  switch(size) {
-  case 1:
-    return ((uint8_t)val1) == ((uint8_t)val2);
-  case 2:
-    return ((uint16_t)val1) == ((uint16_t)val2);
-  case 4:
-    return ((uint32_t)val1) == ((uint32_t)val2);
-  case 8:
-    return val1==val2;
-  default:
-    ASSERT(0);
-    return false;
-  }
+	switch(size) {
+	case 1:
+		return ((uint8_t)val1) == ((uint8_t)val2);
+	case 2:
+		return ((uint16_t)val1) == ((uint16_t)val2);
+	case 4:
+		return ((uint32_t)val1) == ((uint32_t)val2);
+	case 8:
+		return val1==val2;
+	default:
+		ASSERT(0);
+		return false;
+	}
 }
 
 /**
@@ -1339,13 +1339,13 @@ ModelVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *c
 		last_sc_write = get_last_seq_cst_write(curr);
 
 	ModelVector<ModelAction *> * rf_set = new ModelVector<ModelAction *>();
-	
+
 	/* Iterate over all threads */
-	for (i = 0; i < thrd_lists->size(); i++) {
+	for (i = 0;i < thrd_lists->size();i++) {
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
 		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin(); rit != list->rend(); rit++) {
+		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
 
 			/* Only consider 'write' actions */
@@ -1360,24 +1360,24 @@ ModelVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *c
 
 			/* Need to check whether we will have two RMW reading from the same value */
 			if (curr->is_rmwr()) {
-			  /* It is okay if we have a failing CAS */
-			  if (!curr->is_rmwrcas() ||
-			      valequals(curr->get_value(), act->get_value(), curr->getSize())) {
-				//Need to make sure we aren't the second RMW
-				CycleNode * node = mo_graph->getNode_noCreate(act);
-				if (node != NULL && node->getRMW() != NULL) {
-				  //we are the second RMW
-				  allow_read = false;
+				/* It is okay if we have a failing CAS */
+				if (!curr->is_rmwrcas() ||
+						valequals(curr->get_value(), act->get_value(), curr->getSize())) {
+					//Need to make sure we aren't the second RMW
+					CycleNode * node = mo_graph->getNode_noCreate(act);
+					if (node != NULL && node->getRMW() != NULL) {
+						//we are the second RMW
+						allow_read = false;
+					}
 				}
-			      }
 			}
-			
+
 			if (allow_read) {
 				/* Only add feasible reads */
 				mo_graph->startChanges();
 				r_modification_order(curr, act);
 				if (!is_infeasible())
-				  rf_set->push_back(act);
+					rf_set->push_back(act);
 				mo_graph->rollbackChanges();
 			}
 
@@ -1425,7 +1425,7 @@ static void print_list(const action_list_t *list)
 
 	unsigned int hash = 0;
 
-	for (it = list->begin(); it != list->end(); it++) {
+	for (it = list->begin();it != list->end();it++) {
 		const ModelAction *act = *it;
 		if (act->get_seq_number() > 0)
 			act->print();
@@ -1445,20 +1445,20 @@ void ModelExecution::dumpGraph(char *filename) const
 	mo_graph->dumpNodes(file);
 	ModelAction **thread_array = (ModelAction **)model_calloc(1, sizeof(ModelAction *) * get_num_threads());
 
-	for (action_list_t::const_iterator it = action_trace.begin(); it != action_trace.end(); it++) {
+	for (action_list_t::const_iterator it = action_trace.begin();it != action_trace.end();it++) {
 		ModelAction *act = *it;
 		if (act->is_read()) {
 			mo_graph->dot_print_node(file, act);
 			mo_graph->dot_print_edge(file,
-						act->get_reads_from(),
-						act,
-						"label=\"rf\", color=red, weight=2");
+															 act->get_reads_from(),
+															 act,
+															 "label=\"rf\", color=red, weight=2");
 		}
 		if (thread_array[act->get_tid()]) {
 			mo_graph->dot_print_edge(file,
-					thread_array[id_to_int(act->get_tid())],
-					act,
-					"label=\"sb\", color=blue, weight=400");
+															 thread_array[id_to_int(act->get_tid())],
+															 act,
+															 "label=\"sb\", color=blue, weight=400");
 		}
 
 		thread_array[act->get_tid()] = act;
@@ -1539,14 +1539,14 @@ Thread * ModelExecution::get_thread(const ModelAction *act) const
  * @return A Thread reference
  */
 Thread * ModelExecution::get_pthread(pthread_t pid) {
-  union {
-    pthread_t p;
-    uint32_t v;
-  } x;
-  x.p = pid;
-  uint32_t thread_id = x.v;
-  if (thread_id < pthread_counter + 1) return pthread_map[thread_id];
-        else return NULL;
+	union {
+		pthread_t p;
+		uint32_t v;
+	} x;
+	x.p = pid;
+	uint32_t thread_id = x.v;
+	if (thread_id < pthread_counter + 1) return pthread_map[thread_id];
+	else return NULL;
 }
 
 /**
@@ -1586,21 +1586,21 @@ Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) cons
 	if (curr->is_rmwr())
 		return get_thread(curr);
 	if (curr->is_write()) {
-		std::memory_order order = curr->get_mo(); 
+		std::memory_order order = curr->get_mo();
 		switch(order) {
-			case std::memory_order_relaxed: 
-				return get_thread(curr);
-			case std::memory_order_release:
-				return get_thread(curr);
-			default:
-				return NULL;
-		}	
+		case std::memory_order_relaxed:
+			return get_thread(curr);
+		case std::memory_order_release:
+			return get_thread(curr);
+		default:
+			return NULL;
+		}
 	}
 
 	/* Follow CREATE with the created thread */
 	/* which is not needed, because model.cc takes care of this */
 	if (curr->get_type() == THREAD_CREATE)
-		return curr->get_thread_operand(); 
+		return curr->get_thread_operand();
 	if (curr->get_type() == PTHREAD_CREATE) {
 		return curr->get_thread_operand();
 	}
@@ -1618,7 +1618,7 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	Thread *curr_thrd = get_thread(curr);
 	ASSERT(curr_thrd->get_state() == THREAD_READY);
 
-	ASSERT(check_action_enabled(curr)); /* May have side effects? */
+	ASSERT(check_action_enabled(curr));				/* May have side effects? */
 	curr = check_current_action(curr);
 	ASSERT(curr);
 
@@ -1629,5 +1629,5 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 }
 
 Fuzzer * ModelExecution::getFuzzer() {
-  return fuzzer;
+	return fuzzer;
 }

@@ -24,4 +24,4 @@ int model_swapcontext(ucontext_t *oucp, ucontext_t *ucp)
 	return 0;
 }
 
-#endif /* MAC */
+#endif/* MAC */

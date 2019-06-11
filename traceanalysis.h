@@ -4,12 +4,12 @@
 
 
 class TraceAnalysis {
- public:
+public:
 	/** setExecution is called once after installation with a reference to
 	 *  the ModelExecution object. */
 
 	virtual void setExecution(ModelExecution * execution) = 0;
-	
+
 	/** analyze is called once for each feasible trace with the complete
 	 *  action_list object. */
 

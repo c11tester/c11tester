@@ -115,7 +115,7 @@ bool Scheduler::is_sleep_set(const Thread *t) const
 bool Scheduler::all_threads_sleeping() const
 {
 	bool sleeping = false;
-	for (int i = 0; i < enabled_len; i++)
+	for (int i = 0;i < enabled_len;i++)
 		if (enabled[i] == THREAD_ENABLED)
 			return false;
 		else if (enabled[i] == THREAD_SLEEP_SET)
@@ -206,14 +206,14 @@ Thread * Scheduler::select_next_thread(Node *n)
 {
 	int avail_threads = 0;
 	int thread_list[enabled_len];
-	for (int i = 0; i< enabled_len; i++) {
-	  if (enabled[i] == THREAD_ENABLED)
-	    thread_list[avail_threads++] = i;
+	for (int i = 0;i< enabled_len;i++) {
+		if (enabled[i] == THREAD_ENABLED)
+			thread_list[avail_threads++] = i;
 	}
 
 	if (avail_threads == 0)
-	    return NULL; // No threads availablex
-	    
+		return NULL;				// No threads availablex
+
 	Thread * thread = execution->getFuzzer()->selectThread(n, thread_list, avail_threads);
 	curr_thread_index = id_to_int(thread->get_id());
 	return thread;
@@ -254,7 +254,7 @@ void Scheduler::print() const
 	int curr_id = current ? id_to_int(current->get_id()) : -1;
 
 	model_print("Scheduler: ");
-	for (int i = 0; i < enabled_len; i++) {
+	for (int i = 0;i < enabled_len;i++) {
 		char str[20];
 		enabled_type_to_string(enabled[i], str);
 		model_print("[%i: %s%s]", i, i == curr_id ? "current, " : "", str);

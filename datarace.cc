@@ -69,7 +69,7 @@ static uint64_t * lookupAddressEntry(const void *address)
  * @return true if the current clock allows a race with the event at clock2/tid2
  */
 static bool clock_may_race(ClockVector *clock1, thread_id_t tid1,
-                           modelclock_t clock2, thread_id_t tid2)
+													 modelclock_t clock2, thread_id_t tid2)
 {
 	return tid1 != tid2 && clock2 != 0 && clock1->getClock(tid2) <= clock2;
 }
@@ -133,7 +133,7 @@ bool checkDataRaces()
 	if (get_execution()->isfeasibleprefix()) {
 		bool race_asserted = false;
 		/* Prune the non-racing unrealized dataraces */
-		for (unsigned i = 0; i < unrealizedraces->size(); i++) {
+		for (unsigned i = 0;i < unrealizedraces->size();i++) {
 			struct DataRace *race = (*unrealizedraces)[i];
 			if (clock_may_race(race->newaction->get_cv(), race->newaction->get_tid(), race->oldclock, race->oldthread)) {
 				assert_race(race);
@@ -158,16 +158,16 @@ bool checkDataRaces()
 void assert_race(struct DataRace *race)
 {
 	model->assert_bug(
-			"Data race detected @ address %p:\n"
-			"    Access 1: %5s in thread %2d @ clock %3u\n"
-			"    Access 2: %5s in thread %2d @ clock %3u",
-			race->address,
-			race->isoldwrite ? "write" : "read",
-			id_to_int(race->oldthread),
-			race->oldclock,
-			race->isnewwrite ? "write" : "read",
-			id_to_int(race->newaction->get_tid()),
-			race->newaction->get_seq_number()
+		"Data race detected @ address %p:\n"
+		"    Access 1: %5s in thread %2d @ clock %3u\n"
+		"    Access 2: %5s in thread %2d @ clock %3u",
+		race->address,
+		race->isoldwrite ? "write" : "read",
+		id_to_int(race->oldthread),
+		race->oldclock,
+		race->isnewwrite ? "write" : "read",
+		id_to_int(race->newaction->get_tid()),
+		race->newaction->get_seq_number()
 		);
 }
 
@@ -178,12 +178,12 @@ void fullRaceCheckWrite(thread_id_t thread, void *location, uint64_t *shadow, Cl
 
 	/* Check for datarace against last read. */
 
-	for (int i = 0; i < record->numReads; i++) {
+	for (int i = 0;i < record->numReads;i++) {
 		modelclock_t readClock = record->readClock[i];
 		thread_id_t readThread = record->thread[i];
 
 		/* Note that readClock can't actuall be zero here, so it could be
-			 optimized. */
+		         optimized. */
 
 		if (clock_may_race(currClock, thread, readClock, readThread)) {
 			/* We have a datarace */
@@ -271,15 +271,15 @@ void fullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shado
 
 	int copytoindex = 0;
 
-	for (int i = 0; i < record->numReads; i++) {
+	for (int i = 0;i < record->numReads;i++) {
 		modelclock_t readClock = record->readClock[i];
 		thread_id_t readThread = record->thread[i];
 
 		/*  Note that is not really a datarace check as reads cannott
-				actually race.  It is just determining that this read subsumes
-				another in the sense that either this read races or neither
-				read races. Note that readClock can't actually be zero, so it
-				could be optimized.  */
+		                actually race.  It is just determining that this read subsumes
+		                another in the sense that either this read races or neither
+		                read races. Note that readClock can't actually be zero, so it
+		                could be optimized.  */
 
 		if (clock_may_race(currClock, thread, readClock, readThread)) {
 			/* Still need this read in vector */

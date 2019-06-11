@@ -38,12 +38,12 @@ static inline void print_stacktrace(int fd = STDERR_FILENO, unsigned int max_fra
 
 	// iterate over the returned symbol lines. skip the first, it is the
 	// address of this function.
-	for (int i = 1; i < addrlen; i++) {
+	for (int i = 1;i < addrlen;i++) {
 		char *begin_name = 0, *begin_offset = 0, *end_offset = 0;
 
 		// find parentheses and +address offset surrounding the mangled name:
 		// ./module(function+0x15c) [0x8048a6d]
-		for (char *p = symbollist[i]; *p; ++p) {
+		for (char *p = symbollist[i];*p;++p) {
 			if (*p == '(')
 				begin_name = p;
 			else if (*p == '+')
@@ -65,16 +65,16 @@ static inline void print_stacktrace(int fd = STDERR_FILENO, unsigned int max_fra
 
 			int status;
 			char* ret = abi::__cxa_demangle(begin_name,
-					funcname, &funcnamesize, &status);
+																			funcname, &funcnamesize, &status);
 			if (status == 0) {
-				funcname = ret; // use possibly realloc()-ed string
+				funcname = ret;													// use possibly realloc()-ed string
 				dprintf(fd, "  %s : %s+%s\n",
-						symbollist[i], funcname, begin_offset);
+								symbollist[i], funcname, begin_offset);
 			} else {
 				// demangling failed. Output function name as a C function with
 				// no arguments.
 				dprintf(fd, "  %s : %s()+%s\n",
-						symbollist[i], begin_name, begin_offset);
+								symbollist[i], begin_name, begin_offset);
 			}
 		} else {
 			// couldn't parse the line? print the whole line.
@@ -91,4 +91,4 @@ static inline void print_stacktrace(FILE *out, unsigned int max_frames = 63)
 	print_stacktrace(fileno(out), max_frames);
 }
 
-#endif // __STACKTRACE_H__
+#endif// __STACKTRACE_H__

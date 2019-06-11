@@ -33,11 +33,11 @@ void print_trace(void)
 
 	model_print("\nDumping stack trace (%d frames):\n", size);
 
-	for (i = 0; i < size; i++)
+	for (i = 0;i < size;i++)
 		model_print("\t%s\n", strings[i]);
 
 	free(strings);
-#endif /* CONFIG_STACKTRACE */
+#endif/* CONFIG_STACKTRACE */
 }
 
 void assert_hook(void)
@@ -50,14 +50,14 @@ void model_assert(bool expr, const char *file, int line)
 	if (!expr) {
 		char msg[100];
 		sprintf(msg, "Program has hit assertion in file %s at line %d\n",
-				file, line);
+						file, line);
 		model->assert_user_bug(msg);
 	}
 }
 
 #ifndef CONFIG_DEBUG
 
-static int fd_user_out; /**< @brief File descriptor from which to read user program output */
+static int fd_user_out;	/**< @brief File descriptor from which to read user program output */
 
 /**
  * @brief Setup output redirecting
@@ -139,7 +139,7 @@ void clear_program_output()
 {
 	fflush(stdout);
 	char buf[200];
-	while (read_to_buf(fd_user_out, buf, sizeof(buf)));
+	while (read_to_buf(fd_user_out, buf, sizeof(buf))) ;
 }
 
 /** @brief Print out any pending program output */
@@ -170,4 +170,4 @@ void print_program_output()
 
 	model_print("---- END PROGRAM OUTPUT   ----\n");
 }
-#endif /* ! CONFIG_DEBUG */
+#endif/* ! CONFIG_DEBUG */

@@ -20,7 +20,7 @@
 
 /** @brief A graph of Model Actions for tracking cycles. */
 class CycleGraph {
- public:
+public:
 	CycleGraph();
 	~CycleGraph();
 
@@ -49,7 +49,7 @@ class CycleGraph {
 	CycleNode * getNode_noCreate(const ModelAction *act) const;
 
 	SNAPSHOTALLOC
- private:
+private:
 	bool addNodeEdge(CycleNode *fromnode, CycleNode *tonode);
 	void putNode(const ModelAction *act, CycleNode *node);
 	CycleNode * getNode(const ModelAction *act);
@@ -81,7 +81,7 @@ class CycleGraph {
  * @brief A node within a CycleGraph; corresponds either to one ModelAction
  */
 class CycleNode {
- public:
+public:
 	CycleNode(const ModelAction *act);
 	bool addEdge(CycleNode *node);
 	CycleNode * getEdge(unsigned int i) const;
@@ -97,7 +97,7 @@ class CycleNode {
 	const ModelAction * getAction() const { return action; }
 
 	SNAPSHOTALLOC
- private:
+private:
 	/** @brief The ModelAction that this node represents */
 	const ModelAction *action;
 
@@ -112,4 +112,4 @@ class CycleNode {
 	CycleNode *hasRMW;
 };
 
-#endif /* __CYCLEGRAPH_H__ */
+#endif/* __CYCLEGRAPH_H__ */

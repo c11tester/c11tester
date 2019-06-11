@@ -31,30 +31,30 @@ static void print_usage(const char *program_name, struct model_params *params)
 	param_defaults(params);
 
 	model_print(
-"Copyright (c) 2013 Regents of the University of California. All rights reserved.\n"
-"Distributed under the GPLv2\n"
-"Written by Brian Norris and Brian Demsky\n"
-"\n"
-"Usage: %s [MODEL-CHECKER OPTIONS] -- [PROGRAM ARGS]\n"
-"\n"
-"MODEL-CHECKER OPTIONS can be any of the model-checker options listed below. Arguments\n"
-"provided after the `--' (the PROGRAM ARGS) are passed to the user program.\n"
-"\n"
-"Model-checker options:\n"
-"-h, --help                  Display this help message and exit\n"
-"-v[NUM], --verbose[=NUM]    Print verbose execution information. NUM is optional:\n"
-"                              0 is quiet; 1 shows valid executions; 2 is noisy;\n"
-"                              3 is noisier.\n"
-"                              Default: %d\n"
-"-u, --uninitialized=VALUE   Return VALUE any load which may read from an\n"
-"                              uninitialized atomic.\n"
-"                              Default: %u\n"
-"-t, --analysis=NAME         Use Analysis Plugin.\n"
-"-o, --options=NAME          Option for previous analysis plugin.  \n"
-"-x, --maxexec=NUM           Maximum number of executions.\n"
-"                            Default: %u\n"
-"                            -o help for a list of options\n"
-" --                         Program arguments follow.\n\n",
+		"Copyright (c) 2013 Regents of the University of California. All rights reserved.\n"
+		"Distributed under the GPLv2\n"
+		"Written by Brian Norris and Brian Demsky\n"
+		"\n"
+		"Usage: %s [MODEL-CHECKER OPTIONS] -- [PROGRAM ARGS]\n"
+		"\n"
+		"MODEL-CHECKER OPTIONS can be any of the model-checker options listed below. Arguments\n"
+		"provided after the `--' (the PROGRAM ARGS) are passed to the user program.\n"
+		"\n"
+		"Model-checker options:\n"
+		"-h, --help                  Display this help message and exit\n"
+		"-v[NUM], --verbose[=NUM]    Print verbose execution information. NUM is optional:\n"
+		"                              0 is quiet; 1 shows valid executions; 2 is noisy;\n"
+		"                              3 is noisier.\n"
+		"                              Default: %d\n"
+		"-u, --uninitialized=VALUE   Return VALUE any load which may read from an\n"
+		"                              uninitialized atomic.\n"
+		"                              Default: %u\n"
+		"-t, --analysis=NAME         Use Analysis Plugin.\n"
+		"-o, --options=NAME          Option for previous analysis plugin.  \n"
+		"-x, --maxexec=NUM           Maximum number of executions.\n"
+		"                            Default: %u\n"
+		"                            -o help for a list of options\n"
+		" --                         Program arguments follow.\n\n",
 		program_name,
 		params->verbose,
 		params->uninitvalue,
@@ -92,7 +92,7 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		{"analysis", required_argument, NULL, 't'},
 		{"options", required_argument, NULL, 'o'},
 		{"maxexecutions", required_argument, NULL, 'x'},
-		{0, 0, 0, 0} /* Terminator */
+		{0, 0, 0, 0}						/* Terminator */
 	};
 	int opt, longindex;
 	bool error = false;
@@ -115,13 +115,13 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 				error = true;
 			break;
 		case 'o':
-			{
-				ModelVector<TraceAnalysis *> * analyses = getInstalledTraceAnalysis();
-				if ( analyses->size() == 0 || (*analyses)[analyses->size()-1]->option(optarg))
-					error = true;
-			}
-			break;
-		default: /* '?' */
+		{
+			ModelVector<TraceAnalysis *> * analyses = getInstalledTraceAnalysis();
+			if ( analyses->size() == 0 || (*analyses)[analyses->size()-1]->option(optarg))
+				error = true;
+		}
+		break;
+		default:						/* '?' */
 			error = true;
 			break;
 		}
@@ -172,7 +172,7 @@ static void model_main()
 	snapshot_stack_init();
 
 	if (!model)
-	  model = new ModelChecker();
+		model = new ModelChecker();
 	model->setParams(params);
 	install_trace_analyses(model->get_execution());
 

@@ -44,8 +44,8 @@ ModelChecker::~ModelChecker()
 
 /** Method to set parameters */
 void ModelChecker::setParams(struct model_params params) {
-  this->params = params;
-  execution->setParams(&params);
+	this->params = params;
+	execution->setParams(&params);
 }
 
 /**
@@ -62,7 +62,7 @@ void ModelChecker::reset_to_initial_state()
 	 * those pending actions which were NOT pending before the rollback
 	 * point
 	 */
-	for (unsigned int i = 0; i < get_num_threads(); i++)
+	for (unsigned int i = 0;i < get_num_threads();i++)
 		delete get_thread(int_to_id(i))->get_pending();
 
 	snapshot_backtrack_before(0);
@@ -148,9 +148,9 @@ void ModelChecker::print_bugs() const
 	SnapVector<bug_message *> *bugs = execution->get_bugs();
 
 	model_print("Bug report: %zu bug%s detected\n",
-			bugs->size(),
-			bugs->size() > 1 ? "s" : "");
-	for (unsigned int i = 0; i < bugs->size(); i++)
+							bugs->size(),
+							bugs->size() > 1 ? "s" : "");
+	for (unsigned int i = 0;i < bugs->size();i++)
 		(*bugs)[i]->print();
 }
 
@@ -198,7 +198,7 @@ void ModelChecker::print_stats() const
 void ModelChecker::print_execution(bool printbugs) const
 {
 	model_print("Program output from execution %d:\n",
-			get_execution_number());
+							get_execution_number());
 	print_program_output();
 
 	if (params.verbose >= 3) {
@@ -227,8 +227,8 @@ bool ModelChecker::next_execution()
 	DBG();
 	/* Is this execution a feasible execution that's worth bug-checking? */
 	bool complete = execution->isfeasibleprefix() &&
-		(execution->is_complete_execution() ||
-		 execution->have_bug_reports());
+									(execution->is_complete_execution() ||
+									 execution->have_bug_reports());
 
 	/* End-of-execution bug checks */
 	if (complete) {
@@ -237,7 +237,7 @@ bool ModelChecker::next_execution()
 
 		checkDataRaces();
 		run_trace_analyses();
-	} 
+	}
 
 	record_stats();
 	/* Output */
@@ -259,7 +259,7 @@ bool ModelChecker::next_execution()
 
 /** @brief Run trace analyses on complete trace */
 void ModelChecker::run_trace_analyses() {
-	for (unsigned int i = 0; i < trace_analyses.size(); i++)
+	for (unsigned int i = 0;i < trace_analyses.size();i++)
 		trace_analyses[i]->analyze(execution->get_action_trace());
 }
 
@@ -314,9 +314,9 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	scheduler->set_current_thread(NULL);
 	ASSERT(!old->get_pending());
 /* W: No plugin
-	if (inspect_plugin != NULL) {
-		inspect_plugin->inspectModelAction(act); 
-	}*/
+        if (inspect_plugin != NULL) {
+                inspect_plugin->inspectModelAction(act);
+        }*/
 	old->set_pending(act);
 	if (Thread::swap(old, &system_context) < 0) {
 		perror("swap threads");
@@ -366,9 +366,9 @@ void ModelChecker::run()
 	char random_state[256];
 	initstate(423121, random_state, sizeof(random_state));
 
-	for(int exec = 0; exec < params.maxexecutions; exec++) {
+	for(int exec = 0;exec < params.maxexecutions;exec++) {
 		thrd_t user_thread;
-		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL); // L: user_main_wrapper passes the user program
+		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL);							// L: user_main_wrapper passes the user program
 		execution->add_thread(t);
 		//Need to seed random number generator, otherwise its state gets reset
 		do {
@@ -379,18 +379,18 @@ void ModelChecker::run()
 			 * for any newly-created thread
 			 */
 
-			for (unsigned int i = 0; i < get_num_threads(); i++) {
+			for (unsigned int i = 0;i < get_num_threads();i++) {
 				thread_id_t tid = int_to_id(i);
 				Thread *thr = get_thread(tid);
 				if (!thr->is_model_thread() && !thr->is_complete() && !thr->get_pending()) {
-					switch_from_master(thr);	// L: context swapped, and action type of thr changed. 
+					switch_from_master(thr);																			// L: context swapped, and action type of thr changed.
 					if (thr->is_waiting_on(thr))
 						assert_bug("Deadlock detected (thread %u)", i);
 				}
 			}
 
 			/* Don't schedule threads which should be disabled */
-			for (unsigned int i = 0; i < get_num_threads(); i++) {
+			for (unsigned int i = 0;i < get_num_threads();i++) {
 				Thread *th = get_thread(int_to_id(i));
 				ModelAction *act = th->get_pending();
 				if (act && execution->is_enabled(th) && !execution->check_action_enabled(act)) {
@@ -398,33 +398,33 @@ void ModelChecker::run()
 				}
 			}
 
-			for (unsigned int i = 1; i < get_num_threads(); i++) {
+			for (unsigned int i = 1;i < get_num_threads();i++) {
 				Thread *th = get_thread(int_to_id(i));
 				ModelAction *act = th->get_pending();
-				if (act && execution->is_enabled(th) && (th->get_state() != THREAD_BLOCKED) ){
-					if (act->is_write()){
-						std::memory_order order = act->get_mo(); 
-				                if (order == std::memory_order_relaxed || \
-							order == std::memory_order_release) {
+				if (act && execution->is_enabled(th) && (th->get_state() != THREAD_BLOCKED) ) {
+					if (act->is_write()) {
+						std::memory_order order = act->get_mo();
+						if (order == std::memory_order_relaxed || \
+								order == std::memory_order_release) {
 							t = th;
 							break;
 						}
 					} else if (act->get_type() == THREAD_CREATE || \
-							act->get_type() == PTHREAD_CREATE || \
-							act->get_type() == THREAD_START || \
-							act->get_type() == THREAD_FINISH) {
+										 act->get_type() == PTHREAD_CREATE || \
+										 act->get_type() == THREAD_START || \
+										 act->get_type() == THREAD_FINISH) {
 						t = th;
 						break;
-					}				
+					}
 				}
 			}
 
 			/* Catch assertions from prior take_step or from
-			 * between-ModelAction bugs (e.g., data races) */
+			* between-ModelAction bugs (e.g., data races) */
 
 			if (execution->has_asserted())
 				break;
-			if (!t)				
+			if (!t)
 				t = get_next_thread();
 			if (!t || t->is_model_thread())
 				break;
@@ -443,6 +443,6 @@ void ModelChecker::run()
 	print_stats();
 
 	/* Have the trace analyses dump their output. */
-	for (unsigned int i = 0; i < trace_analyses.size(); i++)
+	for (unsigned int i = 0;i < trace_analyses.size();i++)
 		trace_analyses[i]->finish();
 }

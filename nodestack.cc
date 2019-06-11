@@ -54,7 +54,7 @@ NodeStack::NodeStack() :
 
 NodeStack::~NodeStack()
 {
-	for (unsigned int i = 0; i < node_list.size(); i++)
+	for (unsigned int i = 0;i < node_list.size();i++)
 		delete node_list[i];
 }
 
@@ -76,7 +76,7 @@ void NodeStack::print() const
 {
 	model_print("............................................\n");
 	model_print("NodeStack printing node_list:\n");
-	for (unsigned int it = 0; it < node_list.size(); it++) {
+	for (unsigned int it = 0;it < node_list.size();it++) {
 		if ((int)it == this->head_idx)
 			model_print("vvv following action is the current iterator vvv\n");
 		node_list[it]->print();
@@ -97,9 +97,9 @@ ModelAction * NodeStack::explore_action(ModelAction *act)
 
 
 /** Reset the node stack. */
-void NodeStack::full_reset() 
+void NodeStack::full_reset()
 {
-	for (unsigned int i = 0; i < node_list.size(); i++)
+	for (unsigned int i = 0;i < node_list.size();i++)
 		delete node_list[i];
 	node_list.clear();
 	reset_execution();

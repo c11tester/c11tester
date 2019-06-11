@@ -1,6 +1,6 @@
 /** @file nodestack.h
  *  @brief Stack of operations for use in backtracking.
-*/
+ */
 
 #ifndef __NODESTACK_H__
 #define __NODESTACK_H__
@@ -80,4 +80,4 @@ private:
 	int head_idx;
 };
 
-#endif /* __NODESTACK_H__ */
+#endif/* __NODESTACK_H__ */

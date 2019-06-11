@@ -187,4 +187,4 @@ static inline int id_to_int(thread_id_t id)
 	return id;
 }
 
-#endif /* __THREADS_MODEL_H__ */
+#endif/* __THREADS_MODEL_H__ */

@@ -6,11 +6,11 @@
 
 class Fuzzer {
 public:
-  Fuzzer() {}
-  int selectWrite(ModelAction *read, ModelVector<ModelAction *>* rf_set);
-  Thread * selectThread(Node *n, int * threadlist, int numthreads);
-  Thread * selectNotify(action_list_t * waiters);
-  MEMALLOC
+	Fuzzer() {}
+	int selectWrite(ModelAction *read, ModelVector<ModelAction *>* rf_set);
+	Thread * selectThread(Node *n, int * threadlist, int numthreads);
+	Thread * selectNotify(action_list_t * waiters);
+	MEMALLOC
 private:
 };
 #endif

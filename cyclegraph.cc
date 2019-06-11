@@ -69,7 +69,7 @@ bool CycleGraph::addNodeEdge(CycleNode *fromnode, CycleNode *tonode)
 		if (!hasCycles)
 			hasCycles = checkReachable(tonode, fromnode);
 	} else
-		return false; /* No new edge */
+		return false;							/* No new edge */
 
 	/*
 	 * If the fromnode has a rmwnode that is not the tonode, we should
@@ -130,7 +130,7 @@ void CycleGraph::addRMWEdge(const T *from, const ModelAction *rmw)
 	 * (2) the fromnode is the new node and therefore it should not
 	 * have any outgoing edges.
 	 */
-	for (unsigned int i = 0; i < fromnode->getNumEdges(); i++) {
+	for (unsigned int i = 0;i < fromnode->getNumEdges();i++) {
 		CycleNode *tonode = fromnode->getEdge(i);
 		if (tonode != rmwnode) {
 			if (rmwnode->addEdge(tonode))
@@ -174,11 +174,11 @@ template bool CycleGraph::addEdge(const ModelAction *from, const ModelAction *to
 
 static void print_node(FILE *file, const CycleNode *node, int label)
 {
-		const ModelAction *act = node->getAction();
-		modelclock_t idx = act->get_seq_number();
-		fprintf(file, "N%u", idx);
-		if (label)
-			fprintf(file, " [label=\"N%u, T%u\"]", idx, act->get_tid());
+	const ModelAction *act = node->getAction();
+	modelclock_t idx = act->get_seq_number();
+	fprintf(file, "N%u", idx);
+	if (label)
+		fprintf(file, " [label=\"N%u, T%u\"]", idx, act->get_tid());
 }
 
 static void print_edge(FILE *file, const CycleNode *from, const CycleNode *to, const char *prop)
@@ -209,13 +209,13 @@ template void CycleGraph::dot_print_edge(FILE *file, const ModelAction *from, co
 
 void CycleGraph::dumpNodes(FILE *file) const
 {
-	for (unsigned int i = 0; i < nodeList.size(); i++) {
+	for (unsigned int i = 0;i < nodeList.size();i++) {
 		CycleNode *n = nodeList[i];
 		print_node(file, n, 1);
 		fprintf(file, ";\n");
 		if (n->getRMW())
 			print_edge(file, n, n->getRMW(), "style=dotted");
-		for (unsigned int j = 0; j < n->getNumEdges(); j++)
+		for (unsigned int j = 0;j < n->getNumEdges();j++)
 			print_edge(file, n, n->getEdge(j), NULL);
 	}
 }
@@ -249,7 +249,7 @@ bool CycleGraph::checkReachable(const CycleNode *from, const CycleNode *to) cons
 		queue->pop_back();
 		if (node == to)
 			return true;
-		for (unsigned int i = 0; i < node->getNumEdges(); i++) {
+		for (unsigned int i = 0;i < node->getNumEdges();i++) {
 			CycleNode *next = node->getEdge(i);
 			if (!discovered->contains(next)) {
 				discovered->put(next, next);
@@ -279,7 +279,7 @@ bool CycleGraph::checkReachable(const T *from, const U *to) const
 }
 /* Instantiate four forms of CycleGraph::checkReachable */
 template bool CycleGraph::checkReachable(const ModelAction *from,
-		const ModelAction *to) const;
+																				 const ModelAction *to) const;
 
 /** @brief Begin a new sequence of graph additions which can be rolled back */
 void CycleGraph::startChanges()
@@ -300,10 +300,10 @@ void CycleGraph::commitChanges()
 /** Rollback changes to the previous commit. */
 void CycleGraph::rollbackChanges()
 {
-	for (unsigned int i = 0; i < rollbackvector.size(); i++)
+	for (unsigned int i = 0;i < rollbackvector.size();i++)
 		rollbackvector[i]->removeEdge();
 
-	for (unsigned int i = 0; i < rmwrollbackvector.size(); i++)
+	for (unsigned int i = 0;i < rmwrollbackvector.size();i++)
 		rmwrollbackvector[i]->clearRMW();
 
 	hasCycles = oldCycles;
@@ -366,7 +366,7 @@ unsigned int CycleNode::getNumBackEdges() const
 template <typename T>
 static bool vector_remove_node(SnapVector<T>& v, const T n)
 {
-	for (unsigned int i = 0; i < v.size(); i++) {
+	for (unsigned int i = 0;i < v.size();i++) {
 		if (v[i] == n) {
 			v.erase(v.begin() + i);
 			return true;
@@ -412,7 +412,7 @@ CycleNode * CycleNode::removeBackEdge()
  */
 bool CycleNode::addEdge(CycleNode *node)
 {
-	for (unsigned int i = 0; i < edges.size(); i++)
+	for (unsigned int i = 0;i < edges.size();i++)
 		if (edges[i] == node)
 			return false;
 	edges.push_back(node);
