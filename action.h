@@ -59,6 +59,7 @@ typedef enum action_type {
 	ATOMIC_READ,          /**< An atomic read action */
 	ATOMIC_WRITE,         /**< An atomic write action */
 	ATOMIC_RMWR,          /**< The read part of an atomic RMW action */
+	ATOMIC_RMWRCAS,          /**< The read part of an atomic RMW action */
 	ATOMIC_RMW,           /**< The write part of an atomic RMW action */
 	ATOMIC_RMWC,          /**< Convert an atomic RMW action into a READ */
 	ATOMIC_INIT,          /**< Initialization of an atomic object (e.g.,
@@ -87,6 +88,7 @@ typedef enum action_type {
 class ModelAction {
 public:
 	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value = VALUE_NONE, Thread *thread = NULL);
+  	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value, int size);
 	~ModelAction();
 	void print() const;
 
@@ -136,6 +138,7 @@ public:
 	bool is_yield() const;
 	bool could_be_write() const;
 	bool is_rmwr() const;
+  	bool is_rmwrcas() const;
 	bool is_rmwc() const;
 	bool is_rmw() const;
 	bool is_fence() const;
@@ -149,7 +152,8 @@ public:
 	bool same_thread(const ModelAction *act) const;
 	bool is_conflicting_lock(const ModelAction *act) const;
 	bool could_synchronize_with(const ModelAction *act) const;
-
+  int getSize() const;
+  
 	Thread * get_thread_operand() const;
 
 	void create_cv(const ModelAction *parent = NULL);
@@ -203,13 +207,15 @@ private:
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;
 
-	/**
+  union {
+  /**
 	 * @brief The store that this action reads from
 	 *
 	 * Only valid for reads
 	 */
 	const ModelAction *reads_from;
-
+    int size;
+  };
 	/** @brief The last fence release from the same thread */
 	const ModelAction *last_fence_release;
 

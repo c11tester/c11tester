@@ -33,6 +33,15 @@ uint64_t model_rmwr_action(void *obj, memory_order ord) {
 	return model->switch_to_master(new ModelAction(ATOMIC_RMWR, ord, obj));
 }
 
+/**
+ * Performs the read part of a RMW CAS action. The next action must
+ * either be the write part of the RMW action or an explicit close out
+ * of the RMW action w/o a write.
+ */
+uint64_t model_rmwrcas_action(void *obj, memory_order ord, uint64_t oldval, int size) {
+  return model->switch_to_master(new ModelAction(ATOMIC_RMWRCAS, ord, obj, oldval, size));
+}
+
 /** Performs the write part of a RMW action. */
 void model_rmw_action(void *obj, memory_order ord, uint64_t val) {
 	model->switch_to_master(new ModelAction(ATOMIC_RMW, ord, obj, val));

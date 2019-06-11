@@ -1294,6 +1294,22 @@ ClockVector * ModelExecution::get_cv(thread_id_t tid) const
 	return get_parent_action(tid)->get_cv();
 }
 
+bool valequals(uint64_t val1, uint64_t val2, int size) {
+  switch(size) {
+  case 1:
+    return ((uint8_t)val1) == ((uint8_t)val2);
+  case 2:
+    return ((uint16_t)val1) == ((uint16_t)val2);
+  case 4:
+    return ((uint32_t)val1) == ((uint32_t)val2);
+  case 8:
+    return val1==val2;
+  default:
+    ASSERT(0);
+    return false;
+  }
+}
+
 /**
  * Build up an initial set of all past writes that this 'read' action may read
  * from, as well as any previously-observed future values that must still be valid.
@@ -1332,6 +1348,20 @@ ModelVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *c
 			if (curr->is_seqcst() && (act->is_seqcst() || (last_sc_write != NULL && act->happens_before(last_sc_write))) && act != last_sc_write)
 				allow_read = false;
 
+			/* Need to check whether we will have two RMW reading from the same value */
+			if (curr->is_rmwr()) {
+			  /* It is okay if we have a failing CAS */
+			  if (!curr->is_rmwrcas() ||
+			      valequals(curr->get_value(), act->get_value(), curr->getSize())) {
+				//Need to make sure we aren't the second RMW
+				CycleNode * node = mo_graph->getNode_noCreate(act);
+				if (node != NULL && node->getRMW() != NULL) {
+				  //we are the second RMW
+				  allow_read = false;
+				}
+			      }
+			}
+			
 			if (allow_read) {
 				/* Only add feasible reads */
 				mo_graph->startChanges();

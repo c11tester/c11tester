@@ -46,14 +46,13 @@ class CycleGraph {
 	template <typename T, typename U>
 	void dot_print_edge(FILE *file, const T *from, const U *to, const char *prop);
 #endif
-
+	CycleNode * getNode_noCreate(const ModelAction *act) const;
 
 	SNAPSHOTALLOC
  private:
 	bool addNodeEdge(CycleNode *fromnode, CycleNode *tonode);
 	void putNode(const ModelAction *act, CycleNode *node);
 	CycleNode * getNode(const ModelAction *act);
-	CycleNode * getNode_noCreate(const ModelAction *act) const;
 	bool mergeNodes(CycleNode *node1, CycleNode *node2);
 
 	HashTable<const CycleNode *, const CycleNode *, uintptr_t, 4, model_malloc, model_calloc, model_free> *discovered;

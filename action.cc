@@ -51,6 +51,39 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	this->tid = t->get_id();
 }
 
+
+/**
+ * @brief Construct a new ModelAction
+ *
+ * @param type The type of action
+ * @param order The memory order of this action. A "don't care" for non-ATOMIC
+ * actions (e.g., THREAD_* or MODEL_* actions).
+ * @param loc The location that this action acts upon
+ * @param value (optional) A value associated with the action (e.g., the value
+ * read or written). Defaults to a given macro constant, for debugging purposes.
+ * @param size (optional) The Thread in which this action occurred. If NULL
+ * (default), then a Thread is assigned according to the scheduler.
+ */
+ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
+		uint64_t value, int size) :
+	type(type),
+	order(order),
+	original_order(order),
+	location(loc),
+	value(value),
+	reads_from(NULL),
+	last_fence_release(NULL),
+	node(NULL),
+	seq_number(ACTION_INITIAL_CLOCK),
+	cv(NULL)
+{
+	/* References to NULL atomic variables can end up here */
+	ASSERT(loc);
+	this->size = size;
+	Thread *t = thread_current();
+	this->tid = t->get_id();
+}
+
 /** @brief ModelAction destructor */
 ModelAction::~ModelAction()
 {
@@ -64,6 +97,10 @@ ModelAction::~ModelAction()
 	/*
 	 if (cv)
 		delete cv; */
+}
+
+int ModelAction::getSize() const {
+  return size;
 }
 
 void ModelAction::copy_from_new(ModelAction *newaction)
@@ -144,7 +181,7 @@ bool ModelAction::is_uninitialized() const
 
 bool ModelAction::is_read() const
 {
-	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMW;
+	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS || type == ATOMIC_RMW;
 }
 
 bool ModelAction::is_write() const
@@ -164,7 +201,12 @@ bool ModelAction::is_yield() const
 
 bool ModelAction::is_rmwr() const
 {
-	return type == ATOMIC_RMWR;
+	return type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS;
+}
+
+bool ModelAction::is_rmwrcas() const
+{
+	return type == ATOMIC_RMWRCAS;
 }
 
 bool ModelAction::is_rmw() const
@@ -544,6 +586,7 @@ const char * ModelAction::get_type_str() const
 		case ATOMIC_RMW: return "atomic rmw";
 		case ATOMIC_FENCE: return "fence";
 		case ATOMIC_RMWR: return "atomic rmwr";
+		case ATOMIC_RMWRCAS: return "atomic rmwrcas";
 		case ATOMIC_RMWC: return "atomic rmwc";
 		case ATOMIC_INIT: return "init atomic";
 		case ATOMIC_LOCK: return "lock";
@@ -551,8 +594,8 @@ const char * ModelAction::get_type_str() const
 		case ATOMIC_TRYLOCK: return "trylock";
 		case ATOMIC_WAIT: return "wait";
 		case ATOMIC_NOTIFY_ONE: return "notify one";
-	  case ATOMIC_NOTIFY_ALL: return "notify all";
-	  case ATOMIC_ANNOTATION: return "annotation";
+		case ATOMIC_NOTIFY_ALL: return "notify all";
+		case ATOMIC_ANNOTATION: return "annotation";
 		default: return "unknown type";
 	};
 }
