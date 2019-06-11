@@ -7,7 +7,7 @@
 class Fuzzer {
 public:
   Fuzzer() {}
-  ModelAction * selectWrite(ModelAction *read, ModelVector<ModelAction *>* rf_set);
+  int selectWrite(ModelAction *read, ModelVector<ModelAction *>* rf_set);
   Thread * selectThread(Node *n, int * threadlist, int numthreads);
   Thread * selectNotify(action_list_t * waiters);
   MEMALLOC

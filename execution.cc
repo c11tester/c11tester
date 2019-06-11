@@ -285,18 +285,26 @@ bool ModelExecution::is_complete_execution() const
  */
 bool ModelExecution::process_read(ModelAction *curr, ModelVector<ModelAction *> * rf_set)
 {
-	bool updated = false;
+  while(true) {
 		
-	const ModelAction *rf = fuzzer->selectWrite(curr, rf_set);
+    int index = fuzzer->selectWrite(curr, rf_set);
+    const ModelAction *rf = (*rf_set)[index];
 
-	ASSERT(rf);
-	
-	mo_graph->startChanges();
-	updated = r_modification_order(curr, rf);
-	read_from(curr, rf);
-	mo_graph->commitChanges();
-	get_thread(curr)->set_return_value(curr->get_return_value());
-	return updated;
+    
+    ASSERT(rf);
+    
+    mo_graph->startChanges();
+    bool updated = r_modification_order(curr, rf);
+    if (!is_infeasible()) {
+      read_from(curr, rf);
+      mo_graph->commitChanges();
+      get_thread(curr)->set_return_value(curr->get_return_value());
+      return updated;
+    }
+    mo_graph->rollbackChanges();
+    (*rf_set)[index] = rf_set->back();
+    rf_set->pop_back();
+  }
 }
 
 /**
@@ -698,6 +706,8 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	if (curr->is_read() && !second_part_of_rmw) {
 	  process_read(curr, rf_set);
 	  delete rf_set;
+	} else {
+	  ASSERT(rf_set == NULL);
 	}
 	
 	if (curr->is_write())

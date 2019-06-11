@@ -3,9 +3,9 @@
 #include "threads-model.h"
 #include "model.h"
 
-ModelAction * Fuzzer::selectWrite(ModelAction *read, ModelVector<ModelAction *> * rf_set) {
+int Fuzzer::selectWrite(ModelAction *read, ModelVector<ModelAction *> * rf_set) {
   int random_index = random() % rf_set->size();
-  return (*rf_set)[random_index];
+  return random_index;
 }
 
 Thread * Fuzzer::selectThread(Node *n, int * threadlist, int numthreads) {
