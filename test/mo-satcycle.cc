@@ -17,7 +17,7 @@
 using namespace std;
 
 atomic_int x, y;
-int r0, r1, r2, r3; /* "local" variables */
+int r0, r1, r2, r3;	/* "local" variables */
 
 static void a(void *obj)
 {

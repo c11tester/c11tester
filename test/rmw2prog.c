@@ -20,10 +20,10 @@ static void a(void *obj)
 	printf("expected: %d\n", expected);
 /*
         short v1 = atomic_exchange_explicit(&x, 8, memory_order_relaxed);
-	short v2 = atomic_exchange_explicit(&x, -10, memory_order_relaxed);
-	short v3 = atomic_load_explicit(&x, memory_order_relaxed);
-	printf("v1 = %d, v2 = %d, v3 = %d\n", v1, v2, v3);
-*/
+        short v2 = atomic_exchange_explicit(&x, -10, memory_order_relaxed);
+        short v3 = atomic_load_explicit(&x, memory_order_relaxed);
+        printf("v1 = %d, v2 = %d, v3 = %d\n", v1, v2, v3);
+ */
 }
 
 static void b(void *obj)

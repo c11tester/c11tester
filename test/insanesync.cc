@@ -11,17 +11,17 @@ using namespace std;
 atomic_int x, y;
 atomic_intptr_t z, z2;
 
-int r1, r2, r3; /* "local" variables */
+int r1, r2, r3;	/* "local" variables */
 
 /**
-		This example illustrates a self-satisfying cycle involving
-		synchronization.  A failed synchronization creates the store that
-		causes the synchronization to fail.
+                This example illustrates a self-satisfying cycle involving
+                synchronization.  A failed synchronization creates the store that
+                causes the synchronization to fail.
 
-		The C++11 memory model nominally allows r1=0, r2=1, r3=5.
+                The C++11 memory model nominally allows r1=0, r2=1, r3=5.
 
-		This example is insane, we don't support that behavior.
-*/
+                This example is insane, we don't support that behavior.
+ */
 
 
 static void a(void *obj)
