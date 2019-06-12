@@ -21,11 +21,11 @@ typedef SnapList<ModelAction *> action_list_t;
 
 /** @brief Model checker execution stats */
 struct execution_stats {
-	int num_total;			/**< @brief Total number of executions */
-	int num_infeasible;				/**< @brief Number of infeasible executions */
-	int num_buggy_executions;				/** @brief Number of buggy executions */
-	int num_complete;				/**< @brief Number of feasible, non-buggy, complete executions */
-	int num_redundant;			/**< @brief Number of redundant, aborted executions */
+	int num_total;	/**< @brief Total number of executions */
+	int num_infeasible;	/**< @brief Number of infeasible executions */
+	int num_buggy_executions;	/** @brief Number of buggy executions */
+	int num_complete;	/**< @brief Number of feasible, non-buggy, complete executions */
+	int num_redundant;	/**< @brief Number of redundant, aborted executions */
 };
 
 /** @brief The central structure for model-checking */
@@ -104,4 +104,4 @@ private:
 
 extern ModelChecker *model;
 
-#endif/* __MODEL_H__ */
+#endif	/* __MODEL_H__ */

@@ -89,4 +89,4 @@ struct RaceRecord {
 #define MAXREADVECTOR (READMASK-1)
 #define MAXWRITEVECTOR (WRITEMASK-1)
 
-#endif/* __DATARACE_H__ */
+#endif	/* __DATARACE_H__ */

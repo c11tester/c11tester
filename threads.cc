@@ -143,7 +143,7 @@ Thread::Thread(thread_id_t tid) :
 	stack(NULL),
 	user_thread(NULL),
 	id(tid),
-	state(THREAD_READY),			/* Thread is always ready? */
+	state(THREAD_READY),	/* Thread is always ready? */
 	last_action_val(0),
 	model_thread(true)
 {
@@ -176,7 +176,7 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void (*func)(void *), void *a, Thread
 	if (ret)
 		model_print("Error in create_context\n");
 
-	user_thread->priv = this;				// WL
+	user_thread->priv = this;	// WL
 }
 
 /**

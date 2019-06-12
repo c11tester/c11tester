@@ -465,7 +465,7 @@ uint64_t ModelAction::get_reads_from_value() const
 	ASSERT(is_read());
 	if (reads_from)
 		return reads_from->get_write_value();
-	return VALUE_NONE;   // Only for new actions with no reads-from
+	return VALUE_NONE;	// Only for new actions with no reads-from
 }
 
 /**
@@ -523,7 +523,7 @@ void ModelAction::set_read_from(const ModelAction *act)
 
 	reads_from = act;
 
-	if (act->is_uninitialized()) {                                                                                                // WL
+	if (act->is_uninitialized()) {	// WL
 		uint64_t val = *((uint64_t *) location);
 		ModelAction * act_initialized = (ModelAction *)act;
 		act_initialized->set_value(val);

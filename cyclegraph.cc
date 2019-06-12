@@ -69,7 +69,7 @@ bool CycleGraph::addNodeEdge(CycleNode *fromnode, CycleNode *tonode)
 		if (!hasCycles)
 			hasCycles = checkReachable(tonode, fromnode);
 	} else
-		return false;							/* No new edge */
+		return false;/* No new edge */
 
 	/*
 	 * If the fromnode has a rmwnode that is not the tonode, we should

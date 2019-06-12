@@ -57,7 +57,7 @@ ModelExecution::ModelExecution(ModelChecker *m,
 	params(NULL),
 	scheduler(scheduler),
 	action_trace(),
-	thread_map(2),			/* We'll always need at least 2 threads */
+	thread_map(2),	/* We'll always need at least 2 threads */
 	pthread_map(0),
 	pthread_counter(0),
 	obj_map(),
@@ -368,7 +368,7 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		state->locked = NULL;
 
 		if (!curr->is_wait())
-			break;									/* The rest is only for ATOMIC_WAIT */
+			break;/* The rest is only for ATOMIC_WAIT */
 
 		break;
 	}
@@ -504,15 +504,15 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		updated = true;							/* trigger rel-seq checks */
+		updated = true;	/* trigger rel-seq checks */
 		break;
 	}
 	case PTHREAD_JOIN: {
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		updated = true;							/* trigger rel-seq checks */
-		break;						// WL: to be add (modified)
+		updated = true;	/* trigger rel-seq checks */
+		break;	// WL: to be add (modified)
 	}
 
 	case THREAD_FINISH: {
@@ -525,7 +525,7 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 				scheduler->wake(waiting);
 		}
 		th->complete();
-		updated = true;							/* trigger rel-seq checks */
+		updated = true;	/* trigger rel-seq checks */
 		break;
 	}
 	case THREAD_START: {
@@ -579,7 +579,7 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		newcurr->create_cv(get_parent_action(newcurr->get_tid()));
 
 		*curr = newcurr;
-		return false;							/* Action was explored previously */
+		return false;	/* Action was explored previously */
 	} else {
 		newcurr = *curr;
 
@@ -589,7 +589,7 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		/* Assign most recent release fence */
 		newcurr->set_last_fence_release(get_last_fence_release(newcurr->get_tid()));
 
-		return true;						/* This was a new ModelAction */
+		return true;	/* This was a new ModelAction */
 	}
 }
 
@@ -1070,7 +1070,7 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
 		else if (rf->get_last_fence_release())
 			release_heads->push_back(rf->get_last_fence_release());
 		if (!rf->is_rmw())
-			break;									/* End of RMW chain */
+			break;/* End of RMW chain */
 
 		/** @todo Need to be smarter here...  In the linux lock
 		 * example, this will run to the beginning of the program for
@@ -1081,12 +1081,12 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
 
 		/* acq_rel RMW is a sufficient stopping condition */
 		if (rf->is_acquire() && rf->is_release())
-			return true;									/* complete */
+			return true;/* complete */
 	};
-	ASSERT(rf);				// Needs to be real write
+	ASSERT(rf);	// Needs to be real write
 
 	if (rf->is_release())
-		return true;						/* complete */
+		return true;/* complete */
 
 	/* else relaxed write
 	 * - check for fence-release in the same thread (29.8, stmt. 3)
@@ -1099,7 +1099,7 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf,
 	if (fence_release)
 		release_heads->push_back(fence_release);
 
-	return true;			/* complete */
+	return true;	/* complete */
 }
 
 /**
@@ -1225,7 +1225,7 @@ ModelAction * ModelExecution::get_last_seq_cst_write(ModelAction *curr) const
 	action_list_t::reverse_iterator rit;
 	for (rit = list->rbegin();(*rit) != curr;rit++)
 		;
-	rit++;			/* Skip past curr */
+	rit++;	/* Skip past curr */
 	for ( ;rit != list->rend();rit++)
 		if ((*rit)->is_write() && (*rit)->is_seqcst())
 			return *rit;
@@ -1618,7 +1618,7 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	Thread *curr_thrd = get_thread(curr);
 	ASSERT(curr_thrd->get_state() == THREAD_READY);
 
-	ASSERT(check_action_enabled(curr));				/* May have side effects? */
+	ASSERT(check_action_enabled(curr));	/* May have side effects? */
 	curr = check_current_action(curr);
 	ASSERT(curr);
 

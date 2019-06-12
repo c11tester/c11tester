@@ -211,4 +211,4 @@ private:
 	Thread * action_select_next_thread(const ModelAction *curr) const;
 };
 
-#endif/* __EXECUTION_H__ */
+#endif	/* __EXECUTION_H__ */

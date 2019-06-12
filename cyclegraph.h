@@ -112,4 +112,4 @@ private:
 	CycleNode *hasRMW;
 };
 
-#endif/* __CYCLEGRAPH_H__ */
+#endif	/* __CYCLEGRAPH_H__ */

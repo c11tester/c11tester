@@ -37,7 +37,7 @@ void print_trace(void)
 		model_print("\t%s\n", strings[i]);
 
 	free(strings);
-#endif/* CONFIG_STACKTRACE */
+#endif	/* CONFIG_STACKTRACE */
 }
 
 void assert_hook(void)
@@ -170,4 +170,4 @@ void print_program_output()
 
 	model_print("---- END PROGRAM OUTPUT   ----\n");
 }
-#endif/* ! CONFIG_DEBUG */
+#endif	/* ! CONFIG_DEBUG */

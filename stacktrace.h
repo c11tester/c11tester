@@ -67,7 +67,7 @@ static inline void print_stacktrace(int fd = STDERR_FILENO, unsigned int max_fra
 			char* ret = abi::__cxa_demangle(begin_name,
 																			funcname, &funcnamesize, &status);
 			if (status == 0) {
-				funcname = ret;													// use possibly realloc()-ed string
+				funcname = ret;	// use possibly realloc()-ed string
 				dprintf(fd, "  %s : %s+%s\n",
 								symbollist[i], funcname, begin_offset);
 			} else {
@@ -91,4 +91,4 @@ static inline void print_stacktrace(FILE *out, unsigned int max_frames = 63)
 	print_stacktrace(fileno(out), max_frames);
 }
 
-#endif// __STACKTRACE_H__
+#endif	// __STACKTRACE_H__

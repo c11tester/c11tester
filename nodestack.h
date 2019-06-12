@@ -80,4 +80,4 @@ private:
 	int head_idx;
 };
 
-#endif/* __NODESTACK_H__ */
+#endif	/* __NODESTACK_H__ */

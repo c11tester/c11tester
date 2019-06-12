@@ -27,7 +27,7 @@
 #else
 #define BIT48 0
 #endif
-#endif/* BIT48 */
+#endif	/* BIT48 */
 
 /** Snapshotting configurables */
 

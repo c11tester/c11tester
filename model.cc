@@ -368,7 +368,7 @@ void ModelChecker::run()
 
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
 		thrd_t user_thread;
-		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL);							// L: user_main_wrapper passes the user program
+		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL);	// L: user_main_wrapper passes the user program
 		execution->add_thread(t);
 		//Need to seed random number generator, otherwise its state gets reset
 		do {
@@ -383,7 +383,7 @@ void ModelChecker::run()
 				thread_id_t tid = int_to_id(i);
 				Thread *thr = get_thread(tid);
 				if (!thr->is_model_thread() && !thr->is_complete() && !thr->get_pending()) {
-					switch_from_master(thr);																			// L: context swapped, and action type of thr changed.
+					switch_from_master(thr);	// L: context swapped, and action type of thr changed.
 					if (thr->is_waiting_on(thr))
 						assert_bug("Deadlock detected (thread %u)", i);
 				}

@@ -47,29 +47,29 @@ using std::memory_order_seq_cst;
 /** @brief Represents an action type, identifying one of several types of
  * ModelAction */
 typedef enum action_type {
-	THREAD_CREATE, // < A thread creation action
-	THREAD_START, // < First action in each thread
-	THREAD_YIELD, // < A thread yield action
-	THREAD_JOIN,  // < A thread join action
-	THREAD_FINISH, // < A thread completion action
-	PTHREAD_CREATE, // < A pthread creation action
-	PTHREAD_JOIN, // < A pthread join action
-	ATOMIC_UNINIT, // < Represents an uninitialized atomic
-	ATOMIC_READ,  // < An atomic read action
-	ATOMIC_WRITE, // < An atomic write action
-	ATOMIC_RMWR, // < The read part of an atomic RMW action
-	ATOMIC_RMWRCAS,  // < The read part of an atomic RMW action
-	ATOMIC_RMW, // < The write part of an atomic RMW action
-	ATOMIC_RMWC,  // < Convert an atomic RMW action into a READ
-	ATOMIC_INIT, // < Initialization of an atomic object (e.g., atomic_init())
-	ATOMIC_FENCE, // < A fence action
-	ATOMIC_LOCK,  // < A lock action
-	ATOMIC_TRYLOCK,  // < A trylock action
-	ATOMIC_UNLOCK, // < An unlock action
-	ATOMIC_NOTIFY_ONE, // < A notify_one action
-	ATOMIC_NOTIFY_ALL,  // < A notify all action
-	ATOMIC_WAIT,  // < A wait action
-	ATOMIC_ANNOTATION, // < An annotation action to pass information to a trace analysis
+	THREAD_CREATE,	// < A thread creation action
+	THREAD_START,	// < First action in each thread
+	THREAD_YIELD,	// < A thread yield action
+	THREAD_JOIN,	// < A thread join action
+	THREAD_FINISH,	// < A thread completion action
+	PTHREAD_CREATE,	// < A pthread creation action
+	PTHREAD_JOIN,	// < A pthread join action
+	ATOMIC_UNINIT,	// < Represents an uninitialized atomic
+	ATOMIC_READ,	// < An atomic read action
+	ATOMIC_WRITE,	// < An atomic write action
+	ATOMIC_RMWR,	// < The read part of an atomic RMW action
+	ATOMIC_RMWRCAS,	// < The read part of an atomic RMW action
+	ATOMIC_RMW,	// < The write part of an atomic RMW action
+	ATOMIC_RMWC,	// < Convert an atomic RMW action into a READ
+	ATOMIC_INIT,	// < Initialization of an atomic object (e.g., atomic_init())
+	ATOMIC_FENCE,	// < A fence action
+	ATOMIC_LOCK,	// < A lock action
+	ATOMIC_TRYLOCK,	// < A trylock action
+	ATOMIC_UNLOCK,	// < An unlock action
+	ATOMIC_NOTIFY_ONE,	// < A notify_one action
+	ATOMIC_NOTIFY_ALL,	// < A notify all action
+	ATOMIC_WAIT,	// < A wait action
+	ATOMIC_ANNOTATION,	// < An annotation action to pass information to a trace analysis
 	NOOP
 } action_type_t;
 
@@ -236,4 +236,4 @@ private:
 	modelclock_t seq_number;
 };
 
-#endif/* __ACTION_H__ */
+#endif	/* __ACTION_H__ */

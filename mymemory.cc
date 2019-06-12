@@ -273,4 +273,4 @@ void Thread_free(void *ptr)
 	free(ptr);
 }
 
-#endif/* !USE_MPROTECT_SNAPSHOT */
+#endif	/* !USE_MPROTECT_SNAPSHOT */

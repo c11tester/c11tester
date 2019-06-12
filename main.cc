@@ -92,7 +92,7 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		{"analysis", required_argument, NULL, 't'},
 		{"options", required_argument, NULL, 'o'},
 		{"maxexecutions", required_argument, NULL, 'x'},
-		{0, 0, 0, 0}						/* Terminator */
+		{0, 0, 0, 0}	/* Terminator */
 	};
 	int opt, longindex;
 	bool error = false;
@@ -121,7 +121,7 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 				error = true;
 		}
 		break;
-		default:						/* '?' */
+		default:	/* '?' */
 			error = true;
 			break;
 		}

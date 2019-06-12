@@ -38,9 +38,9 @@ void assert_hook(void);
 #else
 #define ASSERT(expr) \
 	do { } while (0)
-#endif/* CONFIG_ASSERT */
+#endif	/* CONFIG_ASSERT */
 
 #define error_msg(...) fprintf(stderr, "Error: " __VA_ARGS__)
 
 void print_trace(void);
-#endif/* __COMMON_H__ */
+#endif	/* __COMMON_H__ */

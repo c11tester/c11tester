@@ -19,4 +19,4 @@ struct model_params {
 	char **argv;
 };
 
-#endif/* __PARAMS_H__ */
+#endif	/* __PARAMS_H__ */

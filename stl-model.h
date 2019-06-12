@@ -73,4 +73,4 @@ public:
 	SNAPSHOTALLOC
 };
 
-#endif/* __STL_MODEL_H__ */
+#endif	/* __STL_MODEL_H__ */

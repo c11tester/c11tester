@@ -24,7 +24,7 @@
 	void operator delete[](void *p, size_t size) { \
 		model_free(p); \
 	} \
-	void * operator new(size_t size, void *p) {				/* placement new */ \
+	void * operator new(size_t size, void *p) {	/* placement new */ \
 		return p; \
 	}
 
@@ -43,7 +43,7 @@
 	void operator delete[](void *p, size_t size) { \
 		snapshot_free(p); \
 	} \
-	void * operator new(size_t size, void *p) {				/* placement new */ \
+	void * operator new(size_t size, void *p) {	/* placement new */ \
 		return p; \
 	}
 
@@ -264,4 +264,4 @@ extern mspace model_snapshot_space;
 };	/* end of extern "C" */
 #endif
 
-#endif/* _MY_MEMORY_H */
+#endif	/* _MY_MEMORY_H */

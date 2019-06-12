@@ -18,4 +18,4 @@ struct bug_message {
 	SNAPSHOTALLOC
 };
 
-#endif/* __BUGMESSAGE_H__ */
+#endif	/* __BUGMESSAGE_H__ */

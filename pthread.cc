@@ -44,7 +44,7 @@ int pthread_join(pthread_t t, void **value_ptr) {
 void pthread_exit(void *value_ptr) {
 	Thread * th = thread_current();
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, th));
-	while(1) ;			//make warning goaway
+	while(1) ;//make warning goaway
 }
 
 int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {

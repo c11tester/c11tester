@@ -28,4 +28,4 @@ private:
 	int num_threads;
 };
 
-#endif/* __CLOCKVECTOR_H__ */
+#endif	/* __CLOCKVECTOR_H__ */
