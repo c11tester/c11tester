@@ -1373,12 +1373,8 @@ ModelVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *c
 			}
 
 			if (allow_read) {
-				/* Only add feasible reads */
-				mo_graph->startChanges();
-				r_modification_order(curr, act);
-				if (!is_infeasible())
-					rf_set->push_back(act);
-				mo_graph->rollbackChanges();
+			  /* Only add feasible reads */
+			  rf_set->push_back(act);
 			}
 
 			/* Include at most one act per-thread that "happens before" curr */
