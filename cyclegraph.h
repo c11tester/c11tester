@@ -86,10 +86,7 @@ public:
 	bool addEdge(CycleNode *node);
 	CycleNode * getEdge(unsigned int i) const;
 	unsigned int getNumEdges() const;
-	CycleNode * getBackEdge(unsigned int i) const;
-	unsigned int getNumBackEdges() const;
 	CycleNode * removeEdge();
-	CycleNode * removeBackEdge();
 
 	bool setRMW(CycleNode *);
 	CycleNode * getRMW() const;
@@ -103,9 +100,6 @@ private:
 
 	/** @brief The edges leading out from this node */
 	SnapVector<CycleNode *> edges;
-
-	/** @brief The edges leading into this node */
-	SnapVector<CycleNode *> back_edges;
 
 	/** Pointer to a RMW node that reads from this node, or NULL, if none
 	 * exists */

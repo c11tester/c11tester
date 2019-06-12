@@ -343,21 +343,6 @@ unsigned int CycleNode::getNumEdges() const
 }
 
 /**
- * @param i The index of the back edge to return
- * @returns The CycleNode back-edge indexed by i
- */
-CycleNode * CycleNode::getBackEdge(unsigned int i) const
-{
-	return back_edges[i];
-}
-
-/** @returns The number of edges entering this CycleNode */
-unsigned int CycleNode::getNumBackEdges() const
-{
-	return back_edges.size();
-}
-
-/**
  * @brief Remove an element from a vector
  * @param v The vector
  * @param n The element to remove
@@ -386,22 +371,6 @@ CycleNode * CycleNode::removeEdge()
 
 	CycleNode *ret = edges.back();
 	edges.pop_back();
-	vector_remove_node(ret->back_edges, this);
-	return ret;
-}
-
-/**
- * @brief Remove a (back) edge from this CycleNode
- * @return The CycleNode which was popped, if one exists; otherwise NULL
- */
-CycleNode * CycleNode::removeBackEdge()
-{
-	if (back_edges.empty())
-		return NULL;
-
-	CycleNode *ret = back_edges.back();
-	back_edges.pop_back();
-	vector_remove_node(ret->edges, this);
 	return ret;
 }
 
@@ -416,7 +385,6 @@ bool CycleNode::addEdge(CycleNode *node)
 		if (edges[i] == node)
 			return false;
 	edges.push_back(node);
-	node->back_edges.push_back(this);
 	return true;
 }
 
