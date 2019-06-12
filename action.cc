@@ -33,16 +33,16 @@
  */
 ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 												 uint64_t value, Thread *thread) :
-	type(type),
-	order(order),
-	original_order(order),
 	location(loc),
-	value(value),
 	reads_from(NULL),
 	last_fence_release(NULL),
 	node(NULL),
-	seq_number(ACTION_INITIAL_CLOCK),
-	cv(NULL)
+	cv(NULL),
+	value(value),
+	type(type),
+	order(order),
+	original_order(order),
+	seq_number(ACTION_INITIAL_CLOCK)
 {
 	/* References to NULL atomic variables can end up here */
 	ASSERT(loc || type == ATOMIC_FENCE);
@@ -66,16 +66,16 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
  */
 ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 												 uint64_t value, int size) :
-	type(type),
-	order(order),
-	original_order(order),
 	location(loc),
-	value(value),
 	reads_from(NULL),
 	last_fence_release(NULL),
 	node(NULL),
-	seq_number(ACTION_INITIAL_CLOCK),
-	cv(NULL)
+	cv(NULL),
+	value(value),
+	type(type),
+	order(order),
+	original_order(order),
+	seq_number(ACTION_INITIAL_CLOCK)
 {
 	/* References to NULL atomic variables can end up here */
 	ASSERT(loc);
@@ -465,7 +465,7 @@ uint64_t ModelAction::get_reads_from_value() const
 	ASSERT(is_read());
 	if (reads_from)
 		return reads_from->get_write_value();
-	return VALUE_NONE;			/* Only for new actions with no reads-from */
+	return VALUE_NONE;   // Only for new actions with no reads-from
 }
 
 /**
@@ -523,7 +523,7 @@ void ModelAction::set_read_from(const ModelAction *act)
 
 	reads_from = act;
 
-	if (act->is_uninitialized()) {			// WL
+	if (act->is_uninitialized()) {                                                                                                // WL
 		uint64_t val = *((uint64_t *) location);
 		ModelAction * act_initialized = (ModelAction *)act;
 		act_initialized->set_value(val);
