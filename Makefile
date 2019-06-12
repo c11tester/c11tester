@@ -90,5 +90,5 @@ pdfs: $(patsubst %.dot,%.pdf,$(wildcard *.dot))
 	pandoc -o $@ $< -V header-includes='\usepackage[margin=1in]{geometry}'
 
 tabbing:
-	uncrustify -c C.cfg --no-backup *.cc
-	uncrustify -c C.cfg --no-backup *.h
+	uncrustify -c C.cfg --no-backup --replace *.cc
+	uncrustify -c C.cfg --no-backup --replace *.h
