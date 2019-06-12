@@ -120,7 +120,6 @@ private:
 
 	bool mo_may_allow(const ModelAction *writer, const ModelAction *reader);
 	void set_bad_synchronization();
-	void set_bad_sc_read();
 	bool should_wake_up(const ModelAction *curr, const Thread *thread) const;
 	void wake_up_sleeping_actions(ModelAction *curr);
 	modelclock_t get_next_seq_num();
@@ -128,7 +127,7 @@ private:
 	bool next_execution();
 	ModelAction * check_current_action(ModelAction *curr);
 	bool initialize_curr_action(ModelAction **curr);
-	bool process_read(ModelAction *curr, ModelVector<ModelAction *> * rf_set);
+	bool process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
 	bool process_write(ModelAction *curr);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
@@ -142,13 +141,11 @@ private:
 	ModelAction * get_last_seq_cst_write(ModelAction *curr) const;
 	ModelAction * get_last_seq_cst_fence(thread_id_t tid, const ModelAction *before_fence) const;
 	ModelAction * get_last_unlock(ModelAction *curr) const;
-	ModelVector<ModelAction *> * build_may_read_from(ModelAction *curr);
+	SnapVector<ModelAction *> * build_may_read_from(ModelAction *curr);
 	ModelAction * process_rmw(ModelAction *curr);
 
-	template <typename rf_type>
-	bool r_modification_order(ModelAction *curr, const rf_type *rf);
-
-	bool w_modification_order(ModelAction *curr);
+  bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<ModelAction *> *priorset);
+	void w_modification_order(ModelAction *curr);
 	void get_release_seq_heads(ModelAction *acquire, ModelAction *read, rel_heads_list_t *release_heads);
 	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const;
 	ModelAction * get_uninitialized_action(const ModelAction *curr) const;

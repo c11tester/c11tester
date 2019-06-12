@@ -16,7 +16,7 @@
  * same thread or the parent that created this thread)
  * @param act is an action with which to update the ClockVector
  */
-ClockVector::ClockVector(ClockVector *parent, ModelAction *act)
+ClockVector::ClockVector(ClockVector *parent, const ModelAction *act)
 {
 	ASSERT(act);
 	num_threads = int_to_id(act->get_tid()) + 1;
