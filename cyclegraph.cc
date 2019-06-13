@@ -59,32 +59,32 @@ CycleNode * CycleGraph::getNode(const ModelAction *action)
  * @param tonode The edge points to this CycleNode
  * @return True, if new edge(s) are added; otherwise false
  */
-void CycleGraph::addNodeEdge(CycleNode *fromnode, CycleNode *tonode)
+void CycleGraph::addNodeEdge(CycleNode *fromnode, CycleNode *tonode, bool forceedge)
 {
 	//quick check whether edge is redundant
-	if (checkReachable(fromnode, tonode))
+	if (checkReachable(fromnode, tonode) && !forceedge) {
 		return;
-
-	CycleNode *edgeSrcNode = fromnode;
+	}
 
 	/*
 	 * If the fromnode has a rmwnode, we should
 	 * follow its RMW chain to add an edge at the end.
 	 */
-	CycleNode *rmwnode = fromnode->getRMW();
-	if (rmwnode) {
-		while (rmwnode->getRMW())
-			rmwnode = rmwnode->getRMW();
-		edgeSrcNode = rmwnode;
+	while (fromnode->getRMW()) {
+		CycleNode *nextnode = fromnode->getRMW();
+		if (nextnode == tonode)
+			break;
+		fromnode = nextnode;
 	}
 
-	edgeSrcNode->addEdge(tonode);	//Add edge to edgeSrcNode
+	fromnode->addEdge(tonode);	//Add edge to edgeSrcNode
 
 	/* Propagate clock vector changes */
-	if (tonode->cv->merge(edgeSrcNode->cv)) {
-		queue->push_back(edgeSrcNode);
+	if (tonode->cv->merge(fromnode->cv)) {
+		queue->push_back(fromnode);
 		while(!queue->empty()) {
 			const CycleNode *node = queue->back();
+			queue->pop_back();
 			unsigned int numedges = node->getNumEdges();
 			for(unsigned int i = 0;i < numedges;i++) {
 				CycleNode * enode = node->getEdge(i);
@@ -114,7 +114,6 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 
 	CycleNode *fromnode = getNode(from);
 	CycleNode *rmwnode = getNode(rmw);
-
 	/* We assume that this RMW has no RMW reading from it yet */
 	ASSERT(!rmwnode->getRMW());
 
@@ -133,8 +132,9 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 			rmwnode->addEdge(tonode);
 		}
 	}
-
-	addNodeEdge(fromnode, rmwnode);
+	fromnode->edges.clear();
+	
+	addNodeEdge(fromnode, rmwnode, true);
 }
 
 /**
@@ -159,7 +159,18 @@ void CycleGraph::addEdge(const ModelAction *from, const ModelAction *to)
 	CycleNode *fromnode = getNode(from);
 	CycleNode *tonode = getNode(to);
 
-	addNodeEdge(fromnode, tonode);
+	addNodeEdge(fromnode, tonode, false);
+}
+
+void CycleGraph::addEdge(const ModelAction *from, const ModelAction *to, bool forceedge)
+{
+	ASSERT(from);
+	ASSERT(to);
+
+	CycleNode *fromnode = getNode(from);
+	CycleNode *tonode = getNode(to);
+
+	addNodeEdge(fromnode, tonode, forceedge);
 }
 
 #if SUPPORT_MOD_ORDER_DUMP

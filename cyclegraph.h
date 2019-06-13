@@ -24,6 +24,7 @@ public:
 	CycleGraph();
 	~CycleGraph();
 	void addEdge(const ModelAction *from, const ModelAction *to);
+	void addEdge(const ModelAction *from, const ModelAction *to, bool forceedge);
 	void addRMWEdge(const ModelAction *from, const ModelAction *rmw);
 	bool checkReachable(const ModelAction *from, const ModelAction *to) const;
 
@@ -37,7 +38,7 @@ public:
 	CycleNode * getNode_noCreate(const ModelAction *act) const;
 	SNAPSHOTALLOC
 private:
-	void addNodeEdge(CycleNode *fromnode, CycleNode *tonode);
+	void addNodeEdge(CycleNode *fromnode, CycleNode *tonode, bool forceedge);
 	void putNode(const ModelAction *act, CycleNode *node);
 	CycleNode * getNode(const ModelAction *act);
 

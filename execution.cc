@@ -272,8 +272,9 @@ bool ModelExecution::is_complete_execution() const
  * @param rf_set is the set of model actions we can possibly read from
  * @return True if processing this read updates the mo_graph.
  */
-bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
+void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
 {
+	SnapVector<const ModelAction *> * priorset = new SnapVector<const ModelAction *>();
 	while(true) {
 
 		int index = fuzzer->selectWrite(curr, rf_set);
@@ -282,15 +283,16 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 
 		ASSERT(rf);
 
-		mo_graph->startChanges();
-		r_modification_order(curr, rf);
-		if (!is_infeasible()) {
+		if (r_modification_order(curr, rf, priorset)) {
+			for(unsigned int i=0;i<priorset->size();i++) {
+				mo_graph->addEdge((*priorset)[i], rf);
+			}
 			read_from(curr, rf);
-			mo_graph->commitChanges();
 			get_thread(curr)->set_return_value(curr->get_return_value());
-			return updated;
+			delete priorset;
+			return;
 		}
-		mo_graph->rollbackChanges();
+		priorset->clear();
 		(*rf_set)[index] = rf_set->back();
 		rf_set->pop_back();
 	}
@@ -388,15 +390,13 @@ bool ModelExecution::process_mutex(ModelAction *curr)
  * @param curr The ModelAction to process
  * @return True if the mo_graph was updated or promises were resolved
  */
-bool ModelExecution::process_write(ModelAction *curr)
+void ModelExecution::process_write(ModelAction *curr)
 {
 
-	bool updated_mod_order = w_modification_order(curr);
+	w_modification_order(curr);
 
-	mo_graph->commitChanges();
 
 	get_thread(curr)->set_return_value(VALUE_NONE);
-	return updated_mod_order;
 }
 
 /**
@@ -730,8 +730,6 @@ void ModelExecution::print_infeasibility(const char *prefix) const
 {
 	char buf[100];
 	char *ptr = buf;
-	if (mo_graph->checkForCycles())
-		ptr += sprintf(ptr, "[mo cycle]");
 	if (priv->bad_synchronization)
 		ptr += sprintf(ptr, "[bad sw ordering]");
 	if (ptr != buf)
@@ -746,8 +744,7 @@ void ModelExecution::print_infeasibility(const char *prefix) const
  */
 bool ModelExecution::is_infeasible() const
 {
-	return mo_graph->checkForCycles() ||
-				 priv->bad_synchronization;
+	return priv->bad_synchronization;
 }
 
 /** Close out a RMWR by converting previous RMWR into a RMW or READ. */
@@ -756,7 +753,6 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
 	lastread->process_rmw(act);
 	if (act->is_rmw()) {
 		mo_graph->addRMWEdge(lastread->get_reads_from(), lastread);
-		mo_graph->commitChanges();
 	}
 	return lastread;
 }
@@ -778,7 +774,7 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
  * @return True if modification order edges were added; false otherwise
  */
 
-bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<ModelAction *> * priorset)
+bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> * priorset)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;
@@ -823,26 +819,26 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 				/* C++, Section 29.3 statement 5 */
 				if (curr->is_seqcst() && last_sc_fence_thread_local &&
 						*act < *last_sc_fence_thread_local) {
-				  if (mo_graph->checkReachable(rf, act))
-				    return false;
-				  priorset->add(act);
+					if (mo_graph->checkReachable(rf, act))
+						return false;
+					priorset->push_back(act);
 					break;
 				}
 				/* C++, Section 29.3 statement 4 */
 				else if (act->is_seqcst() && last_sc_fence_local &&
 								 *act < *last_sc_fence_local) {
-				  if (mo_graph->checkReachable(rf, act))
-				    return false;
-				  priorset->add(act);
-				  break;
+					if (mo_graph->checkReachable(rf, act))
+						return false;
+					priorset->push_back(act);
+					break;
 				}
 				/* C++, Section 29.3 statement 6 */
 				else if (last_sc_fence_thread_before &&
 								 *act < *last_sc_fence_thread_before) {
-				  if (mo_graph->checkReachable(rf, act))
-				    return false;
-				  priorset->add(act);
-				  break;
+					if (mo_graph->checkReachable(rf, act))
+						return false;
+					priorset->push_back(act);
+					break;
 				}
 			}
 
@@ -852,15 +848,15 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 			 */
 			if (act->happens_before(curr)) {
 				if (act->is_write()) {
-				  if (mo_graph->checkReachable(rf, act))
-				    return false;
-				  priorset->add(act);
+					if (mo_graph->checkReachable(rf, act))
+						return false;
+					priorset->push_back(act);
 				} else {
 					const ModelAction *prevrf = act->get_reads_from();
 					if (!prevrf->equals(rf)) {
-					  if (mo_graph->checkReachable(rf, prevrf))
-					    return false;
-					  priorset->add(prevrf);
+						if (mo_graph->checkReachable(rf, prevrf))
+							return false;
+						priorset->push_back(prevrf);
 					}
 				}
 				break;
@@ -922,6 +918,7 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
 		action_list_t::reverse_iterator rit;
+		bool force_edge = false;
 		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
 			if (act == curr) {
@@ -936,6 +933,7 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 				 * 3) If normal write, we need to look at earlier actions, so
 				 * continue processing list.
 				 */
+				force_edge = true;
 				if (curr->is_rmw()) {
 					if (curr->get_reads_from() != NULL)
 						break;
@@ -948,7 +946,7 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 			/* C++, Section 29.3 statement 7 */
 			if (last_sc_fence_thread_before && act->is_write() &&
 					*act < *last_sc_fence_thread_before) {
-				mo_graph->addEdge(act, curr);
+				mo_graph->addEdge(act, curr, force_edge);
 				break;
 			}
 
@@ -964,10 +962,10 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 				 *   readfrom(act) --mo--> act
 				 */
 				if (act->is_write())
-					mo_graph->addEdge(act, curr);
+					mo_graph->addEdge(act, curr, force_edge);
 				else if (act->is_read()) {
 					//if previous read accessed a null, just keep going
-					mo_graph->addEdge(act->get_reads_from(), curr);
+					mo_graph->addEdge(act->get_reads_from(), curr, force_edge);
 				}
 				break;
 			} else if (act->is_read() && !act->could_synchronize_with(curr) &&
@@ -1047,12 +1045,8 @@ bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *
  * @return true, if the ModelExecution is certain that release_heads is complete;
  * false otherwise
  */
-bool ModelExecution::release_seq_heads(const ModelAction *rf,
-																			 rel_heads_list_t *release_heads) const
+bool ModelExecution::release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const
 {
-	/* Only check for release sequences if there are no cycles */
-	if (mo_graph->checkForCycles())
-		return false;
 
 	for ( ;rf != NULL;rf = rf->get_reads_from()) {
 		ASSERT(rf->is_write());
@@ -1331,7 +1325,6 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 		last_sc_write = get_last_seq_cst_write(curr);
 
 	SnapVector<ModelAction *> * rf_set = new SnapVector<ModelAction *>();
-	SnapVector<ModelAction *> * priorset = new SnapVector<ModelAction *>();
 
 	/* Iterate over all threads */
 	for (i = 0;i < thrd_lists->size();i++) {
@@ -1366,8 +1359,8 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 			}
 
 			if (allow_read) {
-			  /* Only add feasible reads */
-			  rf_set->push_back(act);
+				/* Only add feasible reads */
+				rf_set->push_back(act);
 			}
 
 			/* Include at most one act per-thread that "happens before" curr */
