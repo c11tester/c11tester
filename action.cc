@@ -31,8 +31,8 @@
  * @param thread (optional) The Thread in which this action occurred. If NULL
  * (default), then a Thread is assigned according to the scheduler.
  */
-ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
-												 uint64_t value, Thread *thread) :
+ModelAction::ModelAction(action_type_t type, memory_order order, void *loc, 
+		uint64_t value, Thread *thread) :
 	location(loc),
 	reads_from(NULL),
 	last_fence_release(NULL),
@@ -65,7 +65,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
  * (default), then a Thread is assigned according to the scheduler.
  */
 ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
-												 uint64_t value, int size) :
+		uint64_t value, int size) :
 	location(loc),
 	reads_from(NULL),
 	last_fence_release(NULL),
@@ -83,6 +83,43 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	Thread *t = thread_current();
 	this->tid = t->get_id();
 }
+
+
+/**
+ * @brief Construct a new ModelAction with source line number (requires llvm support)
+ *
+ * @param type The type of action
+ * @param position The source line number of this atomic operation
+ * @param order The memory order of this action. A "don't care" for non-ATOMIC
+ * actions (e.g., THREAD_* or MODEL_* actions).
+ * @param loc The location that this action acts upon
+ * @param value (optional) A value associated with the action (e.g., the value
+ * read or written). Defaults to a given macro constant, for debugging purposes.
+ * @param thread (optional) The Thread in which this action occurred. If NULL
+ * (default), then a Thread is assigned according to the scheduler.
+ */
+ModelAction::ModelAction(action_type_t type, const char * position, memory_order order, 
+		void *loc, uint64_t value, Thread *thread) :
+	location(loc),
+	position(position),
+	reads_from(NULL),
+	last_fence_release(NULL),
+	node(NULL),
+	cv(NULL),
+	value(value),
+	type(type),
+	order(order),
+	original_order(order),
+	seq_number(ACTION_INITIAL_CLOCK)
+{
+	/* References to NULL atomic variables can end up here */
+	ASSERT(loc || type == ATOMIC_FENCE);
+
+	Thread *t = thread ? thread : thread_current();
+	this->tid = t->get_id();
+	model_print("position: %s\n", position);
+}
+
 
 /** @brief ModelAction destructor */
 ModelAction::~ModelAction()
