@@ -11,7 +11,7 @@
 #include "mymemory.h"
 #include "memoryorder.h"
 #include "modeltypes.h"
-#include "mypthread.h"
+#include "pthread.h"
 #include "classlist.h"
 
 namespace cdsc {

@@ -1,7 +1,7 @@
 #include "common.h"
 #include "threads-model.h"
 #include "action.h"
-#include "mypthread.h"
+#include "pthread.h"
 
 #include "snapshot-interface.h"
 #include "datarace.h"

@@ -7,7 +7,7 @@
 
 #include <threads.h>
 #include <sched.h>
-//#include <bits/pthreadtypes.h>
+#include <bits/pthreadtypes.h>
 #include <pthread.h>
 
 typedef void *(*pthread_start_t)(void *);
