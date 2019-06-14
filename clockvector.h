@@ -7,13 +7,11 @@
 
 #include "mymemory.h"
 #include "modeltypes.h"
-
-/* Forward declaration */
-class ModelAction;
+#include "classlist.h"
 
 class ClockVector {
 public:
-	ClockVector(ClockVector *parent = NULL, ModelAction *act = NULL);
+	ClockVector(ClockVector *parent = NULL, const ModelAction *act = NULL);
 	~ClockVector();
 	bool merge(const ClockVector *cv);
 	bool synchronized_since(const ModelAction *act) const;
@@ -30,4 +28,4 @@ private:
 	int num_threads;
 };
 
-#endif /* __CLOCKVECTOR_H__ */
+#endif	/* __CLOCKVECTOR_H__ */

@@ -6,11 +6,11 @@
 namespace cdsc {
 
 condition_variable::condition_variable() {
-		
+
 }
 
 condition_variable::~condition_variable() {
-		
+
 }
 
 void condition_variable::notify_one() {

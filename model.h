@@ -15,36 +15,25 @@
 #include "stl-model.h"
 #include "context.h"
 #include "params.h"
-
-/* Forward declaration */
-class Node;
-class NodeStack;
-class CycleGraph;
-class Promise;
-class Scheduler;
-class Thread;
-class ClockVector;
-class TraceAnalysis;
-class ModelExecution;
-class ModelAction;
+#include "classlist.h"
 
 typedef SnapList<ModelAction *> action_list_t;
 
 /** @brief Model checker execution stats */
 struct execution_stats {
-	int num_total; /**< @brief Total number of executions */
-	int num_infeasible; /**< @brief Number of infeasible executions */
-	int num_buggy_executions; /** @brief Number of buggy executions */
-	int num_complete; /**< @brief Number of feasible, non-buggy, complete executions */
-	int num_redundant; /**< @brief Number of redundant, aborted executions */
+	int num_total;	/**< @brief Total number of executions */
+	int num_infeasible;	/**< @brief Number of infeasible executions */
+	int num_buggy_executions;	/** @brief Number of buggy executions */
+	int num_complete;	/**< @brief Number of feasible, non-buggy, complete executions */
+	int num_redundant;	/**< @brief Number of redundant, aborted executions */
 };
 
 /** @brief The central structure for model-checking */
 class ModelChecker {
 public:
-	ModelChecker(struct model_params params);
+	ModelChecker();
 	~ModelChecker();
-
+	void setParams(struct model_params params);
 	void run();
 
 	/** Restart the model checker, intended for pluggins. */
@@ -52,9 +41,6 @@ public:
 
 	/** Exit the model checker, intended for pluggins. */
 	void exit_model_checker();
-
-	/** Check the exit_flag. */
-	bool get_exit_flag() const { return exit_flag; }
 
 	/** @returns the context for the main model-checking system thread */
 	ucontext_t * get_system_context() { return &system_context; }
@@ -74,15 +60,13 @@ public:
 	bool assert_bug(const char *msg, ...);
 	void assert_user_bug(const char *msg);
 
-	const model_params params;
-	void add_trace_analysis(TraceAnalysis *a) {	trace_analyses.push_back(a); }
-	void set_inspect_plugin(TraceAnalysis *a) {	inspect_plugin=a;	}
+	model_params params;
+	void add_trace_analysis(TraceAnalysis *a) {     trace_analyses.push_back(a); }
+	void set_inspect_plugin(TraceAnalysis *a) {     inspect_plugin=a;       }
 	MEMALLOC
 private:
 	/** Flag indicates whether to restart the model checker. */
 	bool restart_flag;
-	/** Flag indicates whether to exit the model checker. */
-	bool exit_flag;
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
@@ -93,16 +77,11 @@ private:
 
 	unsigned int get_num_threads() const;
 
-	void execute_sleep_set();
-
 	bool next_execution();
 	bool should_terminate_execution();
 
 	Thread * get_next_thread();
 	void reset_to_initial_state();
-
-	ModelAction *diverge;
-	ModelAction *earliest_diverge;
 
 	ucontext_t system_context;
 
@@ -125,4 +104,4 @@ private:
 
 extern ModelChecker *model;
 
-#endif /* __MODEL_H__ */
+#endif	/* __MODEL_H__ */

@@ -24,7 +24,7 @@
 	void operator delete[](void *p, size_t size) { \
 		model_free(p); \
 	} \
-	void * operator new(size_t size, void *p) { /* placement new */ \
+	void * operator new(size_t size, void *p) {	/* placement new */ \
 		return p; \
 	}
 
@@ -43,7 +43,7 @@
 	void operator delete[](void *p, size_t size) { \
 		snapshot_free(p); \
 	} \
-	void * operator new(size_t size, void *p) { /* placement new */ \
+	void * operator new(size_t size, void *p) {	/* placement new */ \
 		return p; \
 	}
 
@@ -71,15 +71,15 @@ void Thread_free(void *ptr);
  */
 template <class T>
 class ModelAlloc {
- public:
+public:
 	// type definitions
-	typedef T        value_type;
+	typedef T value_type;
 	typedef T*       pointer;
 	typedef const T* const_pointer;
 	typedef T&       reference;
 	typedef const T& const_reference;
-	typedef size_t   size_type;
-	typedef size_t   difference_type;
+	typedef size_t size_type;
+	typedef size_t difference_type;
 
 	// rebind allocator to type U
 	template <class U>
@@ -140,14 +140,14 @@ class ModelAlloc {
 /** Return that all specializations of this allocator are interchangeable. */
 template <class T1, class T2>
 bool operator ==(const ModelAlloc<T1>&,
-		const ModelAlloc<T2>&) throw() {
+								 const ModelAlloc<T2>&) throw() {
 	return true;
 }
 
 /** Return that all specializations of this allocator are interchangeable. */
 template <class T1, class T2>
 bool operator!= (const ModelAlloc<T1>&,
-		const ModelAlloc<T2>&) throw() {
+								 const ModelAlloc<T2>&) throw() {
 	return false;
 }
 
@@ -163,15 +163,15 @@ bool operator!= (const ModelAlloc<T1>&,
  */
 template <class T>
 class SnapshotAlloc {
- public:
+public:
 	// type definitions
-	typedef T        value_type;
+	typedef T value_type;
 	typedef T*       pointer;
 	typedef const T* const_pointer;
 	typedef T&       reference;
 	typedef const T& const_reference;
-	typedef size_t   size_type;
-	typedef size_t   difference_type;
+	typedef size_t size_type;
+	typedef size_t difference_type;
 
 	// rebind allocator to type U
 	template <class U>
@@ -232,36 +232,36 @@ class SnapshotAlloc {
 /** Return that all specializations of this allocator are interchangeable. */
 template <class T1, class T2>
 bool operator ==(const SnapshotAlloc<T1>&,
-		const SnapshotAlloc<T2>&) throw() {
+								 const SnapshotAlloc<T2>&) throw() {
 	return true;
 }
 
 /** Return that all specializations of this allocator are interchangeable. */
 template <class T1, class T2>
 bool operator!= (const SnapshotAlloc<T1>&,
-		const SnapshotAlloc<T2>&) throw() {
+								 const SnapshotAlloc<T2>&) throw() {
 	return false;
 }
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-	typedef void * mspace;
-	extern void * mspace_malloc(mspace msp, size_t bytes);
-	extern void mspace_free(mspace msp, void* mem);
-	extern void * mspace_realloc(mspace msp, void* mem, size_t newsize);
-	extern void * mspace_calloc(mspace msp, size_t n_elements, size_t elem_size);
-	extern mspace create_mspace_with_base(void* base, size_t capacity, int locked);
-	extern mspace create_mspace(size_t capacity, int locked);
+typedef void * mspace;
+extern void * mspace_malloc(mspace msp, size_t bytes);
+extern void mspace_free(mspace msp, void* mem);
+extern void * mspace_realloc(mspace msp, void* mem, size_t newsize);
+extern void * mspace_calloc(mspace msp, size_t n_elements, size_t elem_size);
+extern mspace create_mspace_with_base(void* base, size_t capacity, int locked);
+extern mspace create_mspace(size_t capacity, int locked);
 
 #if USE_MPROTECT_SNAPSHOT
-	extern mspace user_snapshot_space;
+extern mspace user_snapshot_space;
 #endif
 
-	extern mspace model_snapshot_space;
+extern mspace model_snapshot_space;
 
 #ifdef __cplusplus
-};  /* end of extern "C" */
+};	/* end of extern "C" */
 #endif
 
-#endif /* _MY_MEMORY_H */
+#endif	/* _MY_MEMORY_H */

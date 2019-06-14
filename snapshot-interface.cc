@@ -22,12 +22,12 @@ struct snapshot_entry {
 };
 
 class SnapshotStack {
- public:
+public:
 	int backTrackBeforeStep(int seq_index);
 	void snapshotStep(int seq_index);
 
 	MEMALLOC
- private:
+private:
 	ModelVector<struct snapshot_entry> stack;
 };
 
@@ -73,7 +73,7 @@ static void SnapshotGlobalSegments()
 		sscanf(buf, "%22s %p-%p", type, &begin, &end);
 
 		char * secondpart = strstr(buf, "]");
-		
+
 		sscanf(&secondpart[2], "%c%c%c/%c%c%c SM=%3s %200s\n", &r, &w, &x, &mr, &mw, &mx, smstr, regionname);
 		if (w == 'w' && strstr(regionname, MYBINARYNAME)) {
 			size_t len = ((uintptr_t)end - (uintptr_t)begin) / PAGESIZE;
@@ -141,7 +141,7 @@ static void SnapshotGlobalSegments()
 int SnapshotStack::backTrackBeforeStep(int seqindex)
 {
 	int i;
-	for (i = (int)stack.size() - 1; i >= 0; i++)
+	for (i = (int)stack.size() - 1;i >= 0;i++)
 		if (stack[i].index <= seqindex)
 			break;
 		else

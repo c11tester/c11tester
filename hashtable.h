@@ -45,7 +45,7 @@ struct hashlistnode {
  */
 template<typename _Key, typename _Val, typename _KeyInt, int _Shift = 0, void * (* _malloc)(size_t) = snapshot_malloc, void * (* _calloc)(size_t, size_t) = snapshot_calloc, void (*_free)(void *) = snapshot_free>
 class HashTable {
- public:
+public:
 	/**
 	 * @brief Hash table constructor
 	 * @param initialcapacity Sets the initial capacity of the hash table.
@@ -61,7 +61,7 @@ class HashTable {
 		capacitymask = initialcapacity - 1;
 
 		threshold = (unsigned int)(initialcapacity * loadfactor);
-		size = 0; // Initial number of elements in the hash
+		size = 0;	// Initial number of elements in the hash
 	}
 
 	/** @brief Hash table destructor */
@@ -183,7 +183,7 @@ class HashTable {
 			exit(EXIT_FAILURE);
 		}
 
-		table = newtable;          // Update the global hashtable upon resize()
+		table = newtable;	// Update the global hashtable upon resize()
 		capacity = newsize;
 		capacitymask = newsize - 1;
 
@@ -191,7 +191,7 @@ class HashTable {
 
 		struct hashlistnode<_Key, _Val> *bin = &oldtable[0];
 		struct hashlistnode<_Key, _Val> *lastbin = &oldtable[oldcapacity];
-		for (; bin < lastbin; bin++) {
+		for (;bin < lastbin;bin++) {
 			_Key key = bin->key;
 
 			struct hashlistnode<_Key, _Val> *search;
@@ -207,10 +207,10 @@ class HashTable {
 			search->val = bin->val;
 		}
 
-		_free(oldtable);            // Free the memory of the old hash table
+		_free(oldtable);	// Free the memory of the old hash table
 	}
 
- private:
+private:
 	struct hashlistnode<_Key, _Val> *table;
 	unsigned int capacity;
 	unsigned int size;
@@ -219,4 +219,4 @@ class HashTable {
 	double loadfactor;
 };
 
-#endif /* __HASHTABLE_H__ */
+#endif	/* __HASHTABLE_H__ */

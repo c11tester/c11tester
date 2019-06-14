@@ -12,7 +12,7 @@ static int N = 2;
 static void a(void *obj)
 {
 	int i;
-	for (i = 0; i < N; i++)
+	for (i = 0;i < N;i++)
 		atomic_fetch_add_explicit(&x, 1, memory_order_relaxed);
 }
 

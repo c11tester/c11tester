@@ -8,10 +8,11 @@
 #include <stdint.h>
 
 #include "mymemory.h"
-#include <threads.h>
+#include "threads.h"
 #include "modeltypes.h"
 #include "stl-model.h"
 #include "context.h"
+#include "classlist.h"
 
 struct thread_params {
 	thrd_start_t func;
@@ -35,7 +36,6 @@ typedef enum thread_state {
 	THREAD_COMPLETED
 } thread_state;
 
-class ModelAction;
 
 /** @brief A Thread is created for each user-space thread */
 class Thread {
@@ -187,4 +187,4 @@ static inline int id_to_int(thread_id_t id)
 	return id;
 }
 
-#endif /* __THREADS_MODEL_H__ */
+#endif	/* __THREADS_MODEL_H__ */

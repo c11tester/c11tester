@@ -15,6 +15,6 @@ static inline void print_program_output() { }
 void redirect_output();
 void clear_program_output();
 void print_program_output();
-#endif /* ! CONFIG_DEBUG */
+#endif	/* ! CONFIG_DEBUG */
 
-#endif /* __OUTPUT_H__ */
+#endif	/* __OUTPUT_H__ */

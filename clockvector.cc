@@ -2,9 +2,11 @@
 #include <stdlib.h>
 
 #include "action.h"
+
 #include "clockvector.h"
 #include "common.h"
 #include "threads-model.h"
+
 
 /**
  * Constructs a new ClockVector, given a parent ClockVector and a first
@@ -14,7 +16,7 @@
  * same thread or the parent that created this thread)
  * @param act is an action with which to update the ClockVector
  */
-ClockVector::ClockVector(ClockVector *parent, ModelAction *act)
+ClockVector::ClockVector(ClockVector *parent, const ModelAction *act)
 {
 	ASSERT(act);
 	num_threads = int_to_id(act->get_tid()) + 1;
@@ -45,18 +47,18 @@ bool ClockVector::merge(const ClockVector *cv)
 	bool changed = false;
 	if (cv->num_threads > num_threads) {
 		clock = (modelclock_t *)snapshot_realloc(clock, cv->num_threads * sizeof(modelclock_t));
-		for (int i = num_threads; i < cv->num_threads; i++)
+		for (int i = num_threads;i < cv->num_threads;i++)
 			clock[i] = 0;
 		num_threads = cv->num_threads;
 	}
 
 	/* Element-wise maximum */
-	for (int i = 0; i < cv->num_threads; i++)
+	for (int i = 0;i < cv->num_threads;i++)
 		if (cv->clock[i] > clock[i]) {
 			clock[i] = cv->clock[i];
 			changed = true;
 		}
-	
+
 	return changed;
 }
 
@@ -96,6 +98,6 @@ void ClockVector::print() const
 {
 	int i;
 	model_print("(");
-	for (i = 0; i < num_threads; i++)
+	for (i = 0;i < num_threads;i++)
 		model_print("%2u%s", clock[i], (i == num_threads - 1) ? ")\n" : ", ");
 }

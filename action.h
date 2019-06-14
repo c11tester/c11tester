@@ -11,15 +11,11 @@
 #include "mymemory.h"
 #include "memoryorder.h"
 #include "modeltypes.h"
-#include "pthread.h"
-
-/* Forward declarations */
-class ClockVector;
-class Thread;
-class Promise;
+#include "mypthread.h"
+#include "classlist.h"
 
 namespace cdsc {
-	class mutex;
+class mutex;
 }
 
 using std::memory_order;
@@ -51,39 +47,32 @@ using std::memory_order_seq_cst;
 /** @brief Represents an action type, identifying one of several types of
  * ModelAction */
 typedef enum action_type {
-	MODEL_FIXUP_RELSEQ,   /**< Special ModelAction: finalize a release
-	                       *   sequence */
-	THREAD_CREATE,        /**< A thread creation action */
-	THREAD_START,         /**< First action in each thread */
-	THREAD_YIELD,         /**< A thread yield action */
-	THREAD_JOIN,          /**< A thread join action */
-	THREAD_FINISH,        /**< A thread completion action */
-	PTHREAD_CREATE,       /**< A pthread creation action */
-	PTHREAD_JOIN,         /**< A pthread join action */
-	
-	ATOMIC_UNINIT,        /**< Represents an uninitialized atomic */
-	ATOMIC_READ,          /**< An atomic read action */
-	ATOMIC_WRITE,         /**< An atomic write action */
-	ATOMIC_RMWR,          /**< The read part of an atomic RMW action */
-	ATOMIC_RMW,           /**< The write part of an atomic RMW action */
-	ATOMIC_RMWC,          /**< Convert an atomic RMW action into a READ */
-	ATOMIC_INIT,          /**< Initialization of an atomic object (e.g.,
-	                       *   atomic_init()) */
-	ATOMIC_FENCE,         /**< A fence action */
-	ATOMIC_LOCK,          /**< A lock action */
-	ATOMIC_TRYLOCK,       /**< A trylock action */
-	ATOMIC_UNLOCK,        /**< An unlock action */
-	ATOMIC_NOTIFY_ONE,    /**< A notify_one action */
-	ATOMIC_NOTIFY_ALL,    /**< A notify all action */
-	ATOMIC_WAIT,          /**< A wait action */
-	ATOMIC_ANNOTATION,     /**< An annotation action to pass information
-													 to a trace analysis */
+	THREAD_CREATE,	// < A thread creation action
+	THREAD_START,	// < First action in each thread
+	THREAD_YIELD,	// < A thread yield action
+	THREAD_JOIN,	// < A thread join action
+	THREAD_FINISH,	// < A thread completion action
+	PTHREAD_CREATE,	// < A pthread creation action
+	PTHREAD_JOIN,	// < A pthread join action
+	ATOMIC_UNINIT,	// < Represents an uninitialized atomic
+	ATOMIC_READ,	// < An atomic read action
+	ATOMIC_WRITE,	// < An atomic write action
+	ATOMIC_RMWR,	// < The read part of an atomic RMW action
+	ATOMIC_RMWRCAS,	// < The read part of an atomic RMW action
+	ATOMIC_RMW,	// < The write part of an atomic RMW action
+	ATOMIC_RMWC,	// < Convert an atomic RMW action into a READ
+	ATOMIC_INIT,	// < Initialization of an atomic object (e.g., atomic_init())
+	ATOMIC_FENCE,	// < A fence action
+	ATOMIC_LOCK,	// < A lock action
+	ATOMIC_TRYLOCK,	// < A trylock action
+	ATOMIC_UNLOCK,	// < An unlock action
+	ATOMIC_NOTIFY_ONE,	// < A notify_one action
+	ATOMIC_NOTIFY_ALL,	// < A notify all action
+	ATOMIC_WAIT,	// < A wait action
+	ATOMIC_ANNOTATION,	// < An annotation action to pass information to a trace analysis
 	NOOP
 } action_type_t;
 
-/* Forward declaration */
-class Node;
-class ClockVector;
 
 /**
  * @brief Represents a single atomic action
@@ -96,6 +85,7 @@ class ClockVector;
 class ModelAction {
 public:
 	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value = VALUE_NONE, Thread *thread = NULL);
+	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value, int size);
 	~ModelAction();
 	void print() const;
 
@@ -111,14 +101,12 @@ public:
 	uint64_t get_write_value() const;
 	uint64_t get_return_value() const;
 	const ModelAction * get_reads_from() const { return reads_from; }
-	Promise * get_reads_from_promise() const { return reads_from_promise; }
 	cdsc::mutex * get_mutex() const;
 
 	Node * get_node() const;
 	void set_node(Node *n) { node = n; }
 
 	void set_read_from(const ModelAction *act);
-	void set_read_from_promise(Promise *promise);
 
 	/** Store the most recent fence-release from the same thread
 	 *  @param fence The fence-release that occured prior to this */
@@ -131,7 +119,6 @@ public:
 	void set_try_lock(bool obtainedlock);
 	bool is_thread_start() const;
 	bool is_thread_join() const;
-	bool is_relseq_fixup() const;
 	bool is_mutex_op() const;
 	bool is_lock() const;
 	bool is_trylock() const;
@@ -148,6 +135,7 @@ public:
 	bool is_yield() const;
 	bool could_be_write() const;
 	bool is_rmwr() const;
+	bool is_rmwrcas() const;
 	bool is_rmwc() const;
 	bool is_rmw() const;
 	bool is_fence() const;
@@ -161,9 +149,8 @@ public:
 	bool same_thread(const ModelAction *act) const;
 	bool is_conflicting_lock(const ModelAction *act) const;
 	bool could_synchronize_with(const ModelAction *act) const;
-
+	int getSize() const;
 	Thread * get_thread_operand() const;
-
 	void create_cv(const ModelAction *parent = NULL);
 	ClockVector * get_cv() const { return cv; }
 	bool synchronize_with(const ModelAction *act);
@@ -180,59 +167,30 @@ public:
 
 	void process_rmw(ModelAction * act);
 	void copy_typeandorder(ModelAction * act);
-
-	void set_sleep_flag() { sleep_flag=true; }
-	bool get_sleep_flag() { return sleep_flag; }
 	unsigned int hash() const;
-
 	bool equals(const ModelAction *x) const { return this == x; }
-	bool equals(const Promise *x) const { return false; }
-
-	bool may_read_from(const ModelAction *write) const;
-	bool may_read_from(const Promise *promise) const;
-	MEMALLOC
-
 	void set_value(uint64_t val) { value = val; }
 
 	/* to accomodate pthread create and join */
 	Thread * thread_operand;
-	void set_thread_operand(Thread *th) { thread_operand = th; } 
+	void set_thread_operand(Thread *th) { thread_operand = th; }
+	MEMALLOC
 private:
-
 	const char * get_type_str() const;
 	const char * get_mo_str() const;
-
-	/** @brief Type of action (read, write, RMW, fence, thread create, etc.) */
-	action_type type;
-
-	/** @brief The memory order for this operation. */
-	memory_order order;
-
-	/** @brief The original memory order parameter for this operation. */
-	memory_order original_order;
 
 	/** @brief A pointer to the memory location for this action. */
 	void *location;
 
-	/** @brief The thread id that performed this action. */
-	thread_id_t tid;
-
-	/** @brief The value written (for write or RMW; undefined for read) */
-	uint64_t value;
-
-	/**
-	 * @brief The store that this action reads from
-	 *
-	 * Only valid for reads
-	 */
-	const ModelAction *reads_from;
-
-	/**
-	 * @brief The promise that this action reads from
-	 *
-	 * Only valid for reads
-	 */
-	Promise *reads_from_promise;
+	union {
+		/**
+		 * @brief The store that this action reads from
+		 *
+		 * Only valid for reads
+		 */
+		const ModelAction *reads_from;
+		int size;
+	};
 
 	/** @brief The last fence release from the same thread */
 	const ModelAction *last_fence_release;
@@ -246,14 +204,6 @@ private:
 	Node *node;
 
 	/**
-	 * @brief The sequence number of this action
-	 *
-	 * Except for ATOMIC_UNINIT actions, this number should be unique and
-	 * should represent the action's position in the execution order.
-	 */
-	modelclock_t seq_number;
-
-	/**
 	 * @brief The clock vector for this operation
 	 *
 	 * Technically, this is only needed for potentially synchronizing
@@ -262,7 +212,28 @@ private:
 	 */
 	ClockVector *cv;
 
-	bool sleep_flag;
+	/** @brief The value written (for write or RMW; undefined for read) */
+	uint64_t value;
+
+	/** @brief Type of action (read, write, RMW, fence, thread create, etc.) */
+	action_type type;
+
+	/** @brief The memory order for this operation. */
+	memory_order order;
+
+	/** @brief The original memory order parameter for this operation. */
+	memory_order original_order;
+
+	/** @brief The thread id that performed this action. */
+	thread_id_t tid;
+
+	/**
+	 * @brief The sequence number of this action
+	 *
+	 * Except for ATOMIC_UNINIT actions, this number should be unique and
+	 * should represent the action's position in the execution order.
+	 */
+	modelclock_t seq_number;
 };
 
-#endif /* __ACTION_H__ */
+#endif	/* __ACTION_H__ */

@@ -32,24 +32,55 @@
  * (default), then a Thread is assigned according to the scheduler.
  */
 ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
-		uint64_t value, Thread *thread) :
+												 uint64_t value, Thread *thread) :
+	location(loc),
+	reads_from(NULL),
+	last_fence_release(NULL),
+	node(NULL),
+	cv(NULL),
+	value(value),
 	type(type),
 	order(order),
 	original_order(order),
-	location(loc),
-	value(value),
-	reads_from(NULL),
-	reads_from_promise(NULL),
-	last_fence_release(NULL),
-	node(NULL),
-	seq_number(ACTION_INITIAL_CLOCK),
-	cv(NULL),
-	sleep_flag(false)
+	seq_number(ACTION_INITIAL_CLOCK)
 {
 	/* References to NULL atomic variables can end up here */
-	ASSERT(loc || type == ATOMIC_FENCE || type == MODEL_FIXUP_RELSEQ);
+	ASSERT(loc || type == ATOMIC_FENCE);
 
 	Thread *t = thread ? thread : thread_current();
+	this->tid = t->get_id();
+}
+
+
+/**
+ * @brief Construct a new ModelAction
+ *
+ * @param type The type of action
+ * @param order The memory order of this action. A "don't care" for non-ATOMIC
+ * actions (e.g., THREAD_* or MODEL_* actions).
+ * @param loc The location that this action acts upon
+ * @param value (optional) A value associated with the action (e.g., the value
+ * read or written). Defaults to a given macro constant, for debugging purposes.
+ * @param size (optional) The Thread in which this action occurred. If NULL
+ * (default), then a Thread is assigned according to the scheduler.
+ */
+ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
+												 uint64_t value, int size) :
+	location(loc),
+	reads_from(NULL),
+	last_fence_release(NULL),
+	node(NULL),
+	cv(NULL),
+	value(value),
+	type(type),
+	order(order),
+	original_order(order),
+	seq_number(ACTION_INITIAL_CLOCK)
+{
+	/* References to NULL atomic variables can end up here */
+	ASSERT(loc);
+	this->size = size;
+	Thread *t = thread_current();
 	this->tid = t->get_id();
 }
 
@@ -64,8 +95,12 @@ ModelAction::~ModelAction()
 	 */
 
 	/*
-	 if (cv)
-		delete cv; */
+	   if (cv)
+	        delete cv; */
+}
+
+int ModelAction::getSize() const {
+	return size;
 }
 
 void ModelAction::copy_from_new(ModelAction *newaction)
@@ -89,11 +124,6 @@ bool ModelAction::is_thread_start() const
 bool ModelAction::is_thread_join() const
 {
 	return type == THREAD_JOIN || type == PTHREAD_JOIN;
-}
-
-bool ModelAction::is_relseq_fixup() const
-{
-	return type == MODEL_FIXUP_RELSEQ;
 }
 
 bool ModelAction::is_mutex_op() const
@@ -151,7 +181,7 @@ bool ModelAction::is_uninitialized() const
 
 bool ModelAction::is_read() const
 {
-	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMW;
+	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS || type == ATOMIC_RMW;
 }
 
 bool ModelAction::is_write() const
@@ -171,7 +201,12 @@ bool ModelAction::is_yield() const
 
 bool ModelAction::is_rmwr() const
 {
-	return type == ATOMIC_RMWR;
+	return type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS;
+}
+
+bool ModelAction::is_rmwrcas() const
+{
+	return type == ATOMIC_RMWRCAS;
 }
 
 bool ModelAction::is_rmw() const
@@ -430,9 +465,7 @@ uint64_t ModelAction::get_reads_from_value() const
 	ASSERT(is_read());
 	if (reads_from)
 		return reads_from->get_write_value();
-	else if (reads_from_promise)
-		return reads_from_promise->get_value();
-	return VALUE_NONE; /* Only for new actions with no reads-from */
+	return VALUE_NONE;	// Only for new actions with no reads-from
 }
 
 /**
@@ -489,9 +522,8 @@ void ModelAction::set_read_from(const ModelAction *act)
 	ASSERT(act);
 
 	reads_from = act;
-	reads_from_promise = NULL;
 
-	if (act->is_uninitialized()) { // WL
+	if (act->is_uninitialized()) {	// WL
 		uint64_t val = *((uint64_t *) location);
 		ModelAction * act_initialized = (ModelAction *)act;
 		act_initialized->set_value(val);
@@ -499,22 +531,11 @@ void ModelAction::set_read_from(const ModelAction *act)
 
 // disabled by WL, because LLVM IR is unable to detect atomic init
 /*		model->assert_bug("May read from uninitialized atomic:\n"
-				"    action %d, thread %d, location %p (%s, %s)",
-				seq_number, id_to_int(tid), location,
-				get_type_str(), get_mo_str());
-*/
-	}
-}
-
-/**
- * Set this action's read-from promise
- * @param promise The promise to read from
+                                "    action %d, thread %d, location %p (%s, %s)",
+                                seq_number, id_to_int(tid), location,
+                                get_type_str(), get_mo_str());
  */
-void ModelAction::set_read_from_promise(Promise *promise)
-{
-	ASSERT(is_read());
-	reads_from_promise = promise;
-	reads_from = NULL;
+	}
 }
 
 /**
@@ -550,44 +571,44 @@ bool ModelAction::happens_before(const ModelAction *act) const
 const char * ModelAction::get_type_str() const
 {
 	switch (this->type) {
-		case MODEL_FIXUP_RELSEQ: return "relseq fixup";
-		case THREAD_CREATE: return "thread create";
-		case THREAD_START: return "thread start";
-		case THREAD_YIELD: return "thread yield";
-		case THREAD_JOIN: return "thread join";
-		case THREAD_FINISH: return "thread finish";
+	case THREAD_CREATE: return "thread create";
+	case THREAD_START: return "thread start";
+	case THREAD_YIELD: return "thread yield";
+	case THREAD_JOIN: return "thread join";
+	case THREAD_FINISH: return "thread finish";
 
-		case PTHREAD_CREATE: return "pthread create";
-		case PTHREAD_JOIN: return "pthread join";
+	case PTHREAD_CREATE: return "pthread create";
+	case PTHREAD_JOIN: return "pthread join";
 
-		case ATOMIC_UNINIT: return "uninitialized";
-		case ATOMIC_READ: return "atomic read";
-		case ATOMIC_WRITE: return "atomic write";
-		case ATOMIC_RMW: return "atomic rmw";
-		case ATOMIC_FENCE: return "fence";
-		case ATOMIC_RMWR: return "atomic rmwr";
-		case ATOMIC_RMWC: return "atomic rmwc";
-		case ATOMIC_INIT: return "init atomic";
-		case ATOMIC_LOCK: return "lock";
-		case ATOMIC_UNLOCK: return "unlock";
-		case ATOMIC_TRYLOCK: return "trylock";
-		case ATOMIC_WAIT: return "wait";
-		case ATOMIC_NOTIFY_ONE: return "notify one";
-	  case ATOMIC_NOTIFY_ALL: return "notify all";
-	  case ATOMIC_ANNOTATION: return "annotation";
-		default: return "unknown type";
+	case ATOMIC_UNINIT: return "uninitialized";
+	case ATOMIC_READ: return "atomic read";
+	case ATOMIC_WRITE: return "atomic write";
+	case ATOMIC_RMW: return "atomic rmw";
+	case ATOMIC_FENCE: return "fence";
+	case ATOMIC_RMWR: return "atomic rmwr";
+	case ATOMIC_RMWRCAS: return "atomic rmwrcas";
+	case ATOMIC_RMWC: return "atomic rmwc";
+	case ATOMIC_INIT: return "init atomic";
+	case ATOMIC_LOCK: return "lock";
+	case ATOMIC_UNLOCK: return "unlock";
+	case ATOMIC_TRYLOCK: return "trylock";
+	case ATOMIC_WAIT: return "wait";
+	case ATOMIC_NOTIFY_ONE: return "notify one";
+	case ATOMIC_NOTIFY_ALL: return "notify all";
+	case ATOMIC_ANNOTATION: return "annotation";
+	default: return "unknown type";
 	};
 }
 
 const char * ModelAction::get_mo_str() const
 {
 	switch (this->order) {
-		case std::memory_order_relaxed: return "relaxed";
-		case std::memory_order_acquire: return "acquire";
-		case std::memory_order_release: return "release";
-		case std::memory_order_acq_rel: return "acq_rel";
-		case std::memory_order_seq_cst: return "seq_cst";
-		default: return "unknown";
+	case std::memory_order_relaxed: return "relaxed";
+	case std::memory_order_acquire: return "acquire";
+	case std::memory_order_release: return "release";
+	case std::memory_order_acq_rel: return "acq_rel";
+	case std::memory_order_seq_cst: return "seq_cst";
+	default: return "unknown";
 	}
 }
 
@@ -597,17 +618,11 @@ void ModelAction::print() const
 	const char *type_str = get_type_str(), *mo_str = get_mo_str();
 
 	model_print("%-4d %-2d   %-14s  %7s  %14p   %-#18" PRIx64,
-			seq_number, id_to_int(tid), type_str, mo_str, location, get_return_value());
+							seq_number, id_to_int(tid), type_str, mo_str, location, get_return_value());
 	if (is_read()) {
 		if (reads_from)
 			model_print("  %-3d", reads_from->get_seq_number());
-		else if (reads_from_promise) {
-			int idx = reads_from_promise->get_index();
-			if (idx >= 0)
-				model_print("  P%-2d", idx);
-			else
-				model_print("  P? ");
-		} else
+		else
 			model_print("  ?  ");
 	}
 	if (cv) {
@@ -629,39 +644,11 @@ unsigned int ModelAction::hash() const
 	hash ^= id_to_int(tid) << 6;
 
 	if (is_read()) {
-	       if (reads_from)
-		       hash ^= reads_from->get_seq_number();
-	       else if (reads_from_promise)
-		       hash ^= reads_from_promise->get_index();
-	       hash ^= get_reads_from_value();
+		if (reads_from)
+			hash ^= reads_from->get_seq_number();
+		hash ^= get_reads_from_value();
 	}
 	return hash;
-}
-
-/**
- * @brief Checks the NodeStack to see if a ModelAction is in our may-read-from set
- * @param write The ModelAction to check for
- * @return True if the ModelAction is found; false otherwise
- */
-bool ModelAction::may_read_from(const ModelAction *write) const
-{
-	for (int i = 0; i < node->get_read_from_past_size(); i++)
-		if (node->get_read_from_past(i) == write)
-			return true;
-	return false;
-}
-
-/**
- * @brief Checks the NodeStack to see if a Promise is in our may-read-from set
- * @param promise The Promise to check for
- * @return True if the Promise is found; false otherwise
- */
-bool ModelAction::may_read_from(const Promise *promise) const
-{
-	for (int i = 0; i < node->get_read_from_promise_size(); i++)
-		if (node->get_read_from_promise(i) == promise)
-			return true;
-	return false;
 }
 
 /**

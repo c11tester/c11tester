@@ -13,13 +13,13 @@
 
 int model_swapcontext(ucontext_t *oucp, ucontext_t *ucp);
 
-#else /* !MAC */
+#else	/* !MAC */
 
 static inline int model_swapcontext(ucontext_t *oucp, ucontext_t *ucp)
-{	
+{
 	return swapcontext(oucp, ucp);
 }
 
-#endif /* !MAC */
+#endif	/* !MAC */
 
-#endif /* __CONTEXT_H__ */
+#endif	/* __CONTEXT_H__ */

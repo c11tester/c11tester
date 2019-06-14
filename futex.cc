@@ -2,7 +2,7 @@
 
 // Copyright (C) 2015-2019 Free Software Foundation, Inc.
 //
-// This is a reimplementation of libstdc++-v3/src/c++11/futex.cc. 
+// This is a reimplementation of libstdc++-v3/src/c++11/futex.cc.
 
 #include <bits/atomic_futex.h>
 #ifdef _GLIBCXX_HAS_GTHREADS
@@ -26,19 +26,19 @@ const unsigned futex_wake_op = 1;
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
-_GLIBCXX_BEGIN_NAMESPACE_VERSION
+	_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 	bool
 	__atomic_futex_unsigned_base::_M_futex_wait_until(unsigned *__addr,
-		unsigned __val,
-		bool __has_timeout, chrono::seconds __s, chrono::nanoseconds __ns)
+																										unsigned __val,
+																										bool __has_timeout, chrono::seconds __s, chrono::nanoseconds __ns)
 	{
 		// do nothing if the two values are not equal
 		if ( *__addr != __val ) {
 			return true;
 		}
 
-		// if a timeout is specified, return immedialy. Letting the scheduler decide how long this thread will wait.  
+		// if a timeout is specified, return immedialy. Letting the scheduler decide how long this thread will wait.
 		if (__has_timeout) {
 			return true;
 		}
@@ -48,8 +48,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 		cdsc::condition_variable *v = new cdsc::condition_variable();
 		cdsc::mutex *m = new cdsc::mutex();
 
-		execution->cond_map.put( (pthread_cond_t *) __addr, v);
-		execution->mutex_map.put( (pthread_mutex_t *) __addr, m);
+		execution->getCondMap()->put( (pthread_cond_t *) __addr, v);
+		execution->getMutexMap()->put( (pthread_mutex_t *) __addr, m);
 
 		v->wait(*m);
 		return true;
@@ -60,11 +60,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	{
 		// INT_MAX wakes all the waiters at the address __addr
 		ModelExecution *execution = model->get_execution();
-		cdsc::condition_variable *v = execution->cond_map.get( (pthread_cond_t *) __addr);
+		cdsc::condition_variable *v = execution->getCondMap()->get( (pthread_cond_t *) __addr);
 		v->notify_all();
 	}
 
-_GLIBCXX_END_NAMESPACE_VERSION
+	_GLIBCXX_END_NAMESPACE_VERSION
 }
-#endif // defined(_GLIBCXX_HAVE_LINUX_FUTEX) && ATOMIC_INT_LOCK_FREE > 1
-#endif // _GLIBCXX_HAS_GTHREADS
+#endif	// defined(_GLIBCXX_HAVE_LINUX_FUTEX) && ATOMIC_INT_LOCK_FREE > 1
+#endif	// _GLIBCXX_HAS_GTHREADS

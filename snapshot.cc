@@ -40,8 +40,8 @@ struct BackingPageRecord {
 
 /* Struct for each memory region */
 struct MemoryRegion {
-	void *basePtr; // base of memory region
-	int sizeInPages; // size of memory region in pages
+	void *basePtr;	// base of memory region
+	int sizeInPages;	// size of memory region in pages
 };
 
 /** ReturnPageAlignedAddress returns a page aligned address for the
@@ -57,19 +57,19 @@ struct mprot_snapshotter {
 	mprot_snapshotter(unsigned int numbackingpages, unsigned int numsnapshots, unsigned int nummemoryregions);
 	~mprot_snapshotter();
 
-	struct MemoryRegion *regionsToSnapShot; //This pointer references an array of memory regions to snapshot
-	snapshot_page_t *backingStore; //This pointer references an array of snapshotpage's that form the backing store
-	void *backingStoreBasePtr; //This pointer references an array of snapshotpage's that form the backing store
-	struct BackingPageRecord *backingRecords; //This pointer references an array of backingpagerecord's (same number of elements as backingstore
-	struct SnapShotRecord *snapShots; //This pointer references the snapshot array
+	struct MemoryRegion *regionsToSnapShot;	//This pointer references an array of memory regions to snapshot
+	snapshot_page_t *backingStore;	//This pointer references an array of snapshotpage's that form the backing store
+	void *backingStoreBasePtr;	//This pointer references an array of snapshotpage's that form the backing store
+	struct BackingPageRecord *backingRecords;	//This pointer references an array of backingpagerecord's (same number of elements as backingstore
+	struct SnapShotRecord *snapShots;	//This pointer references the snapshot array
 
-	unsigned int lastSnapShot; //Stores the next snapshot record we should use
-	unsigned int lastBackingPage; //Stores the next backingpage we should use
-	unsigned int lastRegion; //Stores the next memory region to be used
+	unsigned int lastSnapShot;	//Stores the next snapshot record we should use
+	unsigned int lastBackingPage;	//Stores the next backingpage we should use
+	unsigned int lastRegion;	//Stores the next memory region to be used
 
-	unsigned int maxRegions; //Stores the max number of memory regions we support
-	unsigned int maxBackingPages; //Stores the total number of backing pages
-	unsigned int maxSnapShots; //Stores the total number of snapshots we allow
+	unsigned int maxRegions;	//Stores the max number of memory regions we support
+	unsigned int maxBackingPages;	//Stores the total number of backing pages
+	unsigned int maxSnapShots;	//Stores the total number of snapshots we allow
 
 	MEMALLOC
 };
@@ -108,13 +108,13 @@ static void mprot_handle_pf(int sig, siginfo_t *si, void *unused)
 	if (si->si_code == SEGV_MAPERR) {
 		model_print("Segmentation fault at %p\n", si->si_addr);
 		model_print("For debugging, place breakpoint at: %s:%d\n",
-				__FILE__, __LINE__);
+								__FILE__, __LINE__);
 		// print_trace(); // Trace printing may cause dynamic memory allocation
- 		exit(EXIT_FAILURE);
+		exit(EXIT_FAILURE);
 	}
 	void* addr = ReturnPageAlignedAddress(si->si_addr);
 
-	unsigned int backingpage = mprot_snap->lastBackingPage++; //Could run out of pages...
+	unsigned int backingpage = mprot_snap->lastBackingPage++;	//Could run out of pages...
 	if (backingpage == mprot_snap->maxBackingPages) {
 		model_print("Out of backing pages at %p\n", si->si_addr);
 		exit(EXIT_FAILURE);
@@ -132,8 +132,8 @@ static void mprot_handle_pf(int sig, siginfo_t *si, void *unused)
 }
 
 static void mprot_snapshot_init(unsigned int numbackingpages,
-		unsigned int numsnapshots, unsigned int nummemoryregions,
-		unsigned int numheappages, VoidFuncPtr entryPoint)
+																unsigned int numsnapshots, unsigned int nummemoryregions,
+																unsigned int numheappages, VoidFuncPtr entryPoint)
 {
 	/* Setup a stack for our signal handler....  */
 	stack_t ss;
@@ -167,7 +167,7 @@ static void mprot_snapshot_init(unsigned int numbackingpages,
 	memset(&si, 0, sizeof(si));
 	si.si_addr = ss.ss_sp;
 	mprot_handle_pf(SIGSEGV, &si, NULL);
-	mprot_snap->lastBackingPage--; //remove the fake page we copied
+	mprot_snap->lastBackingPage--;	//remove the fake page we copied
 
 	void *basemySpace = model_malloc((numheappages + 1) * PAGESIZE);
 	void *pagealignedbase = PageAlignAddressUpward(basemySpace);
@@ -191,15 +191,15 @@ static void mprot_add_to_snapshot(void *addr, unsigned int numPages)
 	}
 
 	DEBUG("snapshot region %p-%p (%u page%s)\n",
-			addr, (char *)addr + numPages * PAGESIZE, numPages,
-			numPages > 1 ? "s" : "");
+				addr, (char *)addr + numPages * PAGESIZE, numPages,
+				numPages > 1 ? "s" : "");
 	mprot_snap->regionsToSnapShot[memoryregion].basePtr = addr;
 	mprot_snap->regionsToSnapShot[memoryregion].sizeInPages = numPages;
 }
 
 static snapshot_id mprot_take_snapshot()
 {
-	for (unsigned int region = 0; region < mprot_snap->lastRegion; region++) {
+	for (unsigned int region = 0;region < mprot_snap->lastRegion;region++) {
 		if (mprotect(mprot_snap->regionsToSnapShot[region].basePtr, mprot_snap->regionsToSnapShot[region].sizeInPages * sizeof(snapshot_page_t), PROT_READ) == -1) {
 			perror("mprotect");
 			model_print("Failed to mprotect inside of takeSnapShot\n");
@@ -220,7 +220,7 @@ static void mprot_roll_back(snapshot_id theID)
 {
 #if USE_MPROTECT_SNAPSHOT == 2
 	if (mprot_snap->lastSnapShot == (theID + 1)) {
-		for (unsigned int page = mprot_snap->snapShots[theID].firstBackingPage; page < mprot_snap->lastBackingPage; page++) {
+		for (unsigned int page = mprot_snap->snapShots[theID].firstBackingPage;page < mprot_snap->lastBackingPage;page++) {
 			memcpy(mprot_snap->backingRecords[page].basePtrOfPage, &mprot_snap->backingStore[page], sizeof(snapshot_page_t));
 		}
 		return;
@@ -228,14 +228,14 @@ static void mprot_roll_back(snapshot_id theID)
 #endif
 
 	HashTable< void *, bool, uintptr_t, 4, model_malloc, model_calloc, model_free> duplicateMap;
-	for (unsigned int region = 0; region < mprot_snap->lastRegion; region++) {
+	for (unsigned int region = 0;region < mprot_snap->lastRegion;region++) {
 		if (mprotect(mprot_snap->regionsToSnapShot[region].basePtr, mprot_snap->regionsToSnapShot[region].sizeInPages * sizeof(snapshot_page_t), PROT_READ | PROT_WRITE) == -1) {
 			perror("mprotect");
 			model_print("Failed to mprotect inside of takeSnapShot\n");
 			exit(EXIT_FAILURE);
 		}
 	}
-	for (unsigned int page = mprot_snap->snapShots[theID].firstBackingPage; page < mprot_snap->lastBackingPage; page++) {
+	for (unsigned int page = mprot_snap->snapShots[theID].firstBackingPage;page < mprot_snap->lastBackingPage;page++) {
 		if (!duplicateMap.contains(mprot_snap->backingRecords[page].basePtrOfPage)) {
 			duplicateMap.put(mprot_snap->backingRecords[page].basePtrOfPage, true);
 			memcpy(mprot_snap->backingRecords[page].basePtrOfPage, &mprot_snap->backingStore[page], sizeof(snapshot_page_t));
@@ -243,13 +243,13 @@ static void mprot_roll_back(snapshot_id theID)
 	}
 	mprot_snap->lastSnapShot = theID;
 	mprot_snap->lastBackingPage = mprot_snap->snapShots[theID].firstBackingPage;
-	mprot_take_snapshot(); //Make sure current snapshot is still good...All later ones are cleared
+	mprot_take_snapshot();	//Make sure current snapshot is still good...All later ones are cleared
 }
 
-#else /* !USE_MPROTECT_SNAPSHOT */
+#else	/* !USE_MPROTECT_SNAPSHOT */
 
-#define SHARED_MEMORY_DEFAULT  (100 * ((size_t)1 << 20)) // 100mb for the shared memory
-#define STACK_SIZE_DEFAULT      (((size_t)1 << 20) * 20)  // 20 mb out of the above 100 mb for my stack
+#define SHARED_MEMORY_DEFAULT  (100 * ((size_t)1 << 20))	// 100mb for the shared memory
+#define STACK_SIZE_DEFAULT      (((size_t)1 << 20) * 20)	// 20 mb out of the above 100 mb for my stack
 
 struct fork_snapshotter {
 	/** @brief Pointer to the shared (non-snapshot) memory heap base
@@ -289,19 +289,19 @@ struct fork_snapshotter {
 static struct fork_snapshotter *fork_snap = NULL;
 
 /** @statics
-*   These variables are necessary because the stack is shared region and
-*   there exists a race between all processes executing the same function.
-*   To avoid the problem above, we require variables allocated in 'safe' regions.
-*   The bug was actually observed with the forkID, these variables below are
-*   used to indicate the various contexts to which to switch to.
-*
-*   @private_ctxt: the context which is internal to the current process. Used
-*   for running the internal snapshot/rollback loop.
-*   @exit_ctxt: a special context used just for exiting from a process (so we
-*   can use swapcontext() instead of setcontext() + hacks)
-*   @snapshotid: it is a running counter for the various forked processes
-*   snapshotid. it is incremented and set in a persistently shared record
-*/
+ *   These variables are necessary because the stack is shared region and
+ *   there exists a race between all processes executing the same function.
+ *   To avoid the problem above, we require variables allocated in 'safe' regions.
+ *   The bug was actually observed with the forkID, these variables below are
+ *   used to indicate the various contexts to which to switch to.
+ *
+ *   @private_ctxt: the context which is internal to the current process. Used
+ *   for running the internal snapshot/rollback loop.
+ *   @exit_ctxt: a special context used just for exiting from a process (so we
+ *   can use swapcontext() instead of setcontext() + hacks)
+ *   @snapshotid: it is a running counter for the various forked processes
+ *   snapshotid. it is incremented and set in a persistently shared record
+ */
 static ucontext_t private_ctxt;
 static ucontext_t exit_ctxt;
 static snapshot_id snapshotid = 0;
@@ -314,7 +314,7 @@ static snapshot_id snapshotid = 0;
  * @param func The entry point function for the context
  */
 static void create_context(ucontext_t *ctxt, void *stack, size_t stacksize,
-		void (*func)(void))
+													 void (*func)(void))
 {
 	getcontext(ctxt);
 	ctxt->uc_stack.ss_sp = stack;
@@ -361,8 +361,8 @@ mspace create_shared_mspace()
 }
 
 static void fork_snapshot_init(unsigned int numbackingpages,
-		unsigned int numsnapshots, unsigned int nummemoryregions,
-		unsigned int numheappages, VoidFuncPtr entryPoint)
+															 unsigned int numsnapshots, unsigned int nummemoryregions,
+															 unsigned int numheappages, VoidFuncPtr entryPoint)
 {
 	if (!fork_snap)
 		createSharedMemory();
@@ -377,7 +377,7 @@ static void fork_snapshot_init(unsigned int numbackingpages,
 
 	/* setup the shared-stack context */
 	create_context(&fork_snap->shared_ctxt, fork_snap->mStackBase,
-			STACK_SIZE_DEFAULT, entryPoint);
+								 STACK_SIZE_DEFAULT, entryPoint);
 	/* switch to a new entryPoint context, on a new stack */
 	model_swapcontext(&private_ctxt, &fork_snap->shared_ctxt);
 
@@ -393,7 +393,7 @@ static void fork_snapshot_init(unsigned int numbackingpages,
 			setcontext(&fork_snap->shared_ctxt);
 		} else {
 			DEBUG("parent PID: %d, child PID: %d, snapshot ID: %d\n",
-			        getpid(), forkedID, snapshotid);
+						getpid(), forkedID, snapshotid);
 
 			while (waitpid(forkedID, NULL, 0) < 0) {
 				/* waitpid() may be interrupted */
@@ -424,15 +424,15 @@ static void fork_roll_back(snapshot_id theID)
 	fork_snap->mIDToRollback = -1;
 }
 
-#endif /* !USE_MPROTECT_SNAPSHOT */
+#endif	/* !USE_MPROTECT_SNAPSHOT */
 
 /**
  * @brief Initializes the snapshot system
  * @param entryPoint the function that should run the program.
  */
 void snapshot_system_init(unsigned int numbackingpages,
-		unsigned int numsnapshots, unsigned int nummemoryregions,
-		unsigned int numheappages, VoidFuncPtr entryPoint)
+													unsigned int numsnapshots, unsigned int nummemoryregions,
+													unsigned int numheappages, VoidFuncPtr entryPoint)
 {
 #if USE_MPROTECT_SNAPSHOT
 	mprot_snapshot_init(numbackingpages, numsnapshots, nummemoryregions, numheappages, entryPoint);

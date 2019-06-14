@@ -10,7 +10,7 @@ struct bug_message {
 		msg = (char *)snapshot_malloc(strlen(fmt) + strlen(str));
 		sprintf(msg, fmt, str);
 	}
-	~bug_message() { if (msg) snapshot_free(msg); }
+	~bug_message() { if (msg) snapshot_free(msg);}
 
 	char *msg;
 	void print() { model_print("%s", msg); }
@@ -18,4 +18,4 @@ struct bug_message {
 	SNAPSHOTALLOC
 };
 
-#endif /* __BUGMESSAGE_H__ */
+#endif	/* __BUGMESSAGE_H__ */

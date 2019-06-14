@@ -7,11 +7,7 @@
 
 #include "mymemory.h"
 #include "modeltypes.h"
-
-/* Forward declaration */
-class Thread;
-class Node;
-class ModelExecution;
+#include "classlist.h"
 
 typedef enum enabled_type {
 	THREAD_DISABLED,
@@ -40,7 +36,6 @@ public:
 	void remove_sleep(Thread *t);
 	void add_sleep(Thread *t);
 	enabled_type_t get_enabled(const Thread *t) const;
-	void update_sleep_set(Node *n);
 	bool is_enabled(const Thread *t) const;
 	bool is_enabled(thread_id_t tid) const;
 	bool is_sleep_set(const Thread *t) const;
@@ -60,4 +55,4 @@ private:
 	Thread *current;
 };
 
-#endif /* __SCHEDULE_H__ */
+#endif	/* __SCHEDULE_H__ */

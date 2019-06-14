@@ -10,26 +10,14 @@
 
 #include "mymemory.h"
 #include "hashtable.h"
-#include "workqueue.h"
 #include "config.h"
 #include "modeltypes.h"
 #include "stl-model.h"
 #include "params.h"
-
+#include "mypthread.h"
 #include "mutex.h"
 #include <condition_variable>
-
-/* Forward declaration */
-class Node;
-class NodeStack;
-class CycleGraph;
-class Promise;
-class Scheduler;
-class Thread;
-class ClockVector;
-struct model_snapshot_members;
-class ModelChecker;
-struct bug_message;
+#include "classlist.h"
 
 /** @brief Shorthand for a list of release sequence heads */
 typedef ModelVector<const ModelAction *> rel_heads_list_t;
@@ -64,15 +52,14 @@ struct release_seq {
 class ModelExecution {
 public:
 	ModelExecution(ModelChecker *m,
-			const struct model_params *params,
-			Scheduler *scheduler,
-			NodeStack *node_stack);
+								 Scheduler *scheduler,
+								 NodeStack *node_stack);
 	~ModelExecution();
 
-	const struct model_params * get_params() const { return params; }
+	struct model_params * get_params() const { return params; }
+	void setParams(struct model_params * _params) {params = _params;}
 
 	Thread * take_step(ModelAction *curr);
-	void fixup_release_sequences();
 
 	void print_summary() const;
 #if SUPPORT_MOD_ORDER_DUMP
@@ -83,11 +70,9 @@ public:
 	Thread * get_thread(thread_id_t tid) const;
 	Thread * get_thread(const ModelAction *act) const;
 
-	pthread_t get_pthread_counter() { return pthread_counter; }
+	uint32_t get_pthread_counter() { return pthread_counter; }
 	void incr_pthread_counter() { pthread_counter++; }
 	Thread * get_pthread(pthread_t pid);
-
-	int get_promise_number(const Promise *promise) const;
 
 	bool is_enabled(Thread *t) const;
 	bool is_enabled(thread_id_t tid) const;
@@ -97,7 +82,6 @@ public:
 
 	ClockVector * get_cv(thread_id_t tid) const;
 	ModelAction * get_parent_action(thread_id_t tid) const;
-	void check_promises_thread_disabled();
 	bool isfeasibleprefix() const;
 
 	action_list_t * get_actions_on_obj(void * obj, thread_id_t tid) const;
@@ -114,40 +98,28 @@ public:
 	bool is_complete_execution() const;
 
 	void print_infeasibility(const char *prefix) const;
-	bool is_feasible_prefix_ignore_relseq() const;
 	bool is_infeasible() const;
 	bool is_deadlocked() const;
-	bool is_yieldblocked() const;
-	bool too_many_steps() const;
-
-	ModelAction * get_next_backtrack();
 
 	action_list_t * get_action_trace() { return &action_trace; }
-
+	Fuzzer * getFuzzer();
 	CycleGraph * const get_mo_graph() { return mo_graph; }
-
-	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
-	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> cond_map;
+	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
+	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
 
 	SNAPSHOTALLOC
 private:
 	int get_execution_number() const;
-	pthread_t pthread_counter;
 
 	ModelChecker *model;
 
-	const model_params * const params;
+	struct model_params * params;
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
 
-	bool sleep_can_read_from(ModelAction *curr, const ModelAction *write);
-	bool thin_air_constraint_may_allow(const ModelAction *writer, const ModelAction *reader) const;
 	bool mo_may_allow(const ModelAction *writer, const ModelAction *reader);
-	bool promises_may_allow(const ModelAction *writer, const ModelAction *reader) const;
 	void set_bad_synchronization();
-	void set_bad_sc_read();
-	bool promises_expired() const;
 	bool should_wake_up(const ModelAction *curr, const Thread *thread) const;
 	void wake_up_sleeping_actions(ModelAction *curr);
 	modelclock_t get_next_seq_num();
@@ -155,60 +127,33 @@ private:
 	bool next_execution();
 	ModelAction * check_current_action(ModelAction *curr);
 	bool initialize_curr_action(ModelAction **curr);
-	bool process_read(ModelAction *curr);
-	bool process_write(ModelAction *curr, work_queue_t *work);
+	void process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
+	void process_write(ModelAction *curr);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
 
 	bool process_thread_action(ModelAction *curr);
-	void process_relseq_fixup(ModelAction *curr, work_queue_t *work_queue);
 	bool read_from(ModelAction *act, const ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
 
-	template <typename T>
-	bool check_recency(ModelAction *curr, const T *rf) const;
-
-	template <typename T, typename U>
-	bool should_read_instead(const ModelAction *curr, const T *rf, const U *other_rf) const;
-
-	ModelAction * get_last_fence_conflict(ModelAction *act) const;
-	ModelAction * get_last_conflict(ModelAction *act) const;
-	void set_backtracking(ModelAction *act);
-	bool set_latest_backtrack(ModelAction *act);
-	Promise * pop_promise_to_resolve(const ModelAction *curr);
-	bool resolve_promise(ModelAction *curr, Promise *promise,
-			work_queue_t *work);
-	void compute_promises(ModelAction *curr);
-	void compute_relseq_breakwrites(ModelAction *curr);
-
-	void check_promises(thread_id_t tid, ClockVector *old_cv, ClockVector *merge_cv);
-	void mo_check_promises(const ModelAction *act, bool is_read_check);
-	void thread_blocking_check_promises(Thread *blocker, Thread *waiting);
-
-	void check_curr_backtracking(ModelAction *curr);
 	void add_action_to_lists(ModelAction *act);
 	ModelAction * get_last_fence_release(thread_id_t tid) const;
 	ModelAction * get_last_seq_cst_write(ModelAction *curr) const;
 	ModelAction * get_last_seq_cst_fence(thread_id_t tid, const ModelAction *before_fence) const;
 	ModelAction * get_last_unlock(ModelAction *curr) const;
-	void build_may_read_from(ModelAction *curr);
+	SnapVector<ModelAction *> * build_may_read_from(ModelAction *curr);
 	ModelAction * process_rmw(ModelAction *curr);
 
-	template <typename rf_type>
-	bool r_modification_order(ModelAction *curr, const rf_type *rf);
-
-	bool w_modification_order(ModelAction *curr, ModelVector<ModelAction *> *send_fv);
+	bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> *priorset);
+	void w_modification_order(ModelAction *curr);
 	void get_release_seq_heads(ModelAction *acquire, ModelAction *read, rel_heads_list_t *release_heads);
-	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads, struct release_seq *pending) const;
-	void propagate_clockvector(ModelAction *acquire, work_queue_t *work);
-	bool resolve_release_sequences(void *location, work_queue_t *work_queue);
-	void add_future_value(const ModelAction *writer, ModelAction *reader);
-	bool check_coherence_promise(const ModelAction *write, const ModelAction *read);
+	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const;
 	ModelAction * get_uninitialized_action(const ModelAction *curr) const;
 
 	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;
 	SnapVector<Thread *> pthread_map;
+	uint32_t pthread_counter;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */
@@ -220,16 +165,8 @@ private:
 
 	HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
 
-//	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
-
-	/**
-	 * @brief List of currently-pending promises
-	 *
-	 * Promises are sorted by the execution order of the read(s) which
-	 * created them
-	 */
-	SnapVector<Promise *> promises;
-	SnapVector<struct PendingFutureValue> futurevalues;
+	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
+	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> cond_map;
 
 	/**
 	 * List of pending release sequences. Release sequences might be
@@ -237,7 +174,6 @@ private:
 	 * are established. Each entry in the list may only be partially
 	 * filled, depending on its pending status.
 	 */
-	SnapVector<struct release_seq *> pending_rel_seqs;
 
 	SnapVector<ModelAction *> thrd_last_action;
 	SnapVector<ModelAction *> thrd_last_fence_release;
@@ -267,7 +203,9 @@ private:
 	 */
 	CycleGraph * const mo_graph;
 
+	Fuzzer * fuzzer;
+
 	Thread * action_select_next_thread(const ModelAction *curr) const;
 };
 
-#endif /* __EXECUTION_H__ */
+#endif	/* __EXECUTION_H__ */

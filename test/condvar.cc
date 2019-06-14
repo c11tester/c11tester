@@ -12,7 +12,7 @@ int shareddata;
 
 static void a(void *obj)
 {
-	
+
 	m->lock();
 	while(load_32(&shareddata)==0)
 		v->wait(*m);

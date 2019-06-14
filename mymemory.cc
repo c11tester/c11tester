@@ -259,7 +259,7 @@ void operator delete[](void *p, size_t size)
 	free(p);
 }
 
-#else /* !USE_MPROTECT_SNAPSHOT */
+#else	/* !USE_MPROTECT_SNAPSHOT */
 
 /** @brief Snapshotting allocation function for use by the Thread class only */
 void * Thread_malloc(size_t size)
@@ -273,4 +273,4 @@ void Thread_free(void *ptr)
 	free(ptr);
 }
 
-#endif /* !USE_MPROTECT_SNAPSHOT */
+#endif	/* !USE_MPROTECT_SNAPSHOT */

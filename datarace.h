@@ -8,9 +8,7 @@
 #include "config.h"
 #include <stdint.h>
 #include "modeltypes.h"
-
-/* Forward declaration */
-class ModelAction;
+#include "classlist.h"
 
 struct ShadowTable {
 	void * array[65536];
@@ -22,7 +20,7 @@ struct ShadowBaseTable {
 
 struct DataRace {
 	/* Clock and thread associated with first action.  This won't change in
-		 response to synchronization. */
+	         response to synchronization. */
 
 	thread_id_t oldthread;
 	modelclock_t oldclock;
@@ -30,7 +28,7 @@ struct DataRace {
 	bool isoldwrite;
 
 	/* Model action associated with second action.  This could change as
-		 a result of synchronization. */
+	         a result of synchronization. */
 	ModelAction *newaction;
 	/* Record whether this is a write, so we can tell the user. */
 	bool isnewwrite;
@@ -91,4 +89,4 @@ struct RaceRecord {
 #define MAXREADVECTOR (READMASK-1)
 #define MAXWRITEVECTOR (WRITEMASK-1)
 
-#endif /* __DATARACE_H__ */
+#endif	/* __DATARACE_H__ */
