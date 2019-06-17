@@ -18,27 +18,8 @@ struct pthread_params {
 };
 
 extern "C" {
-int pthread_create(pthread_t *, const pthread_attr_t *,
-          void *(*start_routine) (void *), void * arg);
-void pthread_exit(void *);
-int pthread_join(pthread_t, void **);
 
 pthread_t pthread_self(void);
-
-int pthread_mutex_init(pthread_mutex_t *, const pthread_mutexattr_t *);
-int pthread_mutex_lock(pthread_mutex_t *);
-int pthread_mutex_trylock(pthread_mutex_t *);
-int pthread_mutex_unlock(pthread_mutex_t *);
-int pthread_mutex_timedlock (pthread_mutex_t *__restrict p_mutex,
-				const struct timespec *__restrict __abstime);
-
-int pthread_cond_init(pthread_cond_t *p_cond, const pthread_condattr_t *attr);
-int pthread_cond_wait(pthread_cond_t *p_cond, pthread_mutex_t *p_mutex);
-int pthread_cond_timedwait(pthread_cond_t *p_cond, 
-    pthread_mutex_t *p_mutex, const struct timespec *abstime);
-int pthread_cond_signal(pthread_cond_t *);
-
-
 int user_main(int, char**);
 
 // --- not implemented yet ---

@@ -14,7 +14,7 @@
 #include "modeltypes.h"
 #include "stl-model.h"
 #include "params.h"
-#include "pthread.h"
+#include "mypthread.h"
 #include "mutex.h"
 #include <condition_variable>
 #include "classlist.h"
