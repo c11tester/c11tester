@@ -682,7 +682,7 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	wake_up_sleeping_actions(curr);
 
 	/* Add the action to lists before any other model-checking tasks */
-	if (!second_part_of_rmw)
+	if (!second_part_of_rmw && curr->get_type() != NOOP)
 		add_action_to_lists(curr);
 
 	SnapVector<ModelAction *> * rf_set = NULL;
@@ -1106,7 +1106,7 @@ bool ModelExecution::release_seq_heads(const ModelAction *rf, rel_heads_list_t *
  * @see ModelExecution::release_seq_heads
  */
 void ModelExecution::get_release_seq_heads(ModelAction *acquire,
-																					 ModelAction *read, rel_heads_list_t *release_heads)
+		 ModelAction *read, rel_heads_list_t *release_heads)
 {
 	const ModelAction *rf = read->get_reads_from();
 
