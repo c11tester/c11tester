@@ -34,6 +34,7 @@
 ModelAction::ModelAction(action_type_t type, memory_order order, void *loc, 
 		uint64_t value, Thread *thread) :
 	location(loc),
+	position(NULL),
 	reads_from(NULL),
 	last_fence_release(NULL),
 	node(NULL),
@@ -67,6 +68,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 		uint64_t value, int size) :
 	location(loc),
+	position(NULL),
 	reads_from(NULL),
 	last_fence_release(NULL),
 	node(NULL),

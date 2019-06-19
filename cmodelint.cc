@@ -33,6 +33,16 @@ uint64_t model_rmwr_action(void *obj, memory_order ord) {
 	return model->switch_to_master(new ModelAction(ATOMIC_RMWR, ord, obj));
 }
 
+/**
+ * Performs the read part of a RMW CAS action. The next action must
+ * either be the write part of the RMW action or an explicit close out
+ * of the RMW action w/o a write.
+ */
+uint64_t model_rmwrcas_action(void *obj, memory_order ord, uint64_t oldval, int size) {
+       return model->switch_to_master(new ModelAction(ATOMIC_RMWRCAS, ord, obj, oldval, size));
+}
+
+
 /** Performs the write part of a RMW action. */
 void model_rmw_action(void *obj, memory_order ord, uint64_t val) {
 	model->switch_to_master(new ModelAction(ATOMIC_RMW, ord, obj, val));
@@ -49,6 +59,12 @@ void model_fence_action(memory_order ord) {
 }
 
 /* ---  helper functions --- */
+uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, const char *position) {
+	return model->switch_to_master(
+		new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj)
+	);
+}
+
 uint64_t model_rmwr_action_helper(void *obj, int atomic_index, const char *position) {
 	return model->switch_to_master(
 		new ModelAction(ATOMIC_RMWR, position, orders[atomic_index], obj)
@@ -61,25 +77,11 @@ void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index, const ch
 	);
 }
 
-/*
-void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index) {
-	model->switch_to_master(new ModelAction(ATOMIC_RMW, orders[atomic_index], obj, val));
-}
-*/
-
 void model_rmwc_action_helper(void *obj, int atomic_index, const char *position) {
 	model->switch_to_master(
 		new ModelAction(ATOMIC_RMWC, position, orders[atomic_index], obj)
 	);
 }
-
-/*
-void model_fence_action_helper(int atomic_index) {
-	model->switch_to_master(
-		new ModelAction(ATOMIC_FENCE, orders[atomic_index], FENCE_LOCATION)
-	);
-}
-*/
 
 // cds atomic inits
 void cds_atomic_init8(void * obj, uint8_t val, const char * position) {
@@ -250,7 +252,7 @@ uint64_t cds_atomic_fetch_xor64(void* addr, uint64_t val, int atomic_index, cons
 ({                                                                                              \
   uint##size##_t _desired = desired;                                                            \
   uint##size##_t _expected = expected;                                                          \
-  uint##size##_t _old = model_rmwr_action_helper(addr, atomic_index, position);                           \
+  uint##size##_t _old = model_rmwrcas_action_helper(addr, atomic_index, position);                           \
   if (_old == _expected) {                                                                    \
     model_rmw_action_helper(addr, (uint64_t) _desired, atomic_index, position); return _expected; }      \
   else {                                                                                        \
