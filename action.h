@@ -70,7 +70,7 @@ typedef enum action_type {
 	ATOMIC_NOTIFY_ALL,	// < A notify all action
 	ATOMIC_WAIT,	// < A wait action
 	ATOMIC_ANNOTATION,	// < An annotation action to pass information to a trace analysis
-	NOOP
+	NOOP		// no operation, which returns control to scheduler
 } action_type_t;
 
 
@@ -86,6 +86,7 @@ class ModelAction {
 public:
 	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value = VALUE_NONE, Thread *thread = NULL);
 	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value, int size);
+	ModelAction(action_type_t type, const char * position, memory_order order, void *loc, uint64_t value = VALUE_NONE, Thread *thread = NULL);
 	~ModelAction();
 	void print() const;
 
@@ -95,6 +96,7 @@ public:
 	memory_order get_original_mo() const { return original_order; }
 	void set_mo(memory_order order) { this->order = order; }
 	void * get_location() const { return location; }
+	const char * get_position() const { return position; }
 	modelclock_t get_seq_number() const { return seq_number; }
 	uint64_t get_value() const { return value; }
 	uint64_t get_reads_from_value() const;
@@ -181,6 +183,9 @@ private:
 
 	/** @brief A pointer to the memory location for this action. */
 	void *location;
+
+	/** @brief A pointer to the source line for this atomic action. */
+	const char * position;
 
 	union {
 		/**
