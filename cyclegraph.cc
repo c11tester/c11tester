@@ -133,7 +133,7 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 		}
 	}
 	fromnode->edges.clear();
-	
+
 	addNodeEdge(fromnode, rmwnode, true);
 }
 

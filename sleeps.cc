@@ -8,7 +8,7 @@ unsigned int __sleep (unsigned int seconds)
 {
 	model->switch_to_master(
 		new ModelAction(NOOP, std::memory_order_seq_cst, NULL)
-	);
+		);
 	return 0;
 }
 
@@ -21,6 +21,6 @@ int usleep (useconds_t useconds)
 {
 	model->switch_to_master(
 		new ModelAction(NOOP, std::memory_order_seq_cst, NULL)
-	);
+		);
 	return 0;
 }

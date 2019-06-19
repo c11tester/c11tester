@@ -31,8 +31,8 @@
  * @param thread (optional) The Thread in which this action occurred. If NULL
  * (default), then a Thread is assigned according to the scheduler.
  */
-ModelAction::ModelAction(action_type_t type, memory_order order, void *loc, 
-		uint64_t value, Thread *thread) :
+ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
+												 uint64_t value, Thread *thread) :
 	location(loc),
 	position(NULL),
 	reads_from(NULL),
@@ -66,7 +66,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
  * (default), then a Thread is assigned according to the scheduler.
  */
 ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
-		uint64_t value, int size) :
+												 uint64_t value, int size) :
 	location(loc),
 	position(NULL),
 	reads_from(NULL),
@@ -100,8 +100,8 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
  * @param thread (optional) The Thread in which this action occurred. If NULL
  * (default), then a Thread is assigned according to the scheduler.
  */
-ModelAction::ModelAction(action_type_t type, const char * position, memory_order order, 
-		void *loc, uint64_t value, Thread *thread) :
+ModelAction::ModelAction(action_type_t type, const char * position, memory_order order,
+												 void *loc, uint64_t value, Thread *thread) :
 	location(loc),
 	position(position),
 	reads_from(NULL),

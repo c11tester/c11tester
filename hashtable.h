@@ -43,7 +43,7 @@ struct hashlistnode {
  * @tparam _free   Provide your own 'free' for the table, or default to
  *                 snapshotting.
  */
-template<typename _Key, typename _Val, typename _KeyInt, int _Shift = 0, void * (* _malloc)(size_t) = snapshot_malloc, void * (* _calloc)(size_t, size_t) = snapshot_calloc, void (*_free)(void *) = snapshot_free>
+template<typename _Key, typename _Val, typename _KeyInt, int _Shift = 0, void * (*_malloc)(size_t) = snapshot_malloc, void * (*_calloc)(size_t, size_t) = snapshot_calloc, void (*_free)(void *) = snapshot_free>
 class HashTable {
 public:
 	/**
