@@ -109,18 +109,6 @@ static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<void *, Sn
 	return tmp;
 }
 
-action_list_t * ModelExecution::get_actions_on_obj(void * obj, thread_id_t tid) const
-{
-	SnapVector<action_list_t> *wrv = obj_thrd_map.get(obj);
-	if (wrv==NULL)
-		return NULL;
-	unsigned int thread=id_to_int(tid);
-	if (thread < wrv->size())
-		return &(*wrv)[thread];
-	else
-		return NULL;
-}
-
 /** @return a thread ID for a new Thread */
 thread_id_t ModelExecution::get_next_id()
 {
@@ -272,7 +260,7 @@ bool ModelExecution::is_complete_execution() const
  * @param rf_set is the set of model actions we can possibly read from
  * @return True if processing this read updates the mo_graph.
  */
-void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
+void ModelExecution::process_read(ModelAction *curr, SnapVector<const ModelAction *> * rf_set)
 {
 	SnapVector<const ModelAction *> * priorset = new SnapVector<const ModelAction *>();
 	while(true) {
@@ -374,8 +362,10 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	}
 	case ATOMIC_NOTIFY_ONE: {
 		action_list_t *waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
-		Thread * thread = fuzzer->selectNotify(waiters);
-		scheduler->wake(thread);
+		if (waiters->size() != 0) {
+			Thread * thread = fuzzer->selectNotify(waiters);
+			scheduler->wake(thread);
+		}
 		break;
 	}
 
@@ -685,7 +675,7 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	if (!second_part_of_rmw && curr->get_type() != NOOP)
 		add_action_to_lists(curr);
 
-	SnapVector<ModelAction *> * rf_set = NULL;
+	SnapVector<const ModelAction *> * rf_set = NULL;
 	/* Build may_read_from set for newly-created actions */
 	if (newly_explored && curr->is_read())
 		rf_set = build_may_read_from(curr);
@@ -1313,7 +1303,7 @@ bool valequals(uint64_t val1, uint64_t val2, int size) {
  * @param curr is the current ModelAction that we are exploring; it must be a
  * 'read' operation.
  */
-SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *curr)
+SnapVector<const ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *curr)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;
@@ -1324,7 +1314,7 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 	if (curr->is_seqcst())
 		last_sc_write = get_last_seq_cst_write(curr);
 
-	SnapVector<ModelAction *> * rf_set = new SnapVector<ModelAction *>();
+	SnapVector<const ModelAction *> * rf_set = new SnapVector<const ModelAction *>();
 
 	/* Iterate over all threads */
 	for (i = 0;i < thrd_lists->size();i++) {
@@ -1332,10 +1322,21 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 		action_list_t *list = &(*thrd_lists)[i];
 		action_list_t::reverse_iterator rit;
 		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+			const ModelAction *act = *rit;
 
 			/* Only consider 'write' actions */
-			if (!act->is_write() || act == curr)
+			if (!act->is_write()) {
+				if (act != curr && act->is_read() && act->happens_before(curr)) {
+					const ModelAction *tmp = act->get_reads_from();
+					if (((unsigned int) id_to_int(tmp->get_tid()))==i)
+						act = tmp;
+					else
+						break;
+				} else
+					continue;
+			}
+
+			if (act == curr)
 				continue;
 
 			/* Don't consider more than one seq_cst write if we are a seq_cst read. */

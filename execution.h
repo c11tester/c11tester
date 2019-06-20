@@ -84,7 +84,6 @@ public:
 	ModelAction * get_parent_action(thread_id_t tid) const;
 	bool isfeasibleprefix() const;
 
-	action_list_t * get_actions_on_obj(void * obj, thread_id_t tid) const;
 	ModelAction * get_last_action(thread_id_t tid) const;
 
 	bool check_action_enabled(ModelAction *curr);
@@ -127,7 +126,7 @@ private:
 	bool next_execution();
 	ModelAction * check_current_action(ModelAction *curr);
 	bool initialize_curr_action(ModelAction **curr);
-	void process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
+	void process_read(ModelAction *curr, SnapVector<const ModelAction *> * rf_set);
 	void process_write(ModelAction *curr);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
@@ -141,7 +140,7 @@ private:
 	ModelAction * get_last_seq_cst_write(ModelAction *curr) const;
 	ModelAction * get_last_seq_cst_fence(thread_id_t tid, const ModelAction *before_fence) const;
 	ModelAction * get_last_unlock(ModelAction *curr) const;
-	SnapVector<ModelAction *> * build_may_read_from(ModelAction *curr);
+	SnapVector<const ModelAction *> * build_may_read_from(ModelAction *curr);
 	ModelAction * process_rmw(ModelAction *curr);
 
 	bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> *priorset);
