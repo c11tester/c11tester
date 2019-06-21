@@ -143,7 +143,7 @@ private:
 	SnapVector<const ModelAction *> * build_may_read_from(ModelAction *curr);
 	ModelAction * process_rmw(ModelAction *curr);
 
-	bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> *priorset);
+	bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> *priorset, bool *canprune);
 	void w_modification_order(ModelAction *curr);
 	void get_release_seq_heads(ModelAction *acquire, ModelAction *read, rel_heads_list_t *release_heads);
 	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const;
