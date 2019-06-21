@@ -22,7 +22,7 @@ void model_rmwc_action(void *obj, memory_order ord);
 void model_fence_action(memory_order ord);
 
 uint64_t model_rmwr_action_helper(void *obj, int atomic_index, const char *position);
-uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, const char *position);
+  uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oval, int size, const char *position);
 void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index, const char *position);
 void model_rmwc_action_helper(void *obj, int atomic_index, const char *position);
 // void model_fence_action_helper(int atomic_index);

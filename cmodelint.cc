@@ -59,7 +59,7 @@ void model_fence_action(memory_order ord) {
 }
 
 /* ---  helper functions --- */
-uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, const char *position) {
+uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oldval, int size, const char *position) {
 	return model->switch_to_master(
 		new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj)
 		);
@@ -252,7 +252,7 @@ uint64_t cds_atomic_fetch_xor64(void* addr, uint64_t val, int atomic_index, cons
 	({                                                                                              \
 		uint ## size ## _t _desired = desired;                                                            \
 		uint ## size ## _t _expected = expected;                                                          \
-		uint ## size ## _t _old = model_rmwrcas_action_helper(addr, atomic_index, position);                           \
+		uint ## size ## _t _old = model_rmwrcas_action_helper(addr, atomic_index, _expected, sizeof(_expected), position); \
 		if (_old == _expected) {                                                                    \
 			model_rmw_action_helper(addr, (uint64_t) _desired, atomic_index, position); return _expected; }      \
 		else {                                                                                        \
