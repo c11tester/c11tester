@@ -780,20 +780,29 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 	if (curr->is_seqcst())
 		last_sc_write = get_last_seq_cst_write(curr);
 
+	int tid = curr->get_tid();
+	ModelAction *prev_same_thread = NULL;
 	/* Iterate over all threads */
-	for (i = 0;i < thrd_lists->size();i++) {
-		/* Last SC fence in thread i */
+	for (i = 0;i < thrd_lists->size();i++, tid = ((tid+1) == thrd_lists->size()) ? 0: tid + 1) {
+		/* Last SC fence in thread tid */
 		ModelAction *last_sc_fence_thread_local = NULL;
-		if (int_to_id((int)i) != curr->get_tid())
-			last_sc_fence_thread_local = get_last_seq_cst_fence(int_to_id(i), NULL);
+		if (i != 0)
+			last_sc_fence_thread_local = get_last_seq_cst_fence(int_to_id(tid), NULL);
 
-		/* Last SC fence in thread i, before last SC fence in current thread */
+		/* Last SC fence in thread tid, before last SC fence in current thread */
 		ModelAction *last_sc_fence_thread_before = NULL;
 		if (last_sc_fence_local)
-			last_sc_fence_thread_before = get_last_seq_cst_fence(int_to_id(i), last_sc_fence_local);
+			last_sc_fence_thread_before = get_last_seq_cst_fence(int_to_id(tid), last_sc_fence_local);
 
+		//Only need to iterate if either hb has changed for thread in question or SC fence after last operation...
+		if (prev_same_thread != NULL &&
+		    (prev_same_thread->get_cv()->getClock(tid) == curr->get_cv()->getClock(tid)) &&
+		    (last_sc_fence_thread_local == NULL || *last_sc_fence_thread_local < *prev_same_thread)) {
+		      continue;
+		}
+		
 		/* Iterate over actions in thread, starting from most recent */
-		action_list_t *list = &(*thrd_lists)[i];
+		action_list_t *list = &(*thrd_lists)[tid];
 		action_list_t::reverse_iterator rit;
 		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
@@ -841,6 +850,12 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 			 * before" curr
 			 */
 			if (act->happens_before(curr)) {
+			  if (i==0) {
+			    if (last_sc_fence_local == NULL ||
+				(*last_sc_fence_local < *prev_same_thread)) {
+			      prev_same_thread = act;
+			    }
+			  }
 				if (act->is_write()) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
