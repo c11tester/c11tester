@@ -22,6 +22,7 @@ static void param_defaults(struct model_params *params)
 	params->verbose = !!DBG_ENABLED();
 	params->uninitvalue = 0;
 	params->maxexecutions = 10;
+	params->nofork = false;
 }
 
 static void print_usage(const char *program_name, struct model_params *params)
@@ -54,6 +55,7 @@ static void print_usage(const char *program_name, struct model_params *params)
 		"-x, --maxexec=NUM           Maximum number of executions.\n"
 		"                            Default: %u\n"
 		"                            -o help for a list of options\n"
+		"-n                          No fork\n"
 		" --                         Program arguments follow.\n\n",
 		program_name,
 		params->verbose,
@@ -84,7 +86,7 @@ bool install_plugin(char * name) {
 
 static void parse_options(struct model_params *params, int argc, char **argv)
 {
-	const char *shortopts = "ht:o:u:x:v::";
+	const char *shortopts = "hnt:o:u:x:v::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"verbose", optional_argument, NULL, 'v'},
@@ -101,6 +103,9 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		case 'h':
 			print_usage(argv[0], params);
 			break;
+	        case 'n':
+		  params->nofork = true;
+		  break;
 		case 'x':
 			params->maxexecutions = atoi(optarg);
 			break;

@@ -12,6 +12,7 @@
 #include "mymemory.h"
 #include "common.h"
 #include "context.h"
+#include "model.h"
 
 /** PageAlignedAdressUpdate return a page aligned address for the
  * address being added as a side effect the numBytes are also changed.
@@ -383,7 +384,11 @@ static void fork_snapshot_init(unsigned int numbackingpages,
 
 	/* switch back here when takesnapshot is called */
 	snapshotid = fork_snap->currSnapShotID;
-
+	if (model->params.nofork) {
+	  setcontext(&fork_snap->shared_ctxt);
+	  exit(EXIT_SUCCESS);
+	}
+	
 	while (true) {
 		pid_t forkedID;
 		fork_snap->currSnapShotID = snapshotid + 1;
