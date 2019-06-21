@@ -783,7 +783,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 	int tid = curr->get_tid();
 	ModelAction *prev_same_thread = NULL;
 	/* Iterate over all threads */
-	for (i = 0;i < thrd_lists->size();i++, tid = ((tid+1) == thrd_lists->size()) ? 0: tid + 1) {
+	for (i = 0;i < thrd_lists->size();i++, tid = (((unsigned int)(tid+1)) == thrd_lists->size()) ? 0: tid + 1) {
 		/* Last SC fence in thread tid */
 		ModelAction *last_sc_fence_thread_local = NULL;
 		if (i != 0)
