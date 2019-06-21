@@ -249,7 +249,7 @@ static void mprot_roll_back(snapshot_id theID)
 
 #else	/* !USE_MPROTECT_SNAPSHOT */
 
-#define SHARED_MEMORY_DEFAULT  (100 * ((size_t)1 << 20))	// 100mb for the shared memory
+#define SHARED_MEMORY_DEFAULT  (200 * ((size_t)1 << 20))	// 100mb for the shared memory
 #define STACK_SIZE_DEFAULT      (((size_t)1 << 20) * 20)	// 20 mb out of the above 100 mb for my stack
 
 struct fork_snapshotter {

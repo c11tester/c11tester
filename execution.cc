@@ -270,14 +270,18 @@ void ModelExecution::process_read(ModelAction *curr, SnapVector<const ModelActio
 
 
 		ASSERT(rf);
-
-		if (r_modification_order(curr, rf, priorset)) {
+		bool canprune = false;
+		if (r_modification_order(curr, rf, priorset, &canprune)) {
 			for(unsigned int i=0;i<priorset->size();i++) {
 				mo_graph->addEdge((*priorset)[i], rf);
 			}
 			read_from(curr, rf);
 			get_thread(curr)->set_return_value(curr->get_return_value());
 			delete priorset;
+			if (canprune && curr->get_type() == ATOMIC_READ) {
+			  int tid = id_to_int(curr->get_tid());
+			  (*obj_thrd_map.get(curr->get_location()))[tid].pop_back();
+			}
 			return;
 		}
 		priorset->clear();
@@ -764,7 +768,7 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
  * @return True if modification order edges were added; false otherwise
  */
 
-bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> * priorset)
+bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> * priorset, bool * canprune)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;
@@ -779,7 +783,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 	int tid = curr->get_tid();
 	ModelAction *prev_same_thread = NULL;
 	/* Iterate over all threads */
-	for (i = 0;i < thrd_lists->size();i++, tid = ((tid+1) == thrd_lists->size()) ? 0: tid + 1) {
+	for (i = 0;i < thrd_lists->size();i++, tid = (((unsigned int)(tid+1)) == thrd_lists->size()) ? 0: tid + 1) {
 		/* Last SC fence in thread tid */
 		ModelAction *last_sc_fence_thread_local = NULL;
 		if (i != 0)
@@ -862,6 +866,11 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 						if (mo_graph->checkReachable(rf, prevrf))
 							return false;
 						priorset->push_back(prevrf);
+					} else {
+						if (act->get_tid() == curr->get_tid()) {
+							//Can prune curr from obj list
+							*canprune = true;
+						}
 					}
 				}
 				break;
