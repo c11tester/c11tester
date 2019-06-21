@@ -385,10 +385,10 @@ static void fork_snapshot_init(unsigned int numbackingpages,
 	/* switch back here when takesnapshot is called */
 	snapshotid = fork_snap->currSnapShotID;
 	if (model->params.nofork) {
-	  setcontext(&fork_snap->shared_ctxt);
-	  exit(EXIT_SUCCESS);
+		setcontext(&fork_snap->shared_ctxt);
+		exit(EXIT_SUCCESS);
 	}
-	
+
 	while (true) {
 		pid_t forkedID;
 		fork_snap->currSnapShotID = snapshotid + 1;

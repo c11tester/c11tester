@@ -103,9 +103,9 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		case 'h':
 			print_usage(argv[0], params);
 			break;
-	        case 'n':
-		  params->nofork = true;
-		  break;
+		case 'n':
+			params->nofork = true;
+			break;
 		case 'x':
 			params->maxexecutions = atoi(optarg);
 			break;
