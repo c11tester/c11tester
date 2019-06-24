@@ -358,3 +358,13 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
         __old__ = __old__;  Silence clang (-Wunused-value)                    \
          })
  */
+
+void cds_func_entry(const char * funcName) {
+        Thread * th = thread_current();
+        printf("thread %d Enter function %s\n", th->get_id(), funcName);
+}
+
+void cds_func_exit(const char * funcName) {
+        Thread * th = thread_current();
+        printf("thread %d Exit from function %s\n", th->get_id(), funcName);
+}
