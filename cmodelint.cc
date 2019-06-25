@@ -1,6 +1,10 @@
 #include <stdio.h>
+#include <string>
+
 #include "model.h"
+#include "execution.h"
 #include "action.h"
+#include "history.h"
 #include "cmodelint.h"
 #include "threads-model.h"
 
@@ -360,11 +364,32 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
  */
 
 void cds_func_entry(const char * funcName) {
+	if (!model) return;
+
         Thread * th = thread_current();
-        printf("thread %d Enter function %s\n", th->get_id(), funcName);
+	uint32_t func_id;
+
+	ModelHistory *history = model->get_history();
+	if ( !history->getFuncMap()->contains(funcName) ) {
+		func_id = history->get_func_counter();
+		history->incr_func_counter();
+
+		history->getFuncMap()->put(funcName, func_id);
+	} else {
+		func_id = history->getFuncMap()->get(funcName);
+	}
+
+	history->enter_function(func_id, th->get_id());
 }
 
 void cds_func_exit(const char * funcName) {
+	if (!model) return;
+
         Thread * th = thread_current();
-        printf("thread %d Exit from function %s\n", th->get_id(), funcName);
+	uint32_t func_id;
+
+	ModelHistory *history = model->get_history();
+	func_id = history->getFuncMap()->get(funcName);
+
+	history->exit_function(func_id, th->get_id());
 }

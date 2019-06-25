@@ -46,6 +46,7 @@ public:
 	ucontext_t * get_system_context() { return &system_context; }
 
 	ModelExecution * get_execution() const { return execution; }
+	ModelHistory * get_history() const { return history; }
 
 	int get_execution_number() const { return execution_number; }
 
@@ -63,6 +64,7 @@ public:
 	model_params params;
 	void add_trace_analysis(TraceAnalysis *a) {     trace_analyses.push_back(a); }
 	void set_inspect_plugin(TraceAnalysis *a) {     inspect_plugin=a;       }
+
 	MEMALLOC
 private:
 	/** Flag indicates whether to restart the model checker. */
@@ -72,6 +74,7 @@ private:
 	Scheduler * const scheduler;
 	NodeStack * const node_stack;
 	ModelExecution *execution;
+	ModelHistory *history;
 
 	int execution_number;
 

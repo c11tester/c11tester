@@ -16,6 +16,7 @@
 #include "output.h"
 #include "traceanalysis.h"
 #include "execution.h"
+#include "history.h"
 #include "bugmessage.h"
 
 ModelChecker *model;
@@ -28,6 +29,7 @@ ModelChecker::ModelChecker() :
 	scheduler(new Scheduler()),
 	node_stack(new NodeStack()),
 	execution(new ModelExecution(this, scheduler, node_stack)),
+	history(new ModelHistory()),
 	execution_number(1),
 	trace_analyses(),
 	inspect_plugin(NULL)
