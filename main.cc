@@ -17,7 +17,7 @@
 #include "snapshot-interface.h"
 #include "plugins.h"
 
-static void param_defaults(struct model_params *params)
+void param_defaults(struct model_params *params)
 {
 	params->verbose = !!DBG_ENABLED();
 	params->uninitvalue = 0;
@@ -164,7 +164,6 @@ static void install_trace_analyses(ModelExecution *execution)
 /** The model_main function contains the main model checking loop. */
 static void model_main()
 {
-	modelchecker_started = true;
 	snapshot_record(0);
 	model->run();
 	delete model;
@@ -196,26 +195,25 @@ int main(int argc, char **argv)
 	/* Configure output redirection for the model-checker */
 	redirect_output();
 
-	//Initialize snapshotting library
-	if (!model)
+	//Initialize snapshotting library and model checker object
+	if (!model) {
 		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+	}
 
-	struct model_params params;
-
-	param_defaults(&params);
 	register_plugins();
-	parse_options(&params, main_argc, main_argv);
+
+	//Parse command line options
+	model_params *params = model->getParams();
+	parse_options(params, main_argc, main_argv);
 
 	//Initialize race detector
 	initRaceDetector();
 
 	snapshot_stack_init();
-
-	if (!model)
-		model = new ModelChecker();
-
-	model->setParams(params);
 	install_trace_analyses(model->get_execution());
 
+	//Start everything up
+	modelchecker_started = true;
 	startExecution(&model_main);
 }

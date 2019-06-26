@@ -33,7 +33,7 @@ class ModelChecker {
 public:
 	ModelChecker();
 	~ModelChecker();
-	void setParams(struct model_params params);
+	model_params * getParams();
 	void run();
 
 	/** Restart the model checker, intended for pluggins. */

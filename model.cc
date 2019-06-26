@@ -17,6 +17,7 @@
 #include "traceanalysis.h"
 #include "execution.h"
 #include "bugmessage.h"
+#include "params.h"
 
 ModelChecker *model = NULL;
 bool modelchecker_started = false;
@@ -43,6 +44,8 @@ ModelChecker::ModelChecker() :
 	init_thread = new Thread(execution->get_next_id(), (thrd_t *) malloc(sizeof(thrd_t)), &user_main_wrapper, NULL, NULL);	// L: user_main_wrapper passes the user program
 	execution->add_thread(init_thread);
 	scheduler->set_current_thread(init_thread);
+	execution->setParams(&params);
+	param_defaults(&params);
 }
 
 /** @brief Destructor */
@@ -53,9 +56,8 @@ ModelChecker::~ModelChecker()
 }
 
 /** Method to set parameters */
-void ModelChecker::setParams(struct model_params params) {
-	this->params = params;
-	execution->setParams(&params);
+model_params * ModelChecker::getParams() {
+	return &params;
 }
 
 /**
