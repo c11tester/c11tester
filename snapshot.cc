@@ -134,7 +134,7 @@ static void mprot_handle_pf(int sig, siginfo_t *si, void *unused)
 
 static void mprot_snapshot_init(unsigned int numbackingpages,
 																unsigned int numsnapshots, unsigned int nummemoryregions,
-																unsigned int numheappages, VoidFuncPtr entryPoint)
+																unsigned int numheappages)
 {
 	/* Setup a stack for our signal handler....  */
 	stack_t ss;
@@ -179,7 +179,10 @@ static void mprot_snapshot_init(unsigned int numbackingpages,
 	pagealignedbase = PageAlignAddressUpward(base_model_snapshot_space);
 	model_snapshot_space = create_mspace_with_base(pagealignedbase, numheappages * PAGESIZE, 1);
 	snapshot_add_memory_region(pagealignedbase, numheappages);
+}
 
+
+static void mprot_startExecution(VoidFuncPtr entryPoint) {
 	entryPoint();
 }
 
@@ -363,7 +366,7 @@ mspace create_shared_mspace()
 
 static void fork_snapshot_init(unsigned int numbackingpages,
 															 unsigned int numsnapshots, unsigned int nummemoryregions,
-															 unsigned int numheappages, VoidFuncPtr entryPoint)
+															 unsigned int numheappages)
 {
 	if (!fork_snap)
 		createSharedMemory();
@@ -371,7 +374,9 @@ static void fork_snapshot_init(unsigned int numbackingpages,
 	void *base_model_snapshot_space = malloc((numheappages + 1) * PAGESIZE);
 	void *pagealignedbase = PageAlignAddressUpward(base_model_snapshot_space);
 	model_snapshot_space = create_mspace_with_base(pagealignedbase, numheappages * PAGESIZE, 1);
+}
 
+static void fork_startExecution(VoidFuncPtr entryPoint) {
 	/* setup an "exiting" context */
 	char stack[128];
 	create_context(&exit_ctxt, stack, sizeof(stack), fork_exit);
@@ -437,12 +442,21 @@ static void fork_roll_back(snapshot_id theID)
  */
 void snapshot_system_init(unsigned int numbackingpages,
 													unsigned int numsnapshots, unsigned int nummemoryregions,
-													unsigned int numheappages, VoidFuncPtr entryPoint)
+													unsigned int numheappages)
 {
 #if USE_MPROTECT_SNAPSHOT
-	mprot_snapshot_init(numbackingpages, numsnapshots, nummemoryregions, numheappages, entryPoint);
+	mprot_snapshot_init(numbackingpages, numsnapshots, nummemoryregions, numheappages);
 #else
-	fork_snapshot_init(numbackingpages, numsnapshots, nummemoryregions, numheappages, entryPoint);
+	fork_snapshot_init(numbackingpages, numsnapshots, nummemoryregions, numheappages);
+#endif
+}
+
+void startExecution(VoidFuncPtr entryPoint)
+{
+#if USE_MPROTECT_SNAPSHOT
+	mprot_startExecution(entryPoint);
+#else
+	fork_startExecution(entryPoint);
 #endif
 }
 
