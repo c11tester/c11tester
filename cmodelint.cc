@@ -12,12 +12,12 @@ memory_order orders[6] = {
 };
 
 static void ensureModel(ModelAction * action) {
-	if (!model) {
-		if (!model_init) {
+	if (!modelchecker_started) {
+		if (!model) {
 			snapshot_system_init(10000, 1024, 1024, 40000);
-			model_init = new ModelChecker();
+			model = new ModelChecker();
 		}
-		model_init->get_execution()->check_current_action(action);
+		model->get_execution()->check_current_action(action);
 	} else {
 		model->switch_to_master(action);
 	}

@@ -104,6 +104,5 @@ private:
 };
 
 extern ModelChecker *model;
-extern ModelChecker *model_init;
-
+extern bool modelchecker_started;
 #endif	/* __MODEL_H__ */

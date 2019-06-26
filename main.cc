@@ -164,6 +164,7 @@ static void install_trace_analyses(ModelExecution *execution)
 /** The model_main function contains the main model checking loop. */
 static void model_main()
 {
+	modelchecker_started = true;
 	snapshot_record(0);
 	model->run();
 	delete model;
@@ -196,7 +197,7 @@ int main(int argc, char **argv)
 	redirect_output();
 
 	//Initialize snapshotting library
-	if (!model_init)
+	if (!model)
 		snapshot_system_init(10000, 1024, 1024, 40000);
 
 	struct model_params params;
@@ -210,10 +211,8 @@ int main(int argc, char **argv)
 
 	snapshot_stack_init();
 
-	if (!model_init)
+	if (!model)
 		model = new ModelChecker();
-	else
-		model = model_init;
 
 	model->setParams(params);
 	install_trace_analyses(model->get_execution());

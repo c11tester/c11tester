@@ -19,7 +19,7 @@
 #include "bugmessage.h"
 
 ModelChecker *model = NULL;
-ModelChecker *model_init = NULL;
+bool modelchecker_started = false;
 
 /** Wrapper to run the user's main function, with appropriate arguments */
 void user_main_wrapper(void *)
