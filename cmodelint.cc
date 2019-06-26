@@ -11,30 +11,29 @@ memory_order orders[6] = {
 	memory_order_release, memory_order_acq_rel, memory_order_seq_cst
 };
 
-static void ensureModel(ModelAction * action) {
-	if (!modelchecker_started) {
-		if (!model) {
-			snapshot_system_init(10000, 1024, 1024, 40000);
-			model = new ModelChecker();
-		}
-		model->get_execution()->check_current_action(action);
-	} else {
-		model->switch_to_master(action);
+#define ensureModel(action) \
+	if (!modelchecker_started) {                  \
+		if (!model) { \
+			snapshot_system_init(10000, 1024, 1024, 40000); \
+			model = new ModelChecker(); \
+		} \
+		model->get_execution()->check_current_action(action); \
+	}else { \
+		model->switch_to_master(action); \
 	}
-}
 
-static uint64_t ensureModelValue(ModelAction * action) {
-	if (!modelchecker_started) {
-		if (!model) {
-			snapshot_system_init(10000, 1024, 1024, 40000);
-			model = new ModelChecker();
-		}
-		model->get_execution()->check_current_action(action);
-		return thread_current()->get_return_value();
-	} else {
-		return model->switch_to_master(action);
+
+#define ensureModelValue(action, type)          \
+	if (!modelchecker_started) { \
+		if (!model) { \
+			snapshot_system_init(10000, 1024, 1024, 40000); \
+			model = new ModelChecker(); \
+		} \
+		model->get_execution()->check_current_action(action); \
+		return (type) thread_current()->get_return_value();   \
+	} else { \
+		return (type) model->switch_to_master(action);        \
 	}
-}
 
 /** Performs a read action.*/
 uint64_t model_read_action(void * obj, memory_order ord) {
@@ -135,21 +134,21 @@ void cds_atomic_init64(void * obj, uint64_t val, const char * position) {
 
 // cds atomic loads
 uint8_t cds_atomic_load8(void * obj, int atomic_index, const char * position) {
-	return (uint8_t) ensureModelValue(
-		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
+	ensureModelValue(
+		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj), uint8_t);
 }
 uint16_t cds_atomic_load16(void * obj, int atomic_index, const char * position) {
-	return (uint16_t) ensureModelValue(
-		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
+	ensureModelValue(
+		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj), uint16_t);
 }
 uint32_t cds_atomic_load32(void * obj, int atomic_index, const char * position) {
-	return (uint32_t) ensureModelValue(
-		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)
+	ensureModelValue(
+		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj), uint32_t
 		);
 }
 uint64_t cds_atomic_load64(void * obj, int atomic_index, const char * position) {
-	return ensureModelValue(
-		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
+	ensureModelValue(
+		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj), uint64_t);
 }
 
 // cds atomic stores
