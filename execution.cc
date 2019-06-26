@@ -778,9 +778,6 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 
 	/* Last SC fence in the current thread */
 	ModelAction *last_sc_fence_local = get_last_seq_cst_fence(curr->get_tid(), NULL);
-	ModelAction *last_sc_write = NULL;
-	if (curr->is_seqcst())
-		last_sc_write = get_last_seq_cst_write(curr);
 
 	int tid = curr->get_tid();
 	ModelAction *prev_same_thread = NULL;
