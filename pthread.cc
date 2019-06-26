@@ -48,15 +48,19 @@ void pthread_exit(void *value_ptr) {
 }
 
 int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
-	if (!model) {
-		snapshot_system_init(10000, 1024, 1024, 40000);
-		model = new ModelChecker();
-	}
-
 	cdsc::mutex *m = new cdsc::mutex();
+	ModelExecution *execution;
 
-	ModelExecution *execution = model->get_execution();
+	if (!model) {
+		if (!model_init) {
+			snapshot_system_init(10000, 1024, 1024, 40000);
+			model_init = new ModelChecker();
+		}
+		execution = model_init->get_execution();
+	} else
+		execution = model->get_execution();
 	execution->getMutexMap()->put(p_mutex, m);
+
 	return 0;
 }
 

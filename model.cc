@@ -18,7 +18,14 @@
 #include "execution.h"
 #include "bugmessage.h"
 
-ModelChecker *model;
+ModelChecker *model = NULL;
+ModelChecker *model_init = NULL;
+
+/** Wrapper to run the user's main function, with appropriate arguments */
+void user_main_wrapper(void *)
+{
+	user_main(model->params.argc, model->params.argv);
+}
 
 /** @brief Constructor */
 ModelChecker::ModelChecker() :
@@ -33,6 +40,9 @@ ModelChecker::ModelChecker() :
 	inspect_plugin(NULL)
 {
 	memset(&stats,0,sizeof(struct execution_stats));
+	init_thread = new Thread(execution->get_next_id(), (thrd_t *) malloc(sizeof(thrd_t)), &user_main_wrapper, NULL, NULL);	// L: user_main_wrapper passes the user program
+	execution->add_thread(init_thread);
+	scheduler->set_current_thread(init_thread);
 }
 
 /** @brief Destructor */
@@ -313,22 +323,17 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	Thread *old = thread_current();
 	scheduler->set_current_thread(NULL);
 	ASSERT(!old->get_pending());
-/* W: No plugin
-        if (inspect_plugin != NULL) {
-                inspect_plugin->inspectModelAction(act);
-        }*/
+
+	if (inspect_plugin != NULL) {
+		inspect_plugin->inspectModelAction(act);
+	}
+
 	old->set_pending(act);
 	if (Thread::swap(old, &system_context) < 0) {
 		perror("swap threads");
 		exit(EXIT_FAILURE);
 	}
 	return old->get_return_value();
-}
-
-/** Wrapper to run the user's main function, with appropriate arguments */
-void user_main_wrapper(void *)
-{
-	user_main(model->params.argc, model->params.argv);
 }
 
 bool ModelChecker::should_terminate_execution()
@@ -367,10 +372,8 @@ void ModelChecker::run()
 	initstate(423121, random_state, sizeof(random_state));
 
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
-		thrd_t user_thread;
-		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL);	// L: user_main_wrapper passes the user program
-		execution->add_thread(t);
-		//Need to seed random number generator, otherwise its state gets reset
+		Thread * t = init_thread;
+
 		do {
 			/*
 			 * Stash next pending action(s) for thread(s). There

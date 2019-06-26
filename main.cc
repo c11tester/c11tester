@@ -196,7 +196,7 @@ int main(int argc, char **argv)
 	redirect_output();
 
 	//Initialize snapshotting library
-	if (!model)
+	if (!model_init)
 		snapshot_system_init(10000, 1024, 1024, 40000);
 
 	struct model_params params;
@@ -210,8 +210,11 @@ int main(int argc, char **argv)
 
 	snapshot_stack_init();
 
-	if (!model)
+	if (!model_init)
 		model = new ModelChecker();
+	else
+		model = model_init;
+
 	model->setParams(params);
 	install_trace_analyses(model->get_execution());
 

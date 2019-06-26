@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "model.h"
+#include "execution.h"
 #include "action.h"
 #include "cmodelint.h"
 #include "snapshot-interface.h"
@@ -10,10 +11,15 @@ memory_order orders[6] = {
 	memory_order_release, memory_order_acq_rel, memory_order_seq_cst
 };
 
-static void ensureModel() {
+static void ensureModel(ModelAction * action) {
 	if (!model) {
-		snapshot_system_init(10000, 1024, 1024, 40000);
-		model = new ModelChecker();
+		if (!model_init) {
+			snapshot_system_init(10000, 1024, 1024, 40000);
+			model_init = new ModelChecker();
+		}
+		model_init->get_execution()->check_current_action(action);
+	} else {
+		model->switch_to_master(action);
 	}
 }
 
@@ -93,26 +99,22 @@ void model_rmwc_action_helper(void *obj, int atomic_index, const char *position)
 
 // cds atomic inits
 void cds_atomic_init8(void * obj, uint8_t val, const char * position) {
-	ensureModel();
-	model->switch_to_master(
+	ensureModel(
 		new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)
 		);
 }
 void cds_atomic_init16(void * obj, uint16_t val, const char * position) {
-	ensureModel();
-	model->switch_to_master(
+	ensureModel(
 		new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)
 		);
 }
 void cds_atomic_init32(void * obj, uint32_t val, const char * position) {
-	ensureModel();
-	model->switch_to_master(
+	ensureModel(
 		new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)
 		);
 }
 void cds_atomic_init64(void * obj, uint64_t val, const char * position) {
-	ensureModel();
-	model->switch_to_master(
+	ensureModel(
 		new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, val)
 		);
 }
@@ -142,26 +144,22 @@ uint64_t cds_atomic_load64(void * obj, int atomic_index, const char * position) 
 
 // cds atomic stores
 void cds_atomic_store8(void * obj, uint8_t val, int atomic_index, const char * position) {
-	ensureModel();
-	model->switch_to_master(
+	ensureModel(
 		new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)
 		);
 }
 void cds_atomic_store16(void * obj, uint16_t val, int atomic_index, const char * position) {
-	ensureModel();
-	model->switch_to_master(
+	ensureModel(
 		new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)
 		);
 }
 void cds_atomic_store32(void * obj, uint32_t val, int atomic_index, const char * position) {
-	ensureModel();
-	model->switch_to_master(
+	ensureModel(
 		new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)
 		);
 }
 void cds_atomic_store64(void * obj, uint64_t val, int atomic_index, const char * position) {
-	ensureModel();
-	model->switch_to_master(
+	ensureModel(
 		new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, val)
 		);
 }
