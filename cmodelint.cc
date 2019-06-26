@@ -1,7 +1,10 @@
 #include <stdio.h>
+#include <string>
+
 #include "model.h"
 #include "execution.h"
 #include "action.h"
+#include "history.h"
 #include "cmodelint.h"
 #include "snapshot-interface.h"
 #include "threads-model.h"
@@ -86,7 +89,9 @@ void model_fence_action(memory_order ord) {
 
 /* ---  helper functions --- */
 uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oldval, int size, const char *position) {
-	ensureModelValue(new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj), uint64_t);
+	ensureModelValue(
+		new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj, oldval, size), uint64_t
+		);
 }
 
 uint64_t model_rmwr_action_helper(void *obj, int atomic_index, const char *position) {
@@ -373,3 +378,34 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
         __old__ = __old__;  Silence clang (-Wunused-value)                    \
          })
  */
+
+void cds_func_entry(const char * funcName) {
+	if (!model) return;
+
+	Thread * th = thread_current();
+	uint32_t func_id;
+
+	ModelHistory *history = model->get_history();
+	if ( !history->getFuncMap()->contains(funcName) ) {
+		func_id = history->get_func_counter();
+		history->incr_func_counter();
+
+		history->getFuncMap()->put(funcName, func_id);
+	} else {
+		func_id = history->getFuncMap()->get(funcName);
+	}
+
+	history->enter_function(func_id, th->get_id());
+}
+
+void cds_func_exit(const char * funcName) {
+	if (!model) return;
+
+	Thread * th = thread_current();
+	uint32_t func_id;
+
+	ModelHistory *history = model->get_history();
+	func_id = history->getFuncMap()->get(funcName);
+
+	history->exit_function(func_id, th->get_id());
+}

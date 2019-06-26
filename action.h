@@ -86,6 +86,7 @@ class ModelAction {
 public:
 	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value = VALUE_NONE, Thread *thread = NULL);
 	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value, int size);
+	ModelAction(action_type_t type, const char * position, memory_order order, void *loc, uint64_t value, int size);
 	ModelAction(action_type_t type, const char * position, memory_order order, void *loc, uint64_t value = VALUE_NONE, Thread *thread = NULL);
 	~ModelAction();
 	void print() const;

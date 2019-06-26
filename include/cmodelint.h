@@ -101,6 +101,9 @@ bool cds_atomic_compare_exchange64_v2(void* addr, uint64_t* expected, uint64_t d
 // cds atomic thread fence
 void cds_atomic_thread_fence(int atomic_index, const char * position);
 
+void cds_func_entry(const char * funcName);
+void cds_func_exit(const char * funcName);
+
 #if __cplusplus
 }
 #endif

@@ -8,6 +8,7 @@ class CycleNode;
 class ModelAction;
 class ModelChecker;
 class ModelExecution;
+class ModelHistory;
 class Node;
 class NodeStack;
 class Scheduler;

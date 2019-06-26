@@ -19,6 +19,8 @@ typedef typename base_class::member_hook_item< ci::msqueue::node<gc_type>> membe
 
 typedef cds_test::intrusive_msqueue::mock_disposer mock_disposer;
 
+std::atomic_int x;
+
 template <typename Queue, typename Data>
 void test_enqueue( Queue& q, Data& arr )
 {
@@ -26,9 +28,15 @@ void test_enqueue( Queue& q, Data& arr )
     size_t nSize = arr.size();
 
     value_type * pv;
-    for ( size_t i = 0; i < nSize; ++i )
-	arr[i].nVal = static_cast<int>(i);
+//    for ( size_t i = 0; i < nSize; ++i )
+//	arr[i].nVal = static_cast<int>(i);
 
+    base_item_type test;
+    test.nVal = static_cast<int>(4);
+//    arr[0].nVal = static_cast<int>(5);
+    x.load();
+    q.enqueue( test );
+/*
     assert(q.empty());
     assert(q.size() == 0);
 
@@ -42,7 +50,8 @@ void test_enqueue( Queue& q, Data& arr )
     assert( pv == nullptr );
     assert( q.empty());
     assert(q.size() == 0);
-
+*/
+/*
     for ( size_t i = 0; i < nSize; ++i ) {
 	if ( i & 1 )
 	    q.push( arr[i] );
@@ -51,6 +60,7 @@ void test_enqueue( Queue& q, Data& arr )
 	assert( !q.empty());
 	assert(q.size() == i+1);
     }
+*/
 }
 
 
@@ -61,34 +71,6 @@ void test_dequeue( Queue& q, Data& arr )
     size_t nSize = arr.size();
 
     value_type * pv;
-/*
-    for ( size_t i = 0; i < nSize; ++i )
-	arr[i].nVal = static_cast<int>(i);
-
-    assert(q.empty());
-    assert(q.size() == 0);
-
-    // pop from empty queue
-    pv = q.pop();
-    assert( pv == nullptr );
-    assert( q.empty());
-    assert(q.size() == 0);
-
-    pv = q.dequeue();
-    assert( pv == nullptr );
-    assert( q.empty());
-    assert(q.size() == 0);
-
-    // push/pop test
-    for ( size_t i = 0; i < nSize; ++i ) {
-	if ( i & 1 )
-	    q.push( arr[i] );
-	else
-	    q.enqueue( arr[i] );
-	assert( !q.empty());
-	assert(q.size() == i+1);
-    }
-*/
 
     for ( size_t i = 0; i < nSize; ++i ) {
 	assert( !q.empty());
@@ -152,15 +134,14 @@ int main () {
 			std::vector<base_item_type> arr;
 			arr.resize(5);
 			printf("test start\n");
-			{
-				std::atomic<int> x;
-				atomic_store_explicit(&x, 0xaaa, std::memory_order_seq_cst);
-				test_queue q;
-				test_enqueue(q, arr);
-				atomic_store_explicit(&x, 0xccc, std::memory_order_seq_cst);
-				test_dequeue(q, arr);
-				atomic_store_explicit(&x, 0xbbb, std::memory_order_seq_cst);
-			}
+
+			atomic_store_explicit(&x, 0xaaa, std::memory_order_seq_cst);
+			test_queue q;
+			test_enqueue(q, arr);
+			atomic_store_explicit(&x, 0xccc, std::memory_order_seq_cst);
+//			test_dequeue(q, arr);
+			atomic_store_explicit(&x, 0xbbb, std::memory_order_seq_cst);
+
 			printf("test end\n");
 
 //			gc_type::scan();
