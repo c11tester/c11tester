@@ -54,8 +54,6 @@ void ModelChecker::setParams(struct model_params params) {
  */
 void ModelChecker::reset_to_initial_state()
 {
-	DEBUG("+++ Resetting to initial state +++\n");
-	node_stack->reset_execution();
 
 	/**
 	 * FIXME: if we utilize partial rollback, we will need to free only
@@ -253,7 +251,6 @@ bool ModelChecker::next_execution()
 // test code
 	execution_number++;
 	reset_to_initial_state();
-	node_stack->full_reset();
 	return false;
 }
 
@@ -354,7 +351,6 @@ void ModelChecker::do_restart()
 {
 	restart_flag = false;
 	reset_to_initial_state();
-	node_stack->full_reset();
 	memset(&stats,0,sizeof(struct execution_stats));
 	execution_number = 1;
 }
