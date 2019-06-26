@@ -23,6 +23,19 @@ static void ensureModel(ModelAction * action) {
 	}
 }
 
+static uint64_t ensureModelValue(ModelAction * action) {
+	if (!modelchecker_started) {
+		if (!model) {
+			snapshot_system_init(10000, 1024, 1024, 40000);
+			model = new ModelChecker();
+		}
+		model->get_execution()->check_current_action(action);
+		return thread_current()->get_return_value();
+	} else {
+		return model->switch_to_master(action);
+	}
+}
+
 /** Performs a read action.*/
 uint64_t model_read_action(void * obj, memory_order ord) {
 	return model->switch_to_master(new ModelAction(ATOMIC_READ, ord, obj));
@@ -122,24 +135,21 @@ void cds_atomic_init64(void * obj, uint64_t val, const char * position) {
 
 // cds atomic loads
 uint8_t cds_atomic_load8(void * obj, int atomic_index, const char * position) {
-	return (uint8_t) ( model->switch_to_master(
-											 new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj))
-										 );
+	return (uint8_t) ensureModelValue(
+		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
 }
 uint16_t cds_atomic_load16(void * obj, int atomic_index, const char * position) {
-	return (uint16_t) ( model->switch_to_master(
-												new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj))
-											);
+	return (uint16_t) ensureModelValue(
+		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
 }
 uint32_t cds_atomic_load32(void * obj, int atomic_index, const char * position) {
-	return (uint32_t) ( model->switch_to_master(
-												new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj))
-											);
-}
-uint64_t cds_atomic_load64(void * obj, int atomic_index, const char * position) {
-	return model->switch_to_master(
+	return (uint32_t) ensureModelValue(
 		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)
 		);
+}
+uint64_t cds_atomic_load64(void * obj, int atomic_index, const char * position) {
+	return ensureModelValue(
+		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
 }
 
 // cds atomic stores
