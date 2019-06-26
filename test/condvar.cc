@@ -3,11 +3,11 @@
 #include "threads.h"
 #include "librace.h"
 #include "stdatomic.h"
-#include <mutex>
+#include <mutex.h>
 #include <condition_variable>
 
-std::mutex * m;
-std::condition_variable *v;
+cdsc::mutex * m;
+cdsc::condition_variable *v;
 int shareddata;
 
 static void a(void *obj)
@@ -32,8 +32,8 @@ int user_main(int argc, char **argv)
 {
 	thrd_t t1, t2;
 	store_32(&shareddata, (unsigned int) 0);
-	m=new std::mutex();
-	v=new std::condition_variable();
+	m=new cdsc::mutex();
+	v=new cdsc::condition_variable();
 
 	thrd_create(&t1, (thrd_start_t)&a, NULL);
 	thrd_create(&t2, (thrd_start_t)&b, NULL);

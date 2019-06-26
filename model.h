@@ -72,6 +72,7 @@ private:
 	Scheduler * const scheduler;
 	NodeStack * const node_stack;
 	ModelExecution *execution;
+	Thread * init_thread;
 
 	int execution_number;
 
@@ -103,5 +104,6 @@ private:
 };
 
 extern ModelChecker *model;
+extern ModelChecker *model_init;
 
 #endif	/* __MODEL_H__ */

@@ -105,6 +105,7 @@ public:
 	CycleGraph * const get_mo_graph() { return mo_graph; }
 	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
 	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
+	ModelAction * check_current_action(ModelAction *curr);
 
 	SNAPSHOTALLOC
 private:
@@ -124,7 +125,6 @@ private:
 	modelclock_t get_next_seq_num();
 
 	bool next_execution();
-	ModelAction * check_current_action(ModelAction *curr);
 	bool initialize_curr_action(ModelAction **curr);
 	void process_read(ModelAction *curr, SnapVector<const ModelAction *> * rf_set);
 	void process_write(ModelAction *curr);
