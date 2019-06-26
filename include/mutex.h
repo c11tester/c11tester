@@ -7,7 +7,6 @@
 #define __CXX_MUTEX__
 
 #include "modeltypes.h"
-//#include <mutex>
 
 namespace cdsc {
 	struct mutex_state {

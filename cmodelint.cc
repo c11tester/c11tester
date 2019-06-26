@@ -86,27 +86,19 @@ void model_fence_action(memory_order ord) {
 
 /* ---  helper functions --- */
 uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oldval, int size, const char *position) {
-	return model->switch_to_master(
-		new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj)
-		);
+	ensureModelValue(new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj), uint64_t);
 }
 
 uint64_t model_rmwr_action_helper(void *obj, int atomic_index, const char *position) {
-	return model->switch_to_master(
-		new ModelAction(ATOMIC_RMWR, position, orders[atomic_index], obj)
-		);
+	ensureModelValue(new ModelAction(ATOMIC_RMWR, position, orders[atomic_index], obj), uint64_t);
 }
 
 void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index, const char * position) {
-	model->switch_to_master(
-		new ModelAction(ATOMIC_RMW, position, orders[atomic_index], obj, val)
-		);
+	ensureModel(new ModelAction(ATOMIC_RMW, position, orders[atomic_index], obj, val));
 }
 
 void model_rmwc_action_helper(void *obj, int atomic_index, const char *position) {
-	model->switch_to_master(
-		new ModelAction(ATOMIC_RMWC, position, orders[atomic_index], obj)
-		);
+	ensureModel(new ModelAction(ATOMIC_RMWC, position, orders[atomic_index], obj));
 }
 
 // cds atomic inits
