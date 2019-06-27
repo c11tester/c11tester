@@ -14,6 +14,7 @@
 #include "datarace.h"
 #include "threads-model.h"
 #include "bugmessage.h"
+#include "history.h"
 #include "fuzzer.h"
 
 #define INITIAL_THREAD_ID       0
@@ -64,7 +65,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack 
 	thrd_last_fence_release(),
 	node_stack(node_stack),
 	priv(new struct model_snapshot_members ()),
-			 mo_graph(new CycleGraph()),
+	mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer())
 {
 	/* Initialize a model-checker thread, for special ModelActions */
@@ -388,10 +389,7 @@ bool ModelExecution::process_mutex(ModelAction *curr)
  */
 void ModelExecution::process_write(ModelAction *curr)
 {
-
 	w_modification_order(curr);
-
-
 	get_thread(curr)->set_return_value(VALUE_NONE);
 }
 
@@ -1630,6 +1628,9 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	ASSERT(check_action_enabled(curr));	/* May have side effects? */
 	curr = check_current_action(curr);
 	ASSERT(curr);
+
+	// model_print("poitner loc: %p, thread: %d, type: %d, order: %d, position: %s\n", curr, curr->get_tid(), curr->get_type(), curr->get_mo(), curr->get_position() );
+	model->get_history()->add_func_atomic( curr, curr_thrd->get_id() );
 
 	if (curr_thrd->is_blocked() || curr_thrd->is_complete())
 		scheduler->remove_thread(curr_thrd);
