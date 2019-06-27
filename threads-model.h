@@ -50,7 +50,6 @@ public:
 	static int swap(ucontext_t *ctxt, Thread *t);
 	static int swap(Thread *t, ucontext_t *ctxt);
 
-	void setContext();
 	thread_state get_state() const { return state; }
 	void set_state(thread_state s);
 	thread_id_t get_id() const;
@@ -162,6 +161,7 @@ private:
 };
 
 Thread * thread_current();
+void thread_startup();
 
 static inline thread_id_t thrd_to_id(thrd_t t)
 {

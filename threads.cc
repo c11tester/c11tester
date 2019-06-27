@@ -86,11 +86,6 @@ int Thread::create_context()
 	return 0;
 }
 
-void Thread::setContext() {
-	set_state(THREAD_RUNNING);
-	setcontext(&context);
-}
-
 /**
  * Swaps the current context to another thread of execution. This form switches
  * from a user Thread to a system context.
