@@ -53,6 +53,7 @@ int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
 	if (!model) {
 		snapshot_system_init(10000, 1024, 1024, 40000);
 		model = new ModelChecker();
+		model->startChecker();
 	}
 
 	ModelExecution *execution = model->get_execution();

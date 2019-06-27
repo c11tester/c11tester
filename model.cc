@@ -21,7 +21,6 @@
 #include "params.h"
 
 ModelChecker *model = NULL;
-bool modelchecker_started = false;
 
 /** Wrapper to run the user's main function, with appropriate arguments */
 void user_main_wrapper(void *)
@@ -163,7 +162,7 @@ void ModelChecker::print_bugs() const
 							bugs->size(),
 							bugs->size() > 1 ? "s" : "");
 	for (unsigned int i = 0;i < bugs->size();i++)
-		(*bugs)[i] -> print();
+		(*bugs)[i]->print();
 }
 
 /**
@@ -174,15 +173,15 @@ void ModelChecker::print_bugs() const
  */
 void ModelChecker::record_stats()
 {
-	stats.num_total ++;
+	stats.num_total++;
 	if (!execution->isfeasibleprefix())
-		stats.num_infeasible ++;
+		stats.num_infeasible++;
 	else if (execution->have_bug_reports())
-		stats.num_buggy_executions ++;
+		stats.num_buggy_executions++;
 	else if (execution->is_complete_execution())
-		stats.num_complete ++;
+		stats.num_complete++;
 	else {
-		stats.num_redundant ++;
+		stats.num_redundant++;
 
 		/**
 		 * @todo We can violate this ASSERT() when fairness/sleep sets
@@ -263,15 +262,15 @@ bool ModelChecker::next_execution()
 		return true;
 	}
 // test code
-	execution_number ++;
+	execution_number++;
 	reset_to_initial_state();
 	return false;
 }
 
 /** @brief Run trace analyses on complete trace */
 void ModelChecker::run_trace_analyses() {
-	for (unsigned int i = 0;i < trace_analyses.size();i ++)
-		trace_analyses[i] -> analyze(execution->get_action_trace());
+	for (unsigned int i = 0;i < trace_analyses.size();i++)
+		trace_analyses[i]->analyze(execution->get_action_trace());
 }
 
 /**
@@ -337,6 +336,15 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	return old->get_return_value();
 }
 
+static void runChecker() {
+	model->run();
+	delete model;
+}
+
+void ModelChecker::startChecker() {
+	startExecution(get_system_context(), runChecker);
+}
+
 bool ModelChecker::should_terminate_execution()
 {
 	/* Infeasible -> don't take any more steps */
@@ -364,6 +372,10 @@ void ModelChecker::do_restart()
 	execution_number = 1;
 }
 
+void ModelChecker::startMainThread() {
+	init_thread->setContext();
+}
+
 /** @brief Run ModelChecker for the user program */
 void ModelChecker::run()
 {
@@ -371,7 +383,7 @@ void ModelChecker::run()
 	char random_state[256];
 	initstate(423121, random_state, sizeof(random_state));
 
-	for(int exec = 0;exec < params.maxexecutions;exec ++) {
+	for(int exec = 0;exec < params.maxexecutions;exec++) {
 		Thread * t = init_thread;
 
 		do {

@@ -64,7 +64,8 @@ public:
 	model_params params;
 	void add_trace_analysis(TraceAnalysis *a) {     trace_analyses.push_back(a); }
 	void set_inspect_plugin(TraceAnalysis *a) {     inspect_plugin=a;       }
-
+	void startMainThread();
+	void startChecker();
 	MEMALLOC
 private:
 	/** Flag indicates whether to restart the model checker. */
@@ -107,5 +108,4 @@ private:
 };
 
 extern ModelChecker *model;
-extern bool modelchecker_started;
 #endif	/* __MODEL_H__ */

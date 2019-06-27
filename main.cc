@@ -161,16 +161,6 @@ static void install_trace_analyses(ModelExecution *execution)
 	}
 }
 
-/** The model_main function contains the main model checking loop. */
-static void model_main()
-{
-	snapshot_record(0);
-	model->run();
-	delete model;
-
-	DEBUG("Exiting\n");
-}
-
 /**
  * Main function.  Just initializes snapshotting library and the
  * snapshotting library calls the model_main function.
@@ -199,6 +189,7 @@ int main(int argc, char **argv)
 	if (!model) {
 		snapshot_system_init(10000, 1024, 1024, 40000);
 		model = new ModelChecker();
+		model->startChecker();
 	}
 
 	register_plugins();
@@ -213,7 +204,7 @@ int main(int argc, char **argv)
 	snapshot_stack_init();
 	install_trace_analyses(model->get_execution());
 
-	//Start everything up
-	modelchecker_started = true;
-	startExecution(&model_main);
+	snapshot_record(0);
+	model->startMainThread();
+	DEBUG("Exiting\n");
 }
