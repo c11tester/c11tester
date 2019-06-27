@@ -2,12 +2,6 @@
 #include "history.h"
 #include "action.h"
 
-HistoryNode::HistoryNode(ModelAction *act) :
-	action(act)
-{
-	ASSERT(act);
-	this->position = act->get_position();
-}
 
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
