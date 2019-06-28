@@ -1,3 +1,4 @@
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <dlfcn.h>
@@ -74,7 +75,7 @@ void *model_malloc(size_t size)
 /** @brief Snapshotting malloc, for use by model-checker (not user progs) */
 void * snapshot_malloc(size_t size)
 {
-	void *tmp = malloc(size);
+  void *tmp = mspace_malloc(model_snapshot_space, size);
 	ASSERT(tmp);
 	return tmp;
 }
@@ -82,7 +83,7 @@ void * snapshot_malloc(size_t size)
 /** @brief Snapshotting calloc, for use by model-checker (not user progs) */
 void * snapshot_calloc(size_t count, size_t size)
 {
-	void *tmp = calloc(count, size);
+  void *tmp = mspace_calloc(model_snapshot_space, count, size);
 	ASSERT(tmp);
 	return tmp;
 }
@@ -90,7 +91,7 @@ void * snapshot_calloc(size_t count, size_t size)
 /** @brief Snapshotting realloc, for use by model-checker (not user progs) */
 void *snapshot_realloc(void *ptr, size_t size)
 {
-	void *tmp = realloc(ptr, size);
+  void *tmp = mspace_realloc(model_snapshot_space, ptr, size);
 	ASSERT(tmp);
 	return tmp;
 }
@@ -98,7 +99,7 @@ void *snapshot_realloc(void *ptr, size_t size)
 /** @brief Snapshotting free, for use by model-checker (not user progs) */
 void snapshot_free(void *ptr)
 {
-	free(ptr);
+  mspace_free(model_snapshot_space, ptr);
 }
 
 /** Non-snapshotting free for our use. */
@@ -264,13 +265,13 @@ void operator delete[](void *p, size_t size)
 /** @brief Snapshotting allocation function for use by the Thread class only */
 void * Thread_malloc(size_t size)
 {
-	return malloc(size);
+	return snapshot_malloc(size);
 }
 
 /** @brief Snapshotting free function for use by the Thread class only */
 void Thread_free(void *ptr)
 {
-	free(ptr);
+	snapshot_free(ptr);
 }
 
 #endif	/* !USE_MPROTECT_SNAPSHOT */

@@ -372,9 +372,7 @@ static void fork_snapshot_init(unsigned int numbackingpages,
 	if (!fork_snap)
 		createSharedMemory();
 
-	void *base_model_snapshot_space = malloc((numheappages + 1) * PAGESIZE);
-	void *pagealignedbase = PageAlignAddressUpward(base_model_snapshot_space);
-	model_snapshot_space = create_mspace_with_base(pagealignedbase, numheappages * PAGESIZE, 1);
+	model_snapshot_space = create_mspace(numheappages * PAGESIZE, 1);
 }
 
 static void fork_loop() {

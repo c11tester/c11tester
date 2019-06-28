@@ -22,7 +22,7 @@ public:
 	HashTable<uint32_t, action_mlist_t *, uintptr_t, 4> * getFuncHistory() { return &func_history; }
 
 	void print();
-
+	MEMALLOC
 private:
 	uint32_t func_id;
 

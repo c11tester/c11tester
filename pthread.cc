@@ -16,6 +16,12 @@
 
 int pthread_create(pthread_t *t, const pthread_attr_t * attr,
 									 pthread_start_t start_routine, void * arg) {
+	if (!model) {
+		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
+	
 	struct pthread_params params = { start_routine, arg };
 
 	ModelAction *act = new ModelAction(PTHREAD_CREATE, std::memory_order_seq_cst, t, (uint64_t)&params);
@@ -63,6 +69,13 @@ int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
 }
 
 int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
+	if (!model) {
+		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
+	
+
 	ModelExecution *execution = model->get_execution();
 
 	/* to protect the case where PTHREAD_MUTEX_INITIALIZER is used
