@@ -30,7 +30,7 @@ public:
 
 	void add_action(ModelAction *act);
 
-	HashTable<const char *, FuncInst *, uintptr_t, 4> * getFuncInsts() { return &func_insts; }
+	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncInsts() { return &func_insts; }
 	func_inst_list_t * get_inst_list() { return &inst_list; }
 
 	MEMALLOC
@@ -40,7 +40,7 @@ private:
 	 * To do: cds_atomic_compare_exchange contains three atomic operations
 	 * that are feeded with the same source line number by llvm pass
 	 */
-	HashTable<const char *, FuncInst *, uintptr_t, 4> func_insts;
+	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> func_insts;
 
 	func_inst_list_t inst_list;
 };

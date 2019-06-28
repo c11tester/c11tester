@@ -106,6 +106,8 @@ public:
 	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
 	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
 
+	SnapVector<func_id_list_t *> * get_thrd_func_list() { return &thrd_func_list; }
+
 	SNAPSHOTALLOC
 private:
 	int get_execution_number() const;
@@ -205,6 +207,12 @@ private:
 	Fuzzer * fuzzer;
 
 	Thread * action_select_next_thread(const ModelAction *curr) const;
+
+	/* thrd_func_list stores a list of function ids for each thread. 
+	 * Each element in thrd_func_list stores the functions that
+	 * thread i has entered and yet to exit from */
+	SnapVector< func_id_list_t * > thrd_func_list;
+
 };
 
 #endif	/* __EXECUTION_H__ */
