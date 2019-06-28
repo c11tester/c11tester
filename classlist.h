@@ -15,6 +15,8 @@ class Scheduler;
 class Thread;
 class TraceAnalysis;
 class Fuzzer;
+class FuncNode;
+class FuncInst;
 
 struct model_snapshot_members;
 struct bug_message;
