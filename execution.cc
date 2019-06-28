@@ -1300,7 +1300,8 @@ ModelAction * ModelExecution::get_parent_action(thread_id_t tid) const
  */
 ClockVector * ModelExecution::get_cv(thread_id_t tid) const
 {
-	return get_parent_action(tid)->get_cv();
+	ModelAction *firstaction=get_parent_action(tid);
+	return firstaction != NULL ? firstaction->get_cv() : NULL;
 }
 
 bool valequals(uint64_t val1, uint64_t val2, int size) {

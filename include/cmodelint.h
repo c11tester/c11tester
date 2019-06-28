@@ -14,7 +14,7 @@ extern "C" {
 typedef int bool;
 #endif
 
-  
+
 uint64_t model_read_action(void * obj, memory_order ord);
 void model_write_action(void * obj, memory_order ord, uint64_t val);
 void model_init_action(void * obj, uint64_t val);
@@ -25,7 +25,7 @@ void model_rmwc_action(void *obj, memory_order ord);
 void model_fence_action(memory_order ord);
 
 uint64_t model_rmwr_action_helper(void *obj, int atomic_index, const char *position);
-  uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oval, int size, const char *position);
+uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oval, int size, const char *position);
 void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index, const char *position);
 void model_rmwc_action_helper(void *obj, int atomic_index, const char *position);
 // void model_fence_action_helper(int atomic_index);
@@ -80,23 +80,23 @@ uint32_t cds_atomic_fetch_xor32(void* addr, uint32_t val, int atomic_index, cons
 uint64_t cds_atomic_fetch_xor64(void* addr, uint64_t val, int atomic_index, const char * position);
 
 // cds atomic compare and exchange (strong)
-uint8_t cds_atomic_compare_exchange8_v1(void* addr, uint8_t expected, uint8_t desire, 
-		int atomic_index_succ, int atomic_index_fail, const char *position);
-uint16_t cds_atomic_compare_exchange16_v1(void* addr, uint16_t expected, uint16_t desire, 
-		int atomic_index_succ, int atomic_index_fail, const char *position);
-uint32_t cds_atomic_compare_exchange32_v1(void* addr, uint32_t expected, uint32_t desire, 
-		int atomic_index_succ, int atomic_index_fail, const char *position);
-uint64_t cds_atomic_compare_exchange64_v1(void* addr, uint64_t expected, uint64_t desire, 
-		int atomic_index_succ, int atomic_index_fail, const char *position);
+uint8_t cds_atomic_compare_exchange8_v1(void* addr, uint8_t expected, uint8_t desire,
+																				int atomic_index_succ, int atomic_index_fail, const char *position);
+uint16_t cds_atomic_compare_exchange16_v1(void* addr, uint16_t expected, uint16_t desire,
+																					int atomic_index_succ, int atomic_index_fail, const char *position);
+uint32_t cds_atomic_compare_exchange32_v1(void* addr, uint32_t expected, uint32_t desire,
+																					int atomic_index_succ, int atomic_index_fail, const char *position);
+uint64_t cds_atomic_compare_exchange64_v1(void* addr, uint64_t expected, uint64_t desire,
+																					int atomic_index_succ, int atomic_index_fail, const char *position);
 
-bool cds_atomic_compare_exchange8_v2(void* addr, uint8_t* expected, uint8_t desired, 
-		int atomic_index_succ, int atomic_index_fail, const char *position);
-bool cds_atomic_compare_exchange16_v2(void* addr, uint16_t* expected, uint16_t desired, 
-		int atomic_index_succ, int atomic_index_fail, const char *position);
-bool cds_atomic_compare_exchange32_v2(void* addr, uint32_t* expected, uint32_t desired, 
-		int atomic_index_succ, int atomic_index_fail, const char *position);
-bool cds_atomic_compare_exchange64_v2(void* addr, uint64_t* expected, uint64_t desired, 
-		int atomic_index_succ, int atomic_index_fail, const char *position);
+bool cds_atomic_compare_exchange8_v2(void* addr, uint8_t* expected, uint8_t desired,
+																		 int atomic_index_succ, int atomic_index_fail, const char *position);
+bool cds_atomic_compare_exchange16_v2(void* addr, uint16_t* expected, uint16_t desired,
+																			int atomic_index_succ, int atomic_index_fail, const char *position);
+bool cds_atomic_compare_exchange32_v2(void* addr, uint32_t* expected, uint32_t desired,
+																			int atomic_index_succ, int atomic_index_fail, const char *position);
+bool cds_atomic_compare_exchange64_v2(void* addr, uint64_t* expected, uint64_t desired,
+																			int atomic_index_succ, int atomic_index_fail, const char *position);
 
 // cds atomic thread fence
 void cds_atomic_thread_fence(int atomic_index, const char * position);

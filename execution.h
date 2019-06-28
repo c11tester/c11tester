@@ -103,8 +103,8 @@ public:
 	action_list_t * get_action_trace() { return &action_trace; }
 	Fuzzer * getFuzzer();
 	CycleGraph * const get_mo_graph() { return mo_graph; }
-	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
-	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
+	HashTable<pthread_cond_t *, cdsc::snapcondition_variable *, uintptr_t, 4> * getCondMap() {return &cond_map;}
+	HashTable<pthread_mutex_t *, cdsc::snapmutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
 	ModelAction * check_current_action(ModelAction *curr);
 
 	SNAPSHOTALLOC
@@ -164,8 +164,8 @@ private:
 
 	HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
 
-	HashTable<pthread_mutex_t *, cdsc::mutex *, uintptr_t, 4> mutex_map;
-	HashTable<pthread_cond_t *, cdsc::condition_variable *, uintptr_t, 4> cond_map;
+	HashTable<pthread_mutex_t *, cdsc::snapmutex *, uintptr_t, 4> mutex_map;
+	HashTable<pthread_cond_t *, cdsc::snapcondition_variable *, uintptr_t, 4> cond_map;
 
 	/**
 	 * List of pending release sequences. Release sequences might be

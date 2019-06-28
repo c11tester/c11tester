@@ -20,12 +20,12 @@
 #define is_normal_mo_infer(x) ((x >= memory_order_relaxed && x <= memory_order_seq_cst) || x == WILDCARD_NONEXIST || x == memory_order_normal)
 #define is_normal_mo(x) ((x >= memory_order_relaxed && x <= memory_order_seq_cst) || x == memory_order_normal)
 
-#define assert_infer(x) for (int i = 0; i <= wildcardNum; i++)\
-	ASSERT(is_normal_mo_infer((x[i])));
+#define assert_infer(x) for (int i = 0;i <= wildcardNum;i++) \
+		ASSERT(is_normal_mo_infer((x[i])));
 
-#define assert_infers(x) for (ModelList<memory_order *>::iterator iter =\
-	(x)->begin(); iter != (x)->end(); iter++)\
-	assert_infer((*iter));
+#define assert_infers(x) for (ModelList<memory_order *>::iterator iter = \
+																(x)->begin();iter != (x)->end();iter++) \
+		assert_infer((*iter));
 
 #define relaxed memory_order_relaxed
 #define release memory_order_release

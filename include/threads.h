@@ -17,21 +17,21 @@ typedef void *__thread_identifier;
 extern "C" {
 #endif
 
-	typedef void (*thrd_start_t)(void *);
+typedef void (*thrd_start_t)(void *);
 
-	typedef struct {
-		__thread_identifier priv;
-	} thrd_t;
+typedef struct {
+	__thread_identifier priv;
+} thrd_t;
 
-	int thrd_create(thrd_t *t, thrd_start_t start_routine, void *arg);
-	int thrd_join(thrd_t);
-	void thrd_yield(void);
-	thrd_t thrd_current(void);
+int thrd_create(thrd_t *t, thrd_start_t start_routine, void *arg);
+int thrd_join(thrd_t);
+void thrd_yield(void);
+thrd_t thrd_current(void);
 
-	int user_main(int, char**);
+int user_main(int, char**);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __THREADS_H__ */
+#endif	/* __THREADS_H__ */

@@ -8,4 +8,4 @@
 
 #include "impatomic.h"
 
-#endif /* __CXX_ATOMIC__ */
+#endif	/* __CXX_ATOMIC__ */

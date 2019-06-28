@@ -75,7 +75,7 @@ void *model_malloc(size_t size)
 /** @brief Snapshotting malloc, for use by model-checker (not user progs) */
 void * snapshot_malloc(size_t size)
 {
-  void *tmp = mspace_malloc(model_snapshot_space, size);
+	void *tmp = mspace_malloc(model_snapshot_space, size);
 	ASSERT(tmp);
 	return tmp;
 }
@@ -83,7 +83,7 @@ void * snapshot_malloc(size_t size)
 /** @brief Snapshotting calloc, for use by model-checker (not user progs) */
 void * snapshot_calloc(size_t count, size_t size)
 {
-  void *tmp = mspace_calloc(model_snapshot_space, count, size);
+	void *tmp = mspace_calloc(model_snapshot_space, count, size);
 	ASSERT(tmp);
 	return tmp;
 }
@@ -91,7 +91,7 @@ void * snapshot_calloc(size_t count, size_t size)
 /** @brief Snapshotting realloc, for use by model-checker (not user progs) */
 void *snapshot_realloc(void *ptr, size_t size)
 {
-  void *tmp = mspace_realloc(model_snapshot_space, ptr, size);
+	void *tmp = mspace_realloc(model_snapshot_space, ptr, size);
 	ASSERT(tmp);
 	return tmp;
 }
@@ -99,7 +99,7 @@ void *snapshot_realloc(void *ptr, size_t size)
 /** @brief Snapshotting free, for use by model-checker (not user progs) */
 void snapshot_free(void *ptr)
 {
-  mspace_free(model_snapshot_space, ptr);
+	mspace_free(model_snapshot_space, ptr);
 }
 
 /** Non-snapshotting free for our use. */

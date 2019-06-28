@@ -14,4 +14,4 @@ void model_assert(bool expr, const char *file, int line);
 }
 #endif
 
-#endif /* __MODEL_ASSERT_H__ */
+#endif	/* __MODEL_ASSERT_H__ */

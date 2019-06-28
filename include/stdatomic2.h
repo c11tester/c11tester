@@ -67,6 +67,6 @@ using std::memory_order_seq_cst;
 using std::atomic_thread_fence;
 using std::atomic_signal_fence;
 
-#endif /* __cplusplus */
+#endif	/* __cplusplus */
 
-#endif /* __STDATOMIC_H__ */
+#endif	/* __STDATOMIC_H__ */

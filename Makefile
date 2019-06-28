@@ -92,3 +92,5 @@ pdfs: $(patsubst %.dot,%.pdf,$(wildcard *.dot))
 tabbing:
 	uncrustify -c C.cfg --no-backup --replace *.cc
 	uncrustify -c C.cfg --no-backup --replace *.h
+	uncrustify -c C.cfg --no-backup --replace include/*
+
