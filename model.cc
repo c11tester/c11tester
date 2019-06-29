@@ -378,6 +378,20 @@ void ModelChecker::startMainThread() {
 	thread_startup();
 }
 
+static bool is_nonsc_write(const ModelAction *act) {
+	if (act->get_type() == ATOMIC_WRITE) {
+		std::memory_order order = act->get_mo();
+		switch(order) {
+		case std::memory_order_relaxed:
+		case std::memory_order_release:
+			return true;
+		default:
+			return false;
+		}
+	}
+	return false;
+}
+
 /** @brief Run ModelChecker for the user program */
 void ModelChecker::run()
 {
@@ -385,7 +399,7 @@ void ModelChecker::run()
 	char random_state[256];
 	initstate(423121, random_state, sizeof(random_state));
 
-	for(int exec = 0;exec < params.maxexecutions;exec ++) {
+	for(int exec = 0;exec < params.maxexecutions;exec++) {
 		Thread * t = init_thread;
 
 		do {
@@ -395,11 +409,11 @@ void ModelChecker::run()
 			 * thread which just took a step--plus the first step
 			 * for any newly-created thread
 			 */
-
+			ModelAction * pending;
 			for (unsigned int i = 0;i < get_num_threads();i++) {
 				thread_id_t tid = int_to_id(i);
 				Thread *thr = get_thread(tid);
-				if (!thr->is_model_thread() && !thr->is_complete() && !thr->get_pending()) {
+				if (!thr->is_model_thread() && !thr->is_complete() && ((!(pending=thr->get_pending())) || is_nonsc_write(pending)) ) {
 					switch_from_master(thr);	// L: context swapped, and action type of thr changed.
 					if (thr->is_waiting_on(thr))
 						assert_bug("Deadlock detected (thread %u)", i);
