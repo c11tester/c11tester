@@ -380,7 +380,7 @@ static void fork_loop() {
 	snapshotid = fork_snap->currSnapShotID;
 	if (model->params.nofork) {
 		setcontext(&fork_snap->shared_ctxt);
-		exit(EXIT_SUCCESS);
+		_Exit(EXIT_SUCCESS);
 	}
 
 	while (true) {
@@ -403,7 +403,7 @@ static void fork_loop() {
 			}
 
 			if (fork_snap->mIDToRollback != snapshotid)
-				exit(EXIT_SUCCESS);
+				_Exit(EXIT_SUCCESS);
 		}
 	}
 }

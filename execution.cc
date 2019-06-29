@@ -55,7 +55,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack 
 	action_trace(),
 	thread_map(2),	/* We'll always need at least 2 threads */
 	pthread_map(0),
-	pthread_counter(0),
+	pthread_counter(1),
 	obj_map(),
 	condvar_waiters_map(),
 	obj_thrd_map(),
