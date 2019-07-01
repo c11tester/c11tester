@@ -177,7 +177,7 @@ public:
 	/* to accomodate pthread create and join */
 	Thread * thread_operand;
 	void set_thread_operand(Thread *th) { thread_operand = th; }
-	MEMALLOC
+	SNAPSHOTALLOC
 private:
 	const char * get_type_str() const;
 	const char * get_mo_str() const;

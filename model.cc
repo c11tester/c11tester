@@ -18,8 +18,15 @@
 #include "execution.h"
 #include "history.h"
 #include "bugmessage.h"
+#include "params.h"
 
-ModelChecker *model;
+ModelChecker *model = NULL;
+
+/** Wrapper to run the user's main function, with appropriate arguments */
+void user_main_wrapper(void *)
+{
+	user_main(model->params.argc, model->params.argv);
+}
 
 /** @brief Constructor */
 ModelChecker::ModelChecker() :
@@ -35,6 +42,11 @@ ModelChecker::ModelChecker() :
 	inspect_plugin(NULL)
 {
 	memset(&stats,0,sizeof(struct execution_stats));
+	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &user_main_wrapper, NULL, NULL);	// L: user_main_wrapper passes the user program
+	execution->add_thread(init_thread);
+	scheduler->set_current_thread(init_thread);
+	execution->setParams(&params);
+	param_defaults(&params);
 }
 
 /** @brief Destructor */
@@ -45,9 +57,8 @@ ModelChecker::~ModelChecker()
 }
 
 /** Method to set parameters */
-void ModelChecker::setParams(struct model_params params) {
-	this->params = params;
-	execution->setParams(&params);
+model_params * ModelChecker::getParams() {
+	return &params;
 }
 
 /**
@@ -56,8 +67,6 @@ void ModelChecker::setParams(struct model_params params) {
  */
 void ModelChecker::reset_to_initial_state()
 {
-	DEBUG("+++ Resetting to initial state +++\n");
-	node_stack->reset_execution();
 
 	/**
 	 * FIXME: if we utilize partial rollback, we will need to free only
@@ -153,7 +162,7 @@ void ModelChecker::print_bugs() const
 							bugs->size(),
 							bugs->size() > 1 ? "s" : "");
 	for (unsigned int i = 0;i < bugs->size();i++)
-		(*bugs)[i]->print();
+		(*bugs)[i] -> print();
 }
 
 /**
@@ -164,15 +173,15 @@ void ModelChecker::print_bugs() const
  */
 void ModelChecker::record_stats()
 {
-	stats.num_total++;
+	stats.num_total ++;
 	if (!execution->isfeasibleprefix())
-		stats.num_infeasible++;
+		stats.num_infeasible ++;
 	else if (execution->have_bug_reports())
-		stats.num_buggy_executions++;
+		stats.num_buggy_executions ++;
 	else if (execution->is_complete_execution())
-		stats.num_complete++;
+		stats.num_complete ++;
 	else {
-		stats.num_redundant++;
+		stats.num_redundant ++;
 
 		/**
 		 * @todo We can violate this ASSERT() when fairness/sleep sets
@@ -253,16 +262,15 @@ bool ModelChecker::next_execution()
 		return true;
 	}
 // test code
-	execution_number++;
+	execution_number ++;
 	reset_to_initial_state();
-	node_stack->full_reset();
 	return false;
 }
 
 /** @brief Run trace analyses on complete trace */
 void ModelChecker::run_trace_analyses() {
-	for (unsigned int i = 0;i < trace_analyses.size();i++)
-		trace_analyses[i]->analyze(execution->get_action_trace());
+	for (unsigned int i = 0;i < trace_analyses.size();i ++)
+		trace_analyses[i] -> analyze(execution->get_action_trace());
 }
 
 /**
@@ -315,10 +323,11 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	Thread *old = thread_current();
 	scheduler->set_current_thread(NULL);
 	ASSERT(!old->get_pending());
-/* W: No plugin
-        if (inspect_plugin != NULL) {
-                inspect_plugin->inspectModelAction(act);
-        }*/
+
+	if (inspect_plugin != NULL) {
+		inspect_plugin->inspectModelAction(act);
+	}
+
 	old->set_pending(act);
 	if (Thread::swap(old, &system_context) < 0) {
 		perror("swap threads");
@@ -327,10 +336,13 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	return old->get_return_value();
 }
 
-/** Wrapper to run the user's main function, with appropriate arguments */
-void user_main_wrapper(void *)
-{
-	user_main(model->params.argc, model->params.argv);
+static void runChecker() {
+	model->run();
+	delete model;
+}
+
+void ModelChecker::startChecker() {
+	startExecution(get_system_context(), runChecker);
 }
 
 bool ModelChecker::should_terminate_execution()
@@ -356,9 +368,28 @@ void ModelChecker::do_restart()
 {
 	restart_flag = false;
 	reset_to_initial_state();
-	node_stack->full_reset();
 	memset(&stats,0,sizeof(struct execution_stats));
 	execution_number = 1;
+}
+
+void ModelChecker::startMainThread() {
+	init_thread->set_state(THREAD_RUNNING);
+	scheduler->set_current_thread(init_thread);
+	thread_startup();
+}
+
+static bool is_nonsc_write(const ModelAction *act) {
+	if (act->get_type() == ATOMIC_WRITE) {
+		std::memory_order order = act->get_mo();
+		switch(order) {
+		case std::memory_order_relaxed:
+		case std::memory_order_release:
+			return true;
+		default:
+			return false;
+		}
+	}
+	return false;
 }
 
 /** @brief Run ModelChecker for the user program */
@@ -369,10 +400,8 @@ void ModelChecker::run()
 	initstate(423121, random_state, sizeof(random_state));
 
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
-		thrd_t user_thread;
-		Thread *t = new Thread(execution->get_next_id(), &user_thread, &user_main_wrapper, NULL, NULL);	// L: user_main_wrapper passes the user program
-		execution->add_thread(t);
-		//Need to seed random number generator, otherwise its state gets reset
+		Thread * t = init_thread;
+
 		do {
 			/*
 			 * Stash next pending action(s) for thread(s). There
@@ -380,11 +409,11 @@ void ModelChecker::run()
 			 * thread which just took a step--plus the first step
 			 * for any newly-created thread
 			 */
-
+			ModelAction * pending;
 			for (unsigned int i = 0;i < get_num_threads();i++) {
 				thread_id_t tid = int_to_id(i);
 				Thread *thr = get_thread(tid);
-				if (!thr->is_model_thread() && !thr->is_complete() && !thr->get_pending()) {
+				if (!thr->is_model_thread() && !thr->is_complete() && ((!(pending=thr->get_pending())) || is_nonsc_write(pending)) ) {
 					switch_from_master(thr);	// L: context swapped, and action type of thr changed.
 					if (thr->is_waiting_on(thr))
 						assert_bug("Deadlock detected (thread %u)", i);

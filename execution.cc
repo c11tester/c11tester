@@ -56,7 +56,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack 
 	action_trace(),
 	thread_map(2),	/* We'll always need at least 2 threads */
 	pthread_map(0),
-	pthread_counter(0),
+	pthread_counter(1),
 	obj_map(),
 	condvar_waiters_map(),
 	obj_thrd_map(),
@@ -776,9 +776,6 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 
 	/* Last SC fence in the current thread */
 	ModelAction *last_sc_fence_local = get_last_seq_cst_fence(curr->get_tid(), NULL);
-	ModelAction *last_sc_write = NULL;
-	if (curr->is_seqcst())
-		last_sc_write = get_last_seq_cst_write(curr);
 
 	int tid = curr->get_tid();
 	ModelAction *prev_same_thread = NULL;
@@ -1301,7 +1298,8 @@ ModelAction * ModelExecution::get_parent_action(thread_id_t tid) const
  */
 ClockVector * ModelExecution::get_cv(thread_id_t tid) const
 {
-	return get_parent_action(tid)->get_cv();
+	ModelAction *firstaction=get_parent_action(tid);
+	return firstaction != NULL ? firstaction->get_cv() : NULL;
 }
 
 bool valequals(uint64_t val1, uint64_t val2, int size) {
@@ -1592,18 +1590,6 @@ Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) cons
 	/* Do not split atomic RMW */
 	if (curr->is_rmwr())
 		return get_thread(curr);
-	if (curr->is_write()) {
-		std::memory_order order = curr->get_mo();
-		switch(order) {
-		case std::memory_order_relaxed:
-			return get_thread(curr);
-		case std::memory_order_release:
-			return get_thread(curr);
-		default:
-			return NULL;
-		}
-	}
-
 	/* Follow CREATE with the created thread */
 	/* which is not needed, because model.cc takes care of this */
 	if (curr->get_type() == THREAD_CREATE)

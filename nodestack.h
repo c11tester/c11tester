@@ -32,7 +32,7 @@ public:
 	ModelAction * get_uninit_action() const { return uninit_action; }
 	void print() const;
 
-	MEMALLOC
+	SNAPSHOTALLOC
 private:
 	ModelAction * const action;
 
@@ -40,7 +40,7 @@ private:
 	ModelAction *uninit_action;
 };
 
-typedef ModelVector<Node *> node_list_t;
+typedef SnapVector<Node *> node_list_t;
 
 /**
  * @brief A stack of nodes
@@ -63,7 +63,7 @@ public:
 	void full_reset();
 	void print() const;
 
-	MEMALLOC
+	SNAPSHOTALLOC
 private:
 	node_list_t node_list;
 	const struct model_params * get_params() const;

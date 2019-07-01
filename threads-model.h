@@ -161,6 +161,7 @@ private:
 };
 
 Thread * thread_current();
+void thread_startup();
 
 static inline thread_id_t thrd_to_id(thrd_t t)
 {

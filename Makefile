@@ -5,7 +5,7 @@ OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
 	   datarace.o impatomic.o cmodelint.o \
 	   snapshot.o malloc.o mymemory.o common.o mutex.o conditionvariable.o \
 	   context.o execution.o libannotate.o plugins.o pthread.o futex.o fuzzer.o \
-	   sleeps.o history.o funcnode.o
+	   sleeps.o history.o funcnode.o printf.o
 
 CPPFLAGS += -Iinclude -I.
 LDFLAGS := -ldl -lrt -rdynamic
@@ -34,7 +34,7 @@ README.html: README.md
 	$(MARKDOWN) $< > $@
 
 malloc.o: malloc.c
-	$(CC) -fPIC -c malloc.c -DMSPACES -DONLY_MSPACES -DHAVE_MMAP=0 $(CPPFLAGS) -Wno-unused-variable
+	$(CC) -fPIC -c malloc.c -DMSPACES -DONLY_MSPACES -DHAVE_MMAP=1 $(CPPFLAGS) -Wno-unused-variable
 
 #futex.o: futex.cc
 #	$(CXX) -fPIC -c futex.cc -std=c++11 $(CPPFLAGS)
@@ -92,3 +92,5 @@ pdfs: $(patsubst %.dot,%.pdf,$(wildcard *.dot))
 tabbing:
 	uncrustify -c C.cfg --no-backup --replace *.cc
 	uncrustify -c C.cfg --no-backup --replace *.h
+	uncrustify -c C.cfg --no-backup --replace include/*
+

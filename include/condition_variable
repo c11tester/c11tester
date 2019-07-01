@@ -9,16 +9,24 @@ namespace cdsc {
 	};
 
 	class condition_variable {
-	public:
+public:
 		condition_variable();
 		~condition_variable();
 		void notify_one();
 		void notify_all();
 		void wait(mutex& lock);
-		
-	private:
+
+private:
 		struct condition_variable_state state;
+	};
+
+	class snapcondition_variable: public condition_variable {
+public:
+		snapcondition_variable() : condition_variable() {
+		}
+
+		SNAPSHOTALLOC
 	};
 }
 
-#endif /* __CXX_CONDITION_VARIABLE__ */
+#endif	/* __CXX_CONDITION_VARIABLE__ */

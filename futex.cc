@@ -45,8 +45,8 @@ namespace std _GLIBCXX_VISIBILITY(default)
 
 		ModelExecution *execution = model->get_execution();
 
-		cdsc::condition_variable *v = new cdsc::condition_variable();
-		cdsc::mutex *m = new cdsc::mutex();
+		cdsc::snapcondition_variable *v = new cdsc::snapcondition_variable();
+		cdsc::snapmutex *m = new cdsc::snapmutex();
 
 		execution->getCondMap()->put( (pthread_cond_t *) __addr, v);
 		execution->getMutexMap()->put( (pthread_mutex_t *) __addr, m);

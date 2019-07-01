@@ -1,3 +1,4 @@
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <dlfcn.h>
@@ -264,13 +265,13 @@ void operator delete[](void *p, size_t size)
 /** @brief Snapshotting allocation function for use by the Thread class only */
 void * Thread_malloc(size_t size)
 {
-	return malloc(size);
+	return snapshot_malloc(size);
 }
 
 /** @brief Snapshotting free function for use by the Thread class only */
 void Thread_free(void *ptr)
 {
-	free(ptr);
+	snapshot_free(ptr);
 }
 
 #endif	/* !USE_MPROTECT_SNAPSHOT */

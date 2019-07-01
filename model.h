@@ -33,7 +33,7 @@ class ModelChecker {
 public:
 	ModelChecker();
 	~ModelChecker();
-	void setParams(struct model_params params);
+	model_params * getParams();
 	void run();
 
 	/** Restart the model checker, intended for pluggins. */
@@ -64,7 +64,8 @@ public:
 	model_params params;
 	void add_trace_analysis(TraceAnalysis *a) {     trace_analyses.push_back(a); }
 	void set_inspect_plugin(TraceAnalysis *a) {     inspect_plugin=a;       }
-
+	void startMainThread();
+	void startChecker();
 	MEMALLOC
 private:
 	/** Flag indicates whether to restart the model checker. */
@@ -74,6 +75,7 @@ private:
 	Scheduler * const scheduler;
 	NodeStack * const node_stack;
 	ModelExecution *execution;
+	Thread * init_thread;
 	ModelHistory *history;
 
 	int execution_number;
@@ -106,5 +108,4 @@ private:
 };
 
 extern ModelChecker *model;
-
 #endif	/* __MODEL_H__ */

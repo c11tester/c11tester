@@ -20,4 +20,6 @@ struct model_params {
 	char **argv;
 };
 
+void param_defaults(struct model_params *params);
+
 #endif	/* __PARAMS_H__ */

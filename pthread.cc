@@ -16,6 +16,12 @@
 
 int pthread_create(pthread_t *t, const pthread_attr_t * attr,
 									 pthread_start_t start_routine, void * arg) {
+	if (!model) {
+		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
+
 	struct pthread_params params = { start_routine, arg };
 
 	ModelAction *act = new ModelAction(PTHREAD_CREATE, std::memory_order_seq_cst, t, (uint64_t)&params);
@@ -41,6 +47,12 @@ int pthread_join(pthread_t t, void **value_ptr) {
 	return 0;
 }
 
+int pthread_detach(pthread_t t) {
+	//Doesn't do anything
+	//Return success
+	return 0;
+}
+
 void pthread_exit(void *value_ptr) {
 	Thread * th = thread_current();
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, th));
@@ -48,18 +60,28 @@ void pthread_exit(void *value_ptr) {
 }
 
 int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
-	if (!model) {
-		model = new ModelChecker();
-	}
+	cdsc::snapmutex *m = new cdsc::snapmutex();
 
-	cdsc::mutex *m = new cdsc::mutex();
+	if (!model) {
+		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
 
 	ModelExecution *execution = model->get_execution();
 	execution->getMutexMap()->put(p_mutex, m);
+
 	return 0;
 }
 
 int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
+	if (!model) {
+		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
+
+
 	ModelExecution *execution = model->get_execution();
 
 	/* to protect the case where PTHREAD_MUTEX_INITIALIZER is used
@@ -69,7 +91,7 @@ int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
 		pthread_mutex_init(p_mutex, NULL);
 	}
 
-	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
+	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 
 	if (m != NULL) {
 		m->lock();
@@ -82,12 +104,12 @@ int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
 
 int pthread_mutex_trylock(pthread_mutex_t *p_mutex) {
 	ModelExecution *execution = model->get_execution();
-	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
+	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 	return m->try_lock();
 }
 int pthread_mutex_unlock(pthread_mutex_t *p_mutex) {
 	ModelExecution *execution = model->get_execution();
-	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
+	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 
 	if (m != NULL) {
 		m->unlock();
@@ -107,7 +129,7 @@ int pthread_mutex_timedlock (pthread_mutex_t *__restrict p_mutex,
         if (!execution->mutex_map.contains(p_mutex)) {
                 pthread_mutex_init(p_mutex, NULL);
         }
-        cdsc::mutex *m = execution->mutex_map.get(p_mutex);
+        cdsc::snapmutex *m = execution->mutex_map.get(p_mutex);
 
         if (m != NULL) {
                 m->lock();
@@ -131,7 +153,7 @@ int pthread_key_delete(pthread_key_t) {
 }
 
 int pthread_cond_init(pthread_cond_t *p_cond, const pthread_condattr_t *attr) {
-	cdsc::condition_variable *v = new cdsc::condition_variable();
+	cdsc::snapcondition_variable *v = new cdsc::snapcondition_variable();
 
 	ModelExecution *execution = model->get_execution();
 	execution->getCondMap()->put(p_cond, v);
@@ -143,8 +165,8 @@ int pthread_cond_wait(pthread_cond_t *p_cond, pthread_mutex_t *p_mutex) {
 	if ( !execution->getCondMap()->contains(p_cond) )
 		pthread_cond_init(p_cond, NULL);
 
-	cdsc::condition_variable *v = execution->getCondMap()->get(p_cond);
-	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
+	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
+	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 
 	v->wait(*m);
 	return 0;
@@ -160,8 +182,8 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
 	if ( !execution->getMutexMap()->contains(p_mutex) )
 		pthread_mutex_init(p_mutex, NULL);
 
-	cdsc::condition_variable *v = execution->getCondMap()->get(p_cond);
-	cdsc::mutex *m = execution->getMutexMap()->get(p_mutex);
+	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
+	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 
 	model->switch_to_master(new ModelAction(NOOP, std::memory_order_seq_cst, v));
 //	v->wait(*m);
@@ -175,7 +197,7 @@ int pthread_cond_signal(pthread_cond_t *p_cond) {
 	if ( !execution->getCondMap()->contains(p_cond) )
 		pthread_cond_init(p_cond, NULL);
 
-	cdsc::condition_variable *v = execution->getCondMap()->get(p_cond);
+	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
 
 	v->notify_one();
 	return 0;
