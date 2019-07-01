@@ -36,8 +36,8 @@ README.html: README.md
 malloc.o: malloc.c
 	$(CC) -fPIC -c malloc.c -DMSPACES -DONLY_MSPACES -DHAVE_MMAP=1 $(CPPFLAGS) -Wno-unused-variable
 
-#futex.o: futex.cc
-#	$(CXX) -fPIC -c futex.cc -std=c++11 $(CPPFLAGS)
+futex.o: futex.cc
+	$(CXX) -fPIC -c futex.cc -std=c++11 $(CPPFLAGS)
 
 %.o : %.cc
 	$(CXX) -MMD -MF .$@.d -fPIC -c $< $(CPPFLAGS)
