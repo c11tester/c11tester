@@ -56,7 +56,7 @@ public:
 	~NodeStack();
 
 	void register_engine(const ModelExecution *exec);
-	ModelAction * explore_action(ModelAction *act);
+	void add_action(ModelAction *act);
 	Node * get_head() const;
 	Node * get_next() const;
 	void reset_execution();

@@ -86,13 +86,12 @@ void NodeStack::print() const
 
 /** Note: The is_enabled set contains what actions were enabled when
  *  act was chosen. */
-ModelAction * NodeStack::explore_action(ModelAction *act)
+void NodeStack::add_action(ModelAction *act)
 {
 	DBG();
 
 	node_list.push_back(new Node(act));
 	head_idx++;
-	return NULL;
 }
 
 

@@ -18,8 +18,7 @@
  */
 ClockVector::ClockVector(ClockVector *parent, const ModelAction *act)
 {
-	ASSERT(act);
-	num_threads = int_to_id(act->get_tid()) + 1;
+	num_threads = act != NULL ? int_to_id(act->get_tid()) + 1 : 0;
 	if (parent && parent->num_threads > num_threads)
 		num_threads = parent->num_threads;
 
@@ -27,7 +26,8 @@ ClockVector::ClockVector(ClockVector *parent, const ModelAction *act)
 	if (parent)
 		std::memcpy(clock, parent->clock, parent->num_threads * sizeof(modelclock_t));
 
-	clock[id_to_int(act->get_tid())] = act->get_seq_number();
+	if (act != NULL)
+		clock[id_to_int(act->get_tid())] = act->get_seq_number();
 }
 
 /** @brief Destructor */

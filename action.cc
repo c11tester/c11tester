@@ -39,6 +39,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	last_fence_release(NULL),
 	node(NULL),
 	cv(NULL),
+	rf_cv(NULL),
 	value(value),
 	type(type),
 	order(order),
@@ -73,6 +74,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	last_fence_release(NULL),
 	node(NULL),
 	cv(NULL),
+	rf_cv(NULL),
 	value(value),
 	type(type),
 	order(order),
@@ -107,6 +109,7 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	last_fence_release(NULL),
 	node(NULL),
 	cv(NULL),
+	rf_cv(NULL),
 	value(value),
 	type(type),
 	order(order),
@@ -142,6 +145,7 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	last_fence_release(NULL),
 	node(NULL),
 	cv(NULL),
+	rf_cv(NULL),
 	value(value),
 	type(type),
 	order(order),
@@ -591,7 +595,7 @@ Node * ModelAction::get_node() const
  * Update the model action's read_from action
  * @param act The action to read from; should be a write
  */
-void ModelAction::set_read_from(const ModelAction *act)
+void ModelAction::set_read_from(ModelAction *act)
 {
 	ASSERT(act);
 
@@ -601,7 +605,7 @@ void ModelAction::set_read_from(const ModelAction *act)
 		uint64_t val = *((uint64_t *) location);
 		ModelAction * act_initialized = (ModelAction *)act;
 		act_initialized->set_value(val);
-		reads_from = (const ModelAction *)act_initialized;
+		reads_from = act_initialized;
 
 // disabled by WL, because LLVM IR is unable to detect atomic init
 /*		model->assert_bug("May read from uninitialized atomic:\n"

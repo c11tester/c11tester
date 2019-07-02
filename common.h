@@ -14,18 +14,18 @@ extern int model_out;
 extern int switch_alloc;
 
 #define model_print(fmt, ...) do { \
-    switch_alloc = 1;		   \
-    char mprintbuf[256];						\
-    int printbuflen=snprintf_(mprintbuf, 256, fmt, ## __VA_ARGS__);	\
-    int lenleft = printbuflen < 256 ?printbuflen:256;			\
-    int totalwritten = 0;\
-    while(lenleft) {							\
-      int byteswritten=write(model_out, &mprintbuf[totalwritten], lenleft);\
-      lenleft-=byteswritten;						\
-      totalwritten+=byteswritten;					\
-    }									\
-    switch_alloc = 0;							\
-  } while (0)
+		switch_alloc = 1;              \
+		char mprintbuf[256];                                                \
+		int printbuflen=snprintf_(mprintbuf, 256, fmt, ## __VA_ARGS__);     \
+		int lenleft = printbuflen < 256 ? printbuflen : 256;                   \
+		int totalwritten = 0; \
+		while(lenleft) {                                                    \
+			int byteswritten=write(model_out, &mprintbuf[totalwritten], lenleft); \
+			lenleft-=byteswritten;                                            \
+			totalwritten+=byteswritten;                                       \
+		}                                                                   \
+		switch_alloc = 0;                                                   \
+} while (0)
 
 #ifdef CONFIG_DEBUG
 #define DEBUG(fmt, ...) do { model_print("*** %15s:%-4d %25s() *** " fmt, __FILE__, __LINE__, __func__, ## __VA_ARGS__); } while (0)

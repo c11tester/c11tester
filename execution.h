@@ -19,8 +19,6 @@
 #include <condition_variable>
 #include "classlist.h"
 
-/** @brief Shorthand for a list of release sequence heads */
-typedef ModelVector<const ModelAction *> rel_heads_list_t;
 typedef SnapList<ModelAction *> action_list_t;
 
 struct PendingFutureValue {
@@ -31,29 +29,10 @@ struct PendingFutureValue {
 	ModelAction *reader;
 };
 
-/** @brief Records information regarding a single pending release sequence */
-struct release_seq {
-	/** @brief The acquire operation */
-	ModelAction *acquire;
-	/** @brief The read operation that may read from a release sequence;
-	 *  may be the same as acquire, or else an earlier action in the same
-	 *  thread (i.e., when 'acquire' is a fence-acquire) */
-	const ModelAction *read;
-	/** @brief The head of the RMW chain from which 'read' reads; may be
-	 *  equal to 'release' */
-	const ModelAction *rf;
-	/** @brief The head of the potential longest release sequence chain */
-	const ModelAction *release;
-	/** @brief The write(s) that may break the release sequence */
-	SnapVector<const ModelAction *> writes;
-};
-
 /** @brief The central structure for model-checking */
 class ModelExecution {
 public:
-	ModelExecution(ModelChecker *m,
-								 Scheduler *scheduler,
-								 NodeStack *node_stack);
+	ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack *node_stack);
 	~ModelExecution();
 
 	struct model_params * get_params() const { return params; }
@@ -126,13 +105,13 @@ private:
 
 	bool next_execution();
 	bool initialize_curr_action(ModelAction **curr);
-	void process_read(ModelAction *curr, SnapVector<const ModelAction *> * rf_set);
+	void process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
 	void process_write(ModelAction *curr);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
 
 	bool process_thread_action(ModelAction *curr);
-	bool read_from(ModelAction *act, const ModelAction *rf);
+	void read_from(ModelAction *act, ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
 
 	void add_action_to_lists(ModelAction *act);
@@ -140,13 +119,12 @@ private:
 	ModelAction * get_last_seq_cst_write(ModelAction *curr) const;
 	ModelAction * get_last_seq_cst_fence(thread_id_t tid, const ModelAction *before_fence) const;
 	ModelAction * get_last_unlock(ModelAction *curr) const;
-	SnapVector<const ModelAction *> * build_may_read_from(ModelAction *curr);
+	SnapVector<ModelAction *> * build_may_read_from(ModelAction *curr);
 	ModelAction * process_rmw(ModelAction *curr);
 
 	bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> *priorset, bool *canprune);
 	void w_modification_order(ModelAction *curr);
-	void get_release_seq_heads(ModelAction *acquire, ModelAction *read, rel_heads_list_t *release_heads);
-	bool release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const;
+	ClockVector * get_hb_from_write(ModelAction *rf) const;
 	ModelAction * get_uninitialized_action(const ModelAction *curr) const;
 
 	action_list_t action_trace;
