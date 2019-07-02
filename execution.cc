@@ -1019,20 +1019,20 @@ bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *
  */
 
 ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
-	SnapVector<const ModelAction *> * processset = NULL;
+	SnapVector<ModelAction *> * processset = NULL;
 	for ( ;rf != NULL;rf = rf->get_reads_from()) {
 		ASSERT(rf->is_write());
 		if (!rf->is_rmw() || (rf->is_acquire() && rf->is_release()) || rf->get_rfcv() != NULL)
 			break;
 		if (processset == NULL)
-			processset = new SnapVector<const ModelAction *>();
+			processset = new SnapVector<ModelAction *>();
 		processset->push_back(rf);
 	}
 
-	int i = (processset == NULL) ? 1 : processset->size();
+	int i = (processset == NULL) ? 0 : processset->size();
 
 	ClockVector * vec = NULL;
-	for(;i > 0 ;i--) {
+	while(true) {
 		if (rf->get_rfcv() != NULL) {
 			vec = rf->get_rfcv();
 		} else if (rf->is_acquire() && rf->is_release()) {
@@ -1053,6 +1053,11 @@ ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
 			}
 			rf->set_rfcv(vec);
 		}
+		i--;
+		if (i >= 0) {
+		  rf = (*processset)[i];
+		} else
+		  break;
 	}
 	if (processset != NULL)
 		delete processset;
