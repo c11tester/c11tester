@@ -62,7 +62,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
-			 mo_graph(new CycleGraph()),
+	mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer())
 {
 	/* Initialize a model-checker thread, for special ModelActions */
@@ -96,7 +96,7 @@ static action_list_t * get_safe_ptr_action(HashTable<const void *, action_list_t
 	return tmp;
 }
 
-static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> * hash, void * ptr)
+static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 4> * hash, void * ptr)
 {
 	SnapVector<action_list_t> *tmp = hash->get(ptr);
 	if (tmp == NULL) {
@@ -949,21 +949,6 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 					mo_graph->addEdge(act->get_reads_from(), curr, force_edge);
 				}
 				break;
-			} else if (act->is_read() && !act->could_synchronize_with(curr) &&
-								 !act->same_thread(curr)) {
-				/* We have an action that:
-				   (1) did not happen before us
-				   (2) is a read and we are a write
-				   (3) cannot synchronize with us
-				   (4) is in a different thread
-				   =>
-				   that read could potentially read from our write.  Note that
-				   these checks are overly conservative at this point, we'll
-				   do more checks before actually removing the
-				   pendingfuturevalue.
-
-				 */
-
 			}
 		}
 	}
@@ -1080,10 +1065,12 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 	}
 	list->push_back(act);
 
+	// Update action trace, a total order of all actions
 	action_trace.push_back(act);
 	if (uninit)
 		action_trace.push_front(uninit);
 
+	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
 	if (tid >= (int)vec->size())
 		vec->resize(priv->next_thread_id);
@@ -1091,12 +1078,14 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 	if (uninit)
 		(*vec)[uninit_id].push_front(uninit);
 
+	// Update thrd_last_action, the last action taken by each thrad
 	if ((int)thrd_last_action.size() <= tid)
 		thrd_last_action.resize(get_num_threads());
 	thrd_last_action[tid] = act;
 	if (uninit)
 		thrd_last_action[uninit_id] = uninit;
 
+	// Update thrd_last_fence_release, the last release fence taken by each thread
 	if (act->is_fence() && act->is_release()) {
 		if ((int)thrd_last_fence_release.size() <= tid)
 			thrd_last_fence_release.resize(get_num_threads());

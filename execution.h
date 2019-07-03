@@ -140,8 +140,11 @@ private:
 	 * to a trace of all actions performed on the object. */
 	HashTable<const void *, action_list_t *, uintptr_t, 4> condvar_waiters_map;
 
-	HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
+	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
 
+	HashTable<const void *, ModelAction *, uintptr_t, 4> obj_last_sc_map;
+
+	
 	HashTable<pthread_mutex_t *, cdsc::snapmutex *, uintptr_t, 4> mutex_map;
 	HashTable<pthread_cond_t *, cdsc::snapcondition_variable *, uintptr_t, 4> cond_map;
 
