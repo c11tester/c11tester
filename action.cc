@@ -8,7 +8,6 @@
 #include "clockvector.h"
 #include "common.h"
 #include "threads-model.h"
-#include "nodestack.h"
 #include "wildcard.h"
 
 #define ACTION_INITIAL_CLOCK 0
@@ -37,7 +36,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	position(NULL),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	node(NULL),
+	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
@@ -72,7 +71,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	position(NULL),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	node(NULL),
+	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
@@ -107,7 +106,7 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	position(position),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	node(NULL),
+	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
@@ -143,7 +142,7 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	position(position),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	node(NULL),
+	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
@@ -581,14 +580,6 @@ uint64_t ModelAction::get_return_value() const
 		return get_write_value();
 	else
 		return value;
-}
-
-/** @return The Node associated with this ModelAction */
-Node * ModelAction::get_node() const
-{
-	/* UNINIT actions do not have a Node */
-	ASSERT(!is_uninitialized());
-	return node;
 }
 
 /**

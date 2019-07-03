@@ -8,7 +8,7 @@ int Fuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set) {
 	return random_index;
 }
 
-Thread * Fuzzer::selectThread(Node *n, int * threadlist, int numthreads) {
+Thread * Fuzzer::selectThread(int * threadlist, int numthreads) {
 	int random_index = random() % numthreads;
 	int thread = threadlist[random_index];
 	thread_id_t curr_tid = int_to_id(thread);

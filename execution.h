@@ -32,7 +32,7 @@ struct PendingFutureValue {
 /** @brief The central structure for model-checking */
 class ModelExecution {
 public:
-	ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack *node_stack);
+	ModelExecution(ModelChecker *m, Scheduler *scheduler);
 	~ModelExecution();
 
 	struct model_params * get_params() const { return params; }
@@ -125,7 +125,7 @@ private:
 	bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> *priorset, bool *canprune);
 	void w_modification_order(ModelAction *curr);
 	ClockVector * get_hb_from_write(ModelAction *rf) const;
-	ModelAction * get_uninitialized_action(const ModelAction *curr) const;
+	ModelAction * get_uninitialized_action(ModelAction *curr) const;
 
 	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;
@@ -154,7 +154,6 @@ private:
 
 	SnapVector<ModelAction *> thrd_last_action;
 	SnapVector<ModelAction *> thrd_last_fence_release;
-	NodeStack * const node_stack;
 
 	/** A special model-checker Thread; used for associating with
 	 *  model-checker-related ModelAcitons */

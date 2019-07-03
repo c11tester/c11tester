@@ -7,7 +7,6 @@
 
 #include "model.h"
 #include "action.h"
-#include "nodestack.h"
 #include "schedule.h"
 #include "snapshot-interface.h"
 #include "common.h"
@@ -34,8 +33,7 @@ ModelChecker::ModelChecker() :
 	params(),
 	restart_flag(false),
 	scheduler(new Scheduler()),
-	node_stack(new NodeStack()),
-	execution(new ModelExecution(this, scheduler, node_stack)),
+	execution(new ModelExecution(this, scheduler)),
 	history(new ModelHistory()),
 	execution_number(1),
 	trace_analyses(),
@@ -52,7 +50,6 @@ ModelChecker::ModelChecker() :
 /** @brief Destructor */
 ModelChecker::~ModelChecker()
 {
-	delete node_stack;
 	delete scheduler;
 }
 
@@ -114,7 +111,7 @@ Thread * ModelChecker::get_next_thread()
 	 * Have we completed exploring the preselected path? Then let the
 	 * scheduler decide
 	 */
-	return scheduler->select_next_thread(node_stack->get_head());
+	return scheduler->select_next_thread();
 }
 
 /**

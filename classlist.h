@@ -9,8 +9,6 @@ class ModelAction;
 class ModelChecker;
 class ModelExecution;
 class ModelHistory;
-class Node;
-class NodeStack;
 class Scheduler;
 class Thread;
 class TraceAnalysis;

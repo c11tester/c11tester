@@ -6,7 +6,6 @@
 #include "model.h"
 #include "execution.h"
 #include "action.h"
-#include "nodestack.h"
 #include "schedule.h"
 #include "common.h"
 #include "clockvector.h"
@@ -48,7 +47,7 @@ struct model_snapshot_members {
 };
 
 /** @brief Constructor */
-ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack *node_stack) :
+ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	model(m),
 	params(NULL),
 	scheduler(scheduler),
@@ -62,7 +61,6 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack 
 	mutex_map(),
 	thrd_last_action(1),
 	thrd_last_fence_release(),
-	node_stack(node_stack),
 	priv(new struct model_snapshot_members ()),
 			 mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer())
@@ -71,7 +69,6 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack 
 	model_thread = new Thread(get_next_id());
 	add_thread(model_thread);
 	scheduler->register_engine(this);
-	node_stack->register_engine(this);
 }
 
 /** @brief Destructor */
@@ -522,8 +519,8 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 
 /**
  * Initialize the current action by performing one or more of the following
- * actions, as appropriate: merging RMWR and RMWC/RMW actions, stepping forward
- * in the NodeStack, manipulating backtracking sets, allocating and
+ * actions, as appropriate: merging RMWR and RMWC/RMW actions,
+ * manipulating backtracking sets, allocating and
  * initializing clock vectors, and computing the promises to fulfill.
  *
  * @param curr The current action, as passed from the user context; may be
@@ -543,7 +540,6 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
 		ModelAction *newcurr = *curr;
 
 		newcurr->set_seq_number(get_next_seq_num());
-		node_stack->add_action(newcurr);
 		/* Always compute new clock vector */
 		newcurr->create_cv(get_parent_action(newcurr->get_tid()));
 
@@ -1343,18 +1339,17 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 /**
  * @brief Get an action representing an uninitialized atomic
  *
- * This function may create a new one or try to retrieve one from the NodeStack
+ * This function may create a new one.
  *
  * @param curr The current action, which prompts the creation of an UNINIT action
  * @return A pointer to the UNINIT ModelAction
  */
-ModelAction * ModelExecution::get_uninitialized_action(const ModelAction *curr) const
+ModelAction * ModelExecution::get_uninitialized_action(ModelAction *curr) const
 {
-	Node *node = curr->get_node();
-	ModelAction *act = node->get_uninit_action();
+	ModelAction *act = curr->get_uninit_action();
 	if (!act) {
 		act = new ModelAction(ATOMIC_UNINIT, std::memory_order_relaxed, curr->get_location(), params->uninitvalue, model_thread);
-		node->set_uninit_action(act);
+		curr->set_uninit_action(act);
 	}
 	act->create_cv(NULL);
 	return act;
