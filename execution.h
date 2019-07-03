@@ -115,6 +115,7 @@ private:
 	bool synchronize(const ModelAction *first, ModelAction *second);
 
 	void add_action_to_lists(ModelAction *act);
+	void add_write_to_lists(ModelAction *act);
 	ModelAction * get_last_fence_release(thread_id_t tid) const;
 	ModelAction * get_last_seq_cst_write(ModelAction *curr) const;
 	ModelAction * get_last_seq_cst_fence(thread_id_t tid, const ModelAction *before_fence) const;
@@ -144,7 +145,7 @@ private:
 
 	HashTable<const void *, ModelAction *, uintptr_t, 4> obj_last_sc_map;
 
-	
+
 	HashTable<pthread_mutex_t *, cdsc::snapmutex *, uintptr_t, 4> mutex_map;
 	HashTable<pthread_cond_t *, cdsc::snapcondition_variable *, uintptr_t, 4> cond_map;
 

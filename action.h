@@ -202,7 +202,7 @@ private:
 	/** @brief The last fence release from the same thread */
 	const ModelAction *last_fence_release;
 	ModelAction * uninitaction;
-	
+
 	/**
 	 * @brief The clock vector for this operation
 	 *
@@ -212,7 +212,7 @@ private:
 	 */
 	ClockVector *cv;
 	ClockVector *rf_cv;
-	
+
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;
 

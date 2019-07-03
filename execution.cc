@@ -62,7 +62,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
-	mo_graph(new CycleGraph()),
+			 mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer())
 {
 	/* Initialize a model-checker thread, for special ModelActions */
@@ -649,6 +649,9 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	if (!second_part_of_rmw && curr->get_type() != NOOP)
 		add_action_to_lists(curr);
 
+	if (curr->is_write())
+		add_write_to_lists(curr);
+
 	SnapVector<ModelAction *> * rf_set = NULL;
 	/* Build may_read_from set for newly-created actions */
 	if (newly_explored && curr->is_read())
@@ -1036,9 +1039,9 @@ ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
 		}
 		i--;
 		if (i >= 0) {
-		  rf = (*processset)[i];
+			rf = (*processset)[i];
 		} else
-		  break;
+			break;
 	}
 	if (processset != NULL)
 		delete processset;
@@ -1103,6 +1106,12 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 	}
 }
 
+void ModelExecution::add_write_to_lists(ModelAction *write) {
+	// Update seq_cst map
+	if (write->is_seqcst())
+		obj_last_sc_map.put(write->get_location(), write);
+}
+
 /**
  * @brief Get the last action performed by a particular Thread
  * @param tid The thread ID of the Thread in question
@@ -1142,16 +1151,7 @@ ModelAction * ModelExecution::get_last_fence_release(thread_id_t tid) const
 ModelAction * ModelExecution::get_last_seq_cst_write(ModelAction *curr) const
 {
 	void *location = curr->get_location();
-	action_list_t *list = obj_map.get(location);
-	/* Find: max({i in dom(S) | seq_cst(t_i) && isWrite(t_i) && samevar(t_i, t)}) */
-	action_list_t::reverse_iterator rit;
-	for (rit = list->rbegin();(*rit) != curr;rit++)
-		;
-	rit++;	/* Skip past curr */
-	for ( ;rit != list->rend();rit++)
-		if ((*rit)->is_write() && (*rit)->is_seqcst())
-			return *rit;
-	return NULL;
+	return obj_last_sc_map.get(location);
 }
 
 /**
