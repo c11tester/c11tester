@@ -143,6 +143,8 @@ private:
 
 	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
 
+	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_wr_thrd_map;
+
 	HashTable<const void *, ModelAction *, uintptr_t, 4> obj_last_sc_map;
 
 

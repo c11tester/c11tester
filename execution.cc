@@ -1065,6 +1065,10 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		uninit = get_uninitialized_action(act);
 		uninit_id = id_to_int(uninit->get_tid());
 		list->push_front(uninit);
+		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
+		if (uninit_id >= (int)vec->size())
+			vec->resize(uninit_id + 1);
+		(*vec)[uninit_id].push_front(uninit);
 	}
 	list->push_back(act);
 
@@ -1110,6 +1114,12 @@ void ModelExecution::add_write_to_lists(ModelAction *write) {
 	// Update seq_cst map
 	if (write->is_seqcst())
 		obj_last_sc_map.put(write->get_location(), write);
+
+	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, write->get_location());
+	int tid = id_to_int(write->get_tid());
+	if (tid >= (int)vec->size())
+		vec->resize(priv->next_thread_id);
+	(*vec)[tid].push_back(write);
 }
 
 /**
@@ -1252,7 +1262,7 @@ bool valequals(uint64_t val1, uint64_t val2, int size) {
  */
 SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *curr)
 {
-	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
+	SnapVector<action_list_t> *thrd_lists = obj_wr_thrd_map.get(curr->get_location());
 	unsigned int i;
 	ASSERT(curr->is_read());
 
@@ -1270,18 +1280,6 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 		action_list_t::reverse_iterator rit;
 		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
-
-			/* Only consider 'write' actions */
-			if (!act->is_write()) {
-				if (act != curr && act->is_read() && act->happens_before(curr)) {
-					ModelAction *tmp = act->get_reads_from();
-					if (((unsigned int) id_to_int(tmp->get_tid()))==i)
-						act = tmp;
-					else
-						break;
-				} else
-					continue;
-			}
 
 			if (act == curr)
 				continue;
