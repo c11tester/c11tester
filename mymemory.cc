@@ -17,7 +17,6 @@
 size_t allocatedReqs[REQUESTS_BEFORE_ALLOC] = { 0 };
 int nextRequest = 0;
 int howManyFreed = 0;
-int switch_alloc = 0;
 #if !USE_MPROTECT_SNAPSHOT
 static mspace sStaticSpace = NULL;
 #endif
@@ -181,9 +180,6 @@ static void * user_malloc(size_t size)
 void *malloc(size_t size)
 {
 	if (user_snapshot_space) {
-		if (switch_alloc) {
-			return model_malloc(size);
-		}
 		/* Only perform user allocations from user context */
 		ASSERT(!model || thread_current());
 		return user_malloc(size);
@@ -195,9 +191,6 @@ void *malloc(size_t size)
 void free(void * ptr)
 {
 	if (!DontFree(ptr)) {
-		if (switch_alloc) {
-			return model_free(ptr);
-		}
 		mspace_free(user_snapshot_space, ptr);
 	}
 }

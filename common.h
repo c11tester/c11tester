@@ -11,10 +11,8 @@
 #include "printf.h"
 
 extern int model_out;
-extern int switch_alloc;
 
 #define model_print(fmt, ...) do { \
-		switch_alloc = 1;              \
 		char mprintbuf[256];                                                \
 		int printbuflen=snprintf_(mprintbuf, 256, fmt, ## __VA_ARGS__);     \
 		int lenleft = printbuflen < 256 ? printbuflen : 256;                   \
@@ -24,7 +22,6 @@ extern int switch_alloc;
 			lenleft-=byteswritten;                                            \
 			totalwritten+=byteswritten;                                       \
 		}                                                                   \
-		switch_alloc = 0;                                                   \
 } while (0)
 
 #ifdef CONFIG_DEBUG

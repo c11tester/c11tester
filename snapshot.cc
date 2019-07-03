@@ -375,6 +375,8 @@ static void fork_snapshot_init(unsigned int numbackingpages,
 	model_snapshot_space = create_mspace(numheappages * PAGESIZE, 1);
 }
 
+volatile int forklock = 0;
+
 static void fork_loop() {
 	/* switch back here when takesnapshot is called */
 	snapshotid = fork_snap->currSnapShotID;
@@ -386,7 +388,10 @@ static void fork_loop() {
 	while (true) {
 		pid_t forkedID;
 		fork_snap->currSnapShotID = snapshotid + 1;
+
+		forklock = 1;
 		forkedID = fork();
+		forklock = 0;
 
 		if (0 == forkedID) {
 			setcontext(&fork_snap->shared_ctxt);

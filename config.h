@@ -54,4 +54,7 @@
 /** Enable debugging assertions (via ASSERT()) */
 #define CONFIG_ASSERT
 
+/** Enable mitigations against fork handlers that call into locks...  */
+#define FORK_HANDLER_HACK
+
 #endif

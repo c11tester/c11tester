@@ -319,7 +319,17 @@ void ModelChecker::switch_from_master(Thread *thread)
  */
 uint64_t ModelChecker::switch_to_master(ModelAction *act)
 {
-	DBG();
+  if (forklock) {
+    static bool fork_message_printed = false;
+
+    if (!fork_message_printed) {
+      model_print("Fork handler trying to call into model checker...\n");
+      fork_message_printed = true;
+    }
+    delete act;
+    return 0;
+  }
+  DBG();
 	Thread *old = thread_current();
 	scheduler->set_current_thread(NULL);
 	ASSERT(!old->get_pending());

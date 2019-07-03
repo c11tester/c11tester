@@ -19,4 +19,6 @@ class Fuzzer;
 struct model_snapshot_members;
 struct bug_message;
 typedef SnapList<ModelAction *> action_list_t;
+
+extern volatile int forklock;
 #endif
