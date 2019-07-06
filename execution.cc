@@ -327,8 +327,9 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	}
 	//otherwise fall into the lock case
 	case ATOMIC_LOCK: {
-		if (curr->get_cv()->getClock(state->alloc_tid) <= state->alloc_clock)
-			assert_bug("Lock access before initialization");
+		//TODO: FIND SOME BETTER WAY TO CHECK LOCK INITIALIZED OR NOT
+		//if (curr->get_cv()->getClock(state->alloc_tid) <= state->alloc_clock)
+		//	assert_bug("Lock access before initialization");
 		state->locked = get_thread(curr);
 		ModelAction *unlock = get_last_unlock(curr);
 		//synchronize with the previous unlock statement
