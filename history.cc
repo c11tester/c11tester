@@ -10,11 +10,13 @@
 ModelHistory::ModelHistory() :
 	func_counter(0), /* function id starts with 0 */
 	func_map(),
+	func_map_rev(),
 	func_atomics()
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 {
+	//model_print("thread %d entering func %d\n", tid, func_id);
 	uint32_t id = id_to_int(tid);
 	SnapVector<func_id_list_t *> * thrd_func_list = model->get_execution()->get_thrd_func_list();
 
@@ -22,6 +24,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		thrd_func_list->resize( id + 1 );
 
 	func_id_list_t * func_list = thrd_func_list->at(id);
+
 	if (func_list == NULL) {
 		func_list = new func_id_list_t();
 		thrd_func_list->at(id) = func_list;
@@ -43,6 +46,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 		model_print("trying to exit with a wrong function id\n");
 		model_print("--- last_func: %d, func_id: %d\n", last_func_id, func_id);
 	}
+	//model_print("thread %d exiting func %d\n", tid, func_id);
 }
 
 void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
@@ -66,7 +70,11 @@ void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
 
 	FuncNode * func_node = func_atomics[func_id];
 	if (func_node == NULL) {
+		const char * func_name = func_map_rev[func_id];
 		func_node = new FuncNode();
+		func_node->set_func_id(func_id);
+		func_node->set_func_name(func_name);
+
 		func_atomics[func_id] = func_node;
 	}
 
@@ -82,7 +90,7 @@ void ModelHistory::print()
 		if (funcNode == NULL)
 			continue;
 
-		model_print("function with id: %d has following actions\n", i);
+		model_print("function %s has following actions\n", funcNode->get_func_name());
 		func_inst_list_t::iterator it;
 		for (it = inst_list->begin(); it != inst_list->end(); it++) {
 			FuncInst *inst = *it;

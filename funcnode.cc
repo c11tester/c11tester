@@ -1,6 +1,7 @@
 #include "funcnode.h"
 
-FuncInst::FuncInst(ModelAction *act)
+FuncInst::FuncInst(ModelAction *act) :
+	collisions()
 {
 	ASSERT(act);
 	this->position = act->get_position();
@@ -9,7 +10,9 @@ FuncInst::FuncInst(ModelAction *act)
 }
 
 FuncNode::FuncNode() :
-	func_insts()
+	func_insts(),
+	inst_list(),
+	entry_insts()
 {}
 
 void FuncNode::add_action(ModelAction *act)
@@ -30,9 +33,17 @@ void FuncNode::add_action(ModelAction *act)
 	if ( func_insts.contains(position) ) {
 		FuncInst * inst = func_insts.get(position);
 
-		if (inst->get_type() != act->get_type() && 
-			inst->get_type() != ATOMIC_RMWRCAS ) {
-			model_print("action with a different type occurs at line number %s \n", position);
+		if (inst->get_type() != act->get_type() ) {
+			model_print("action with a different type occurs at line number %s\n", position);
+			FuncInst * func_inst = inst->search_in_collision(act);
+
+			if (func_inst != NULL)
+				return;
+
+			func_inst = new FuncInst(act);
+			inst->get_collisions()->push_back(func_inst);
+			inst_list.push_back(func_inst);		// delete?
+			model_print("collision added\n");
 		}
 
 		return;
@@ -40,5 +51,6 @@ void FuncNode::add_action(ModelAction *act)
 
 	FuncInst * func_inst = new FuncInst(act);
 	func_insts.put(position, func_inst);
+
 	inst_list.push_back(func_inst);
 }

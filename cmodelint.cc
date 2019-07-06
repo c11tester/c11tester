@@ -369,10 +369,16 @@ void cds_func_entry(const char * funcName) {
 
 	ModelHistory *history = model->get_history();
 	if ( !history->getFuncMap()->contains(funcName) ) {
+		/* add func id to func map */
 		func_id = history->get_func_counter();
 		history->incr_func_counter();
-
 		history->getFuncMap()->put(funcName, func_id);
+
+		/* add func id to reverse func map */
+		ModelVector<const char *> * func_map_rev = history->getFuncMapRev();
+	        if ( func_map_rev->size() <= func_id )
+                	func_map_rev->resize( func_id + 1 );
+		func_map_rev->at(func_id) = funcName;
 	} else {
 		func_id = history->getFuncMap()->get(funcName);
 	}

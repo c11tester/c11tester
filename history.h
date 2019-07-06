@@ -17,6 +17,8 @@ public:
 	void add_func_atomic(ModelAction *act, thread_id_t tid);
 
 	HashTable<const char *, uint32_t, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncMap() { return &func_map; }
+	ModelVector<const char *> * getFuncMapRev() { return &func_map_rev; }
+
 	ModelVector<FuncNode *> * getFuncAtomics() { return &func_atomics; }
 
 	void print();
@@ -27,6 +29,8 @@ private:
 
 	/* map function names to integer ids */ 
 	HashTable<const char *, uint32_t, uintptr_t, 4, model_malloc, model_calloc, model_free> func_map;
+	/* map integer ids to function names */ 
+	ModelVector<const char *> func_map_rev;
 
 	ModelVector<FuncNode *> func_atomics;
 };
