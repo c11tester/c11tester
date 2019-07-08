@@ -5,7 +5,7 @@ OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
 	   datarace.o impatomic.o cmodelint.o \
 	   snapshot.o malloc.o mymemory.o common.o mutex.o conditionvariable.o \
 	   context.o execution.o libannotate.o plugins.o pthread.o futex.o fuzzer.o \
-	   sleeps.o history.o funcnode.o printf.o
+	   sleeps.o history.o funcnode.o funcinst.o printf.o
 
 CPPFLAGS += -Iinclude -I.
 LDFLAGS := -ldl -lrt -rdynamic
@@ -35,6 +35,9 @@ README.html: README.md
 
 malloc.o: malloc.c
 	$(CC) -fPIC -c malloc.c -DMSPACES -DONLY_MSPACES -DHAVE_MMAP=1 $(CPPFLAGS) -Wno-unused-variable
+
+printf.o: printf.c
+	$(CC) -fPIC -c printf.c $(CPPFLAGS)
 
 futex.o: futex.cc
 	$(CXX) -fPIC -c futex.cc -std=c++11 $(CPPFLAGS)
