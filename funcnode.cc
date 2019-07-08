@@ -1,21 +1,12 @@
 #include "funcnode.h"
 
-FuncInst::FuncInst(ModelAction *act) :
-	collisions()
-{
-	ASSERT(act);
-	this->position = act->get_position();
-	this->location = act->get_location();
-	this->type = act->get_type();
-}
-
 FuncNode::FuncNode() :
 	func_insts(),
 	inst_list(),
 	entry_insts()
 {}
 
-void FuncNode::add_action(ModelAction *act)
+FuncInst * FuncNode::get_or_add_action(ModelAction *act)
 {
 	ASSERT(act);
 
@@ -27,30 +18,35 @@ void FuncNode::add_action(ModelAction *act)
 	 * source line numbers
 	 */
 	if (position == NULL) {
-		return;
+		return NULL;
 	}
 
 	if ( func_insts.contains(position) ) {
 		FuncInst * inst = func_insts.get(position);
 
 		if (inst->get_type() != act->get_type() ) {
-			model_print("action with a different type occurs at line number %s\n", position);
+			// model_print("action with a different type occurs at line number %s\n", position);
 			FuncInst * func_inst = inst->search_in_collision(act);
 
-			if (func_inst != NULL)
-				return;
+			if (func_inst != NULL) {
+				// return the FuncInst found in the collision list
+				return func_inst;
+			}
 
 			func_inst = new FuncInst(act);
 			inst->get_collisions()->push_back(func_inst);
 			inst_list.push_back(func_inst);		// delete?
-			model_print("collision added\n");
+			// model_print("collision added\n");
+			
+			return func_inst;
 		}
 
-		return;
+		return inst;
 	}
 
 	FuncInst * func_inst = new FuncInst(act);
 	func_insts.put(position, func_inst);
 
 	inst_list.push_back(func_inst);
+	return func_inst;
 }
