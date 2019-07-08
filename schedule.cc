@@ -5,7 +5,6 @@
 #include "schedule.h"
 #include "common.h"
 #include "model.h"
-#include "nodestack.h"
 #include "execution.h"
 #include "fuzzer.h"
 
@@ -197,12 +196,10 @@ void Scheduler::wake(Thread *t)
 /**
  * @brief Select a Thread to run via round-robin
  *
- * @param n The current Node, holding priority information for the next thread
- * selection
  *
  * @return The next Thread to run
  */
-Thread * Scheduler::select_next_thread(Node *n)
+Thread * Scheduler::select_next_thread()
 {
 	int avail_threads = 0;
 	int thread_list[enabled_len];
@@ -214,7 +211,7 @@ Thread * Scheduler::select_next_thread(Node *n)
 	if (avail_threads == 0)
 		return NULL;// No threads availablex
 
-	Thread * thread = execution->getFuzzer()->selectThread(n, thread_list, avail_threads);
+	Thread * thread = execution->getFuzzer()->selectThread(thread_list, avail_threads);
 	curr_thread_index = id_to_int(thread->get_id());
 	return thread;
 }

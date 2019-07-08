@@ -6,7 +6,6 @@
 #include "model.h"
 #include "execution.h"
 #include "action.h"
-#include "nodestack.h"
 #include "schedule.h"
 #include "common.h"
 #include "clockvector.h"
@@ -49,7 +48,7 @@ struct model_snapshot_members {
 };
 
 /** @brief Constructor */
-ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack *node_stack) :
+ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	model(m),
 	params(NULL),
 	scheduler(scheduler),
@@ -63,7 +62,6 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack 
 	mutex_map(),
 	thrd_last_action(1),
 	thrd_last_fence_release(),
-	node_stack(node_stack),
 	priv(new struct model_snapshot_members ()),
 	mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer()),
@@ -74,7 +72,6 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack 
 	model_thread = new Thread(get_next_id());
 	add_thread(model_thread);
 	scheduler->register_engine(this);
-	node_stack->register_engine(this);
 }
 
 /** @brief Destructor */
@@ -102,7 +99,7 @@ static action_list_t * get_safe_ptr_action(HashTable<const void *, action_list_t
 	return tmp;
 }
 
-static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<void *, SnapVector<action_list_t> *, uintptr_t, 4> * hash, void * ptr)
+static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 4> * hash, void * ptr)
 {
 	SnapVector<action_list_t> *tmp = hash->get(ptr);
 	if (tmp == NULL) {
@@ -263,13 +260,13 @@ bool ModelExecution::is_complete_execution() const
  * @param rf_set is the set of model actions we can possibly read from
  * @return True if processing this read updates the mo_graph.
  */
-void ModelExecution::process_read(ModelAction *curr, SnapVector<const ModelAction *> * rf_set)
+void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
 {
 	SnapVector<const ModelAction *> * priorset = new SnapVector<const ModelAction *>();
 	while(true) {
 
 		int index = fuzzer->selectWrite(curr, rf_set);
-		const ModelAction *rf = (*rf_set)[index];
+		ModelAction *rf = (*rf_set)[index];
 
 
 		ASSERT(rf);
@@ -435,11 +432,8 @@ bool ModelExecution::process_fence(ModelAction *curr)
 				continue;
 
 			/* Establish hypothetical release sequences */
-			rel_heads_list_t release_heads;
-			get_release_seq_heads(curr, act, &release_heads);
-			for (unsigned int i = 0;i < release_heads.size();i++)
-				synchronize(release_heads[i], curr);
-			if (release_heads.size() != 0)
+			ClockVector *cv = get_hb_from_write(act);
+			if (curr->get_cv()->merge(cv))
 				updated = true;
 		}
 	}
@@ -526,8 +520,8 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 
 /**
  * Initialize the current action by performing one or more of the following
- * actions, as appropriate: merging RMWR and RMWC/RMW actions, stepping forward
- * in the NodeStack, manipulating backtracking sets, allocating and
+ * actions, as appropriate: merging RMWR and RMWC/RMW actions,
+ * manipulating backtracking sets, allocating and
  * initializing clock vectors, and computing the promises to fulfill.
  *
  * @param curr The current action, as passed from the user context; may be
@@ -537,38 +531,16 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
  */
 bool ModelExecution::initialize_curr_action(ModelAction **curr)
 {
-	ModelAction *newcurr;
-
 	if ((*curr)->is_rmwc() || (*curr)->is_rmw()) {
-		newcurr = process_rmw(*curr);
+		ModelAction *newcurr = process_rmw(*curr);
 		delete *curr;
 
 		*curr = newcurr;
 		return false;
-	}
-
-	(*curr)->set_seq_number(get_next_seq_num());
-
-	newcurr = node_stack->explore_action(*curr);
-	if (newcurr) {
-		/* First restore type and order in case of RMW operation */
-		if ((*curr)->is_rmwr())
-			newcurr->copy_typeandorder(*curr);
-
-		ASSERT((*curr)->get_location() == newcurr->get_location());
-		newcurr->copy_from_new(*curr);
-
-		/* Discard duplicate ModelAction; use action from NodeStack */
-		delete *curr;
-
-		/* Always compute new clock vector */
-		newcurr->create_cv(get_parent_action(newcurr->get_tid()));
-
-		*curr = newcurr;
-		return false;	/* Action was explored previously */
 	} else {
-		newcurr = *curr;
+		ModelAction *newcurr = *curr;
 
+		newcurr->set_seq_number(get_next_seq_num());
 		/* Always compute new clock vector */
 		newcurr->create_cv(get_parent_action(newcurr->get_tid()));
 
@@ -591,22 +563,18 @@ bool ModelExecution::initialize_curr_action(ModelAction **curr)
  * @return True if this read established synchronization
  */
 
-bool ModelExecution::read_from(ModelAction *act, const ModelAction *rf)
+void ModelExecution::read_from(ModelAction *act, ModelAction *rf)
 {
 	ASSERT(rf);
 	ASSERT(rf->is_write());
 
 	act->set_read_from(rf);
 	if (act->is_acquire()) {
-		rel_heads_list_t release_heads;
-		get_release_seq_heads(act, act, &release_heads);
-		int num_heads = release_heads.size();
-		for (unsigned int i = 0;i < release_heads.size();i++)
-			if (!synchronize(release_heads[i], act))
-				num_heads--;
-		return num_heads > 0;
+		ClockVector *cv = get_hb_from_write(rf);
+		if (cv == NULL)
+			return;
+		act->get_cv()->merge(cv);
 	}
-	return false;
 }
 
 /**
@@ -682,7 +650,10 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	if (!second_part_of_rmw && curr->get_type() != NOOP)
 		add_action_to_lists(curr);
 
-	SnapVector<const ModelAction *> * rf_set = NULL;
+	if (curr->is_write())
+		add_write_to_lists(curr);
+
+	SnapVector<ModelAction *> * rf_set = NULL;
 	/* Build may_read_from set for newly-created actions */
 	if (newly_explored && curr->is_read())
 		rf_set = build_may_read_from(curr);
@@ -982,21 +953,6 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 					mo_graph->addEdge(act->get_reads_from(), curr, force_edge);
 				}
 				break;
-			} else if (act->is_read() && !act->could_synchronize_with(curr) &&
-								 !act->same_thread(curr)) {
-				/* We have an action that:
-				   (1) did not happen before us
-				   (2) is a read and we are a write
-				   (3) cannot synchronize with us
-				   (4) is in a different thread
-				   =>
-				   that read could potentially read from our write.  Note that
-				   these checks are overly conservative at this point, we'll
-				   do more checks before actually removing the
-				   pendingfuturevalue.
-
-				 */
-
 			}
 		}
 	}
@@ -1040,91 +996,57 @@ bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *
 }
 
 /**
- * Finds the head(s) of the release sequence(s) containing a given ModelAction.
- * The ModelAction under consideration is expected to be taking part in
- * release/acquire synchronization as an object of the "reads from" relation.
- * Note that this can only provide release sequence support for RMW chains
- * which do not read from the future, as those actions cannot be traced until
- * their "promise" is fulfilled. Similarly, we may not even establish the
- * presence of a release sequence with certainty, as some modification order
- * constraints may be decided further in the future. Thus, this function
- * "returns" two pieces of data: a pass-by-reference vector of @a release_heads
- * and a boolean representing certainty.
+ * Computes the clock vector that happens before propagates from this write.
  *
  * @param rf The action that might be part of a release sequence. Must be a
  * write.
- * @param release_heads A pass-by-reference style return parameter. After
- * execution of this function, release_heads will contain the heads of all the
- * relevant release sequences, if any exists with certainty
- * @return true, if the ModelExecution is certain that release_heads is complete;
- * false otherwise
+ * @return ClockVector of happens before relation.
  */
-bool ModelExecution::release_seq_heads(const ModelAction *rf, rel_heads_list_t *release_heads) const
-{
 
+ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
+	SnapVector<ModelAction *> * processset = NULL;
 	for ( ;rf != NULL;rf = rf->get_reads_from()) {
 		ASSERT(rf->is_write());
+		if (!rf->is_rmw() || (rf->is_acquire() && rf->is_release()) || rf->get_rfcv() != NULL)
+			break;
+		if (processset == NULL)
+			processset = new SnapVector<ModelAction *>();
+		processset->push_back(rf);
+	}
 
-		if (rf->is_release())
-			release_heads->push_back(rf);
-		else if (rf->get_last_fence_release())
-			release_heads->push_back(rf->get_last_fence_release());
-		if (!rf->is_rmw())
-			break;/* End of RMW chain */
+	int i = (processset == NULL) ? 0 : processset->size();
 
-		/** @todo Need to be smarter here...  In the linux lock
-		 * example, this will run to the beginning of the program for
-		 * every acquire. */
-		/** @todo The way to be smarter here is to keep going until 1
-		 * thread has a release preceded by an acquire and you've seen
-		 *	 both. */
-
-		/* acq_rel RMW is a sufficient stopping condition */
-		if (rf->is_acquire() && rf->is_release())
-			return true;/* complete */
-	};
-	ASSERT(rf);	// Needs to be real write
-
-	if (rf->is_release())
-		return true;/* complete */
-
-	/* else relaxed write
-	 * - check for fence-release in the same thread (29.8, stmt. 3)
-	 * - check modification order for contiguous subsequence
-	 *   -> rf must be same thread as release */
-
-	const ModelAction *fence_release = rf->get_last_fence_release();
-	/* Synchronize with a fence-release unconditionally; we don't need to
-	 * find any more "contiguous subsequence..." for it */
-	if (fence_release)
-		release_heads->push_back(fence_release);
-
-	return true;	/* complete */
-}
-
-/**
- * An interface for getting the release sequence head(s) with which a
- * given ModelAction must synchronize. This function only returns a non-empty
- * result when it can locate a release sequence head with certainty. Otherwise,
- * it may mark the internal state of the ModelExecution so that it will handle
- * the release sequence at a later time, causing @a acquire to update its
- * synchronization at some later point in execution.
- *
- * @param acquire The 'acquire' action that may synchronize with a release
- * sequence
- * @param read The read action that may read from a release sequence; this may
- * be the same as acquire, or else an earlier action in the same thread (i.e.,
- * when 'acquire' is a fence-acquire)
- * @param release_heads A pass-by-reference return parameter. Will be filled
- * with the head(s) of the release sequence(s), if they exists with certainty.
- * @see ModelExecution::release_seq_heads
- */
-void ModelExecution::get_release_seq_heads(ModelAction *acquire,
-																					 ModelAction *read, rel_heads_list_t *release_heads)
-{
-	const ModelAction *rf = read->get_reads_from();
-
-	release_seq_heads(rf, release_heads);
+	ClockVector * vec = NULL;
+	while(true) {
+		if (rf->get_rfcv() != NULL) {
+			vec = rf->get_rfcv();
+		} else if (rf->is_acquire() && rf->is_release()) {
+			vec = rf->get_cv();
+		} else if (rf->is_release() && !rf->is_rmw()) {
+			vec = rf->get_cv();
+		} else if (rf->is_release()) {
+			//have rmw that is release and doesn't have a rfcv
+			(vec = new ClockVector(vec, NULL))->merge(rf->get_cv());
+			rf->set_rfcv(vec);
+		} else {
+			//operation that isn't release
+			if (rf->get_last_fence_release()) {
+				if (vec == NULL)
+					vec = rf->get_last_fence_release()->get_cv();
+				else
+					(vec=new ClockVector(vec, NULL))->merge(rf->get_last_fence_release()->get_cv());
+			}
+			rf->set_rfcv(vec);
+		}
+		i--;
+		if (i >= 0) {
+			rf = (*processset)[i];
+		} else
+			break;
+	}
+	if (processset != NULL)
+		delete processset;
+	return vec;
 }
 
 /**
@@ -1144,13 +1066,19 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		uninit = get_uninitialized_action(act);
 		uninit_id = id_to_int(uninit->get_tid());
 		list->push_front(uninit);
+		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
+		if (uninit_id >= (int)vec->size())
+			vec->resize(uninit_id + 1);
+		(*vec)[uninit_id].push_front(uninit);
 	}
 	list->push_back(act);
 
+	// Update action trace, a total order of all actions
 	action_trace.push_back(act);
 	if (uninit)
 		action_trace.push_front(uninit);
 
+	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
 	if (tid >= (int)vec->size())
 		vec->resize(priv->next_thread_id);
@@ -1158,12 +1086,14 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 	if (uninit)
 		(*vec)[uninit_id].push_front(uninit);
 
+	// Update thrd_last_action, the last action taken by each thrad
 	if ((int)thrd_last_action.size() <= tid)
 		thrd_last_action.resize(get_num_threads());
 	thrd_last_action[tid] = act;
 	if (uninit)
 		thrd_last_action[uninit_id] = uninit;
 
+	// Update thrd_last_fence_release, the last release fence taken by each thread
 	if (act->is_fence() && act->is_release()) {
 		if ((int)thrd_last_fence_release.size() <= tid)
 			thrd_last_fence_release.resize(get_num_threads());
@@ -1179,6 +1109,18 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 			vec->resize(priv->next_thread_id);
 		(*vec)[tid].push_back(act);
 	}
+}
+
+void ModelExecution::add_write_to_lists(ModelAction *write) {
+	// Update seq_cst map
+	if (write->is_seqcst())
+		obj_last_sc_map.put(write->get_location(), write);
+
+	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, write->get_location());
+	int tid = id_to_int(write->get_tid());
+	if (tid >= (int)vec->size())
+		vec->resize(priv->next_thread_id);
+	(*vec)[tid].push_back(write);
 }
 
 /**
@@ -1220,16 +1162,7 @@ ModelAction * ModelExecution::get_last_fence_release(thread_id_t tid) const
 ModelAction * ModelExecution::get_last_seq_cst_write(ModelAction *curr) const
 {
 	void *location = curr->get_location();
-	action_list_t *list = obj_map.get(location);
-	/* Find: max({i in dom(S) | seq_cst(t_i) && isWrite(t_i) && samevar(t_i, t)}) */
-	action_list_t::reverse_iterator rit;
-	for (rit = list->rbegin();(*rit) != curr;rit++)
-		;
-	rit++;	/* Skip past curr */
-	for ( ;rit != list->rend();rit++)
-		if ((*rit)->is_write() && (*rit)->is_seqcst())
-			return *rit;
-	return NULL;
+	return obj_last_sc_map.get(location);
 }
 
 /**
@@ -1328,9 +1261,9 @@ bool valequals(uint64_t val1, uint64_t val2, int size) {
  * @param curr is the current ModelAction that we are exploring; it must be a
  * 'read' operation.
  */
-SnapVector<const ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *curr)
+SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *curr)
 {
-	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
+	SnapVector<action_list_t> *thrd_lists = obj_wr_thrd_map.get(curr->get_location());
 	unsigned int i;
 	ASSERT(curr->is_read());
 
@@ -1339,7 +1272,7 @@ SnapVector<const ModelAction *> *  ModelExecution::build_may_read_from(ModelActi
 	if (curr->is_seqcst())
 		last_sc_write = get_last_seq_cst_write(curr);
 
-	SnapVector<const ModelAction *> * rf_set = new SnapVector<const ModelAction *>();
+	SnapVector<ModelAction *> * rf_set = new SnapVector<ModelAction *>();
 
 	/* Iterate over all threads */
 	for (i = 0;i < thrd_lists->size();i++) {
@@ -1347,19 +1280,7 @@ SnapVector<const ModelAction *> *  ModelExecution::build_may_read_from(ModelActi
 		action_list_t *list = &(*thrd_lists)[i];
 		action_list_t::reverse_iterator rit;
 		for (rit = list->rbegin();rit != list->rend();rit++) {
-			const ModelAction *act = *rit;
-
-			/* Only consider 'write' actions */
-			if (!act->is_write()) {
-				if (act != curr && act->is_read() && act->happens_before(curr)) {
-					const ModelAction *tmp = act->get_reads_from();
-					if (((unsigned int) id_to_int(tmp->get_tid()))==i)
-						act = tmp;
-					else
-						break;
-				} else
-					continue;
-			}
+			ModelAction *act = *rit;
 
 			if (act == curr)
 				continue;
@@ -1406,18 +1327,17 @@ SnapVector<const ModelAction *> *  ModelExecution::build_may_read_from(ModelActi
 /**
  * @brief Get an action representing an uninitialized atomic
  *
- * This function may create a new one or try to retrieve one from the NodeStack
+ * This function may create a new one.
  *
  * @param curr The current action, which prompts the creation of an UNINIT action
  * @return A pointer to the UNINIT ModelAction
  */
-ModelAction * ModelExecution::get_uninitialized_action(const ModelAction *curr) const
+ModelAction * ModelExecution::get_uninitialized_action(ModelAction *curr) const
 {
-	Node *node = curr->get_node();
-	ModelAction *act = node->get_uninit_action();
+	ModelAction *act = curr->get_uninit_action();
 	if (!act) {
 		act = new ModelAction(ATOMIC_UNINIT, std::memory_order_relaxed, curr->get_location(), params->uninitvalue, model_thread);
-		node->set_uninit_action(act);
+		curr->set_uninit_action(act);
 	}
 	act->create_cv(NULL);
 	return act;

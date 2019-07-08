@@ -3,12 +3,12 @@
 #include "threads-model.h"
 #include "model.h"
 
-int Fuzzer::selectWrite(ModelAction *read, SnapVector<const ModelAction *> * rf_set) {
+int Fuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set) {
 	int random_index = random() % rf_set->size();
 	return random_index;
 }
 
-Thread * Fuzzer::selectThread(Node *n, int * threadlist, int numthreads) {
+Thread * Fuzzer::selectThread(int * threadlist, int numthreads) {
 	int random_index = random() % numthreads;
 	int thread = threadlist[random_index];
 	thread_id_t curr_tid = int_to_id(thread);

@@ -10,8 +10,6 @@ class ModelAction;
 class ModelChecker;
 class ModelExecution;
 class ModelHistory;
-class Node;
-class NodeStack;
 class Scheduler;
 class Thread;
 class TraceAnalysis;
@@ -23,4 +21,6 @@ struct model_snapshot_members;
 struct bug_message;
 typedef SnapList<ModelAction *> action_list_t;
 typedef SnapList<uint32_t> func_id_list_t;
+
+extern volatile int forklock;
 #endif

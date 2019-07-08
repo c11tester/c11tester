@@ -73,7 +73,6 @@ private:
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
-	NodeStack * const node_stack;
 	ModelExecution *execution;
 	Thread * init_thread;
 	ModelHistory *history;

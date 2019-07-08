@@ -8,7 +8,6 @@
 #include "clockvector.h"
 #include "common.h"
 #include "threads-model.h"
-#include "nodestack.h"
 #include "wildcard.h"
 
 #define ACTION_INITIAL_CLOCK 0
@@ -37,8 +36,9 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	position(NULL),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	node(NULL),
+	uninitaction(NULL),
 	cv(NULL),
+	rf_cv(NULL),
 	value(value),
 	type(type),
 	order(order),
@@ -71,8 +71,9 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	position(NULL),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	node(NULL),
+	uninitaction(NULL),
 	cv(NULL),
+	rf_cv(NULL),
 	value(value),
 	type(type),
 	order(order),
@@ -105,8 +106,9 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	position(position),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	node(NULL),
+	uninitaction(NULL),
 	cv(NULL),
+	rf_cv(NULL),
 	value(value),
 	type(type),
 	order(order),
@@ -140,8 +142,9 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	position(position),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	node(NULL),
+	uninitaction(NULL),
 	cv(NULL),
+	rf_cv(NULL),
 	value(value),
 	type(type),
 	order(order),
@@ -579,19 +582,11 @@ uint64_t ModelAction::get_return_value() const
 		return value;
 }
 
-/** @return The Node associated with this ModelAction */
-Node * ModelAction::get_node() const
-{
-	/* UNINIT actions do not have a Node */
-	ASSERT(!is_uninitialized());
-	return node;
-}
-
 /**
  * Update the model action's read_from action
  * @param act The action to read from; should be a write
  */
-void ModelAction::set_read_from(const ModelAction *act)
+void ModelAction::set_read_from(ModelAction *act)
 {
 	ASSERT(act);
 
@@ -601,7 +596,7 @@ void ModelAction::set_read_from(const ModelAction *act)
 		uint64_t val = *((uint64_t *) location);
 		ModelAction * act_initialized = (ModelAction *)act;
 		act_initialized->set_value(val);
-		reads_from = (const ModelAction *)act_initialized;
+		reads_from = act_initialized;
 
 // disabled by WL, because LLVM IR is unable to detect atomic init
 /*		model->assert_bug("May read from uninitialized atomic:\n"

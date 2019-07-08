@@ -103,13 +103,10 @@ public:
 	uint64_t get_reads_from_value() const;
 	uint64_t get_write_value() const;
 	uint64_t get_return_value() const;
-	const ModelAction * get_reads_from() const { return reads_from; }
+	ModelAction * get_reads_from() const { return reads_from; }
 	cdsc::mutex * get_mutex() const;
 
-	Node * get_node() const;
-	void set_node(Node *n) { node = n; }
-
-	void set_read_from(const ModelAction *act);
+	void set_read_from(ModelAction *act);
 
 	/** Store the most recent fence-release from the same thread
 	 *  @param fence The fence-release that occured prior to this */
@@ -156,6 +153,8 @@ public:
 	Thread * get_thread_operand() const;
 	void create_cv(const ModelAction *parent = NULL);
 	ClockVector * get_cv() const { return cv; }
+	ClockVector * get_rfcv() const { return rf_cv; }
+	void set_rfcv(ClockVector * rfcv) { rf_cv = rfcv; }
 	bool synchronize_with(const ModelAction *act);
 
 	bool has_synchronized_with(const ModelAction *act) const;
@@ -177,6 +176,8 @@ public:
 	/* to accomodate pthread create and join */
 	Thread * thread_operand;
 	void set_thread_operand(Thread *th) { thread_operand = th; }
+	void set_uninit_action(ModelAction *act) { uninitaction = act; }
+	ModelAction * get_uninit_action() { return uninitaction; }
 	SNAPSHOTALLOC
 private:
 	const char * get_type_str() const;
@@ -194,20 +195,13 @@ private:
 		 *
 		 * Only valid for reads
 		 */
-		const ModelAction *reads_from;
+		ModelAction *reads_from;
 		int size;
 	};
 
 	/** @brief The last fence release from the same thread */
 	const ModelAction *last_fence_release;
-
-	/**
-	 * @brief A back reference to a Node in NodeStack
-	 *
-	 * Only set if this ModelAction is saved on the NodeStack. (A
-	 * ModelAction can be thrown away before it ever enters the NodeStack.)
-	 */
-	Node *node;
+	ModelAction * uninitaction;
 
 	/**
 	 * @brief The clock vector for this operation
@@ -217,6 +211,7 @@ private:
 	 * vectors for all operations.
 	 */
 	ClockVector *cv;
+	ClockVector *rf_cv;
 
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;
