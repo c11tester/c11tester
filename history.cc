@@ -2,9 +2,11 @@
 #include "history.h"
 #include "action.h"
 #include "funcnode.h"
+#include "common.h"
 
 #include "model.h"
 #include "execution.h"
+
 
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
@@ -19,29 +21,50 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	//model_print("thread %d entering func %d\n", tid, func_id);
 	uint32_t id = id_to_int(tid);
 	SnapVector<func_id_list_t *> * thrd_func_list = model->get_execution()->get_thrd_func_list();
+	SnapVector< SnapList<func_inst_list_t *> *> *
+			thrd_func_inst_lists = model->get_execution()->get_thrd_func_inst_lists();
 
-	if ( thrd_func_list->size() <= id )
+	if ( thrd_func_list->size() <= id ) {
 		thrd_func_list->resize( id + 1 );
+		thrd_func_inst_lists->resize( id + 1 );
+	}
 
 	func_id_list_t * func_list = thrd_func_list->at(id);
+	SnapList<func_inst_list_t *> * func_inst_lists = thrd_func_inst_lists->at(id);
 
 	if (func_list == NULL) {
 		func_list = new func_id_list_t();
 		thrd_func_list->at(id) = func_list;
 	}
 
+	if (func_inst_lists == NULL) {
+		func_inst_lists = new SnapList< func_inst_list_t *>();
+		thrd_func_inst_lists->at(id) = func_inst_lists;
+	}
+
 	func_list->push_back(func_id);
+	func_inst_lists->push_back( new func_inst_list_t() );
 }
 
 void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 {
+	uint32_t id = id_to_int(tid);
 	SnapVector<func_id_list_t *> * thrd_func_list = model->get_execution()->get_thrd_func_list();
+	SnapVector< SnapList<func_inst_list_t *> *> *
+			thrd_func_inst_lists = model->get_execution()->get_thrd_func_inst_lists();
 
-	func_id_list_t * func_list = thrd_func_list->at( id_to_int(tid) );
+	func_id_list_t * func_list = thrd_func_list->at(id);
+	SnapList<func_inst_list_t *> * func_inst_lists = thrd_func_inst_lists->at(id);
+
 	uint32_t last_func_id = func_list->back();
 
 	if (last_func_id == func_id) {
 		func_list->pop_back();
+
+		func_inst_list_t * curr_inst_list = func_inst_lists->back();
+		link_insts(curr_inst_list);
+
+		func_inst_lists->pop_back();
 	} else {
 		model_print("trying to exit with a wrong function id\n");
 		model_print("--- last_func: %d, func_id: %d\n", last_func_id, func_id);
@@ -54,6 +77,8 @@ void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
 	/* return if thread i has not entered any function or has exited
 	   from all functions */
 	SnapVector<func_id_list_t *> * thrd_func_list = model->get_execution()->get_thrd_func_list();
+	SnapVector< SnapList<func_inst_list_t *> *> *
+			thrd_func_inst_lists = model->get_execution()->get_thrd_func_inst_lists();
 
 	uint32_t id = id_to_int(tid);
 	if ( thrd_func_list->size() <= id )
@@ -63,6 +88,8 @@ void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
 
 	/* get the function id that thread i is currently in */
 	func_id_list_t * func_list = thrd_func_list->at(id);
+	SnapList<func_inst_list_t *> * func_inst_lists = thrd_func_inst_lists->at(id);
+
 	uint32_t func_id = func_list->back();
 
 	if ( func_atomics.size() <= func_id )
@@ -78,20 +105,50 @@ void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
 		func_atomics[func_id] = func_node;
 	}
 
-	func_node->add_action(act);
+	FuncInst * inst = func_node->get_or_add_action(act);
+	if (inst != NULL) {
+		func_inst_list_t * curr_inst_list = func_inst_lists->back();
+
+		ASSERT(curr_inst_list != NULL);
+		curr_inst_list->push_back(inst);
+	}
+}
+
+/* Link FuncInsts in a list - add one FuncInst to another's predecessors and successors */
+void ModelHistory::link_insts(func_inst_list_t * inst_list)
+{
+	if (inst_list == NULL)
+		return;
+
+	func_inst_list_t::iterator it = inst_list->begin();
+	func_inst_list_t::iterator prev = inst_list->end();
+	it++;
+
+	while (it != inst_list->end()) {
+		prev = it;
+		prev--;
+
+		FuncInst * prev_inst = *prev;
+		FuncInst * curr_inst = *it;
+
+		prev_inst->add_succ(curr_inst);
+		curr_inst->add_pred(prev_inst);
+
+		it++;
+	}
 }
 
 void ModelHistory::print()
 {
 	for (uint32_t i = 0; i < func_atomics.size(); i++ ) {
 		FuncNode * funcNode = func_atomics[i];
-		func_inst_list_t * inst_list = funcNode->get_inst_list();
+		func_inst_list_mt * inst_list = funcNode->get_inst_list();
 
 		if (funcNode == NULL)
 			continue;
 
 		model_print("function %s has following actions\n", funcNode->get_func_name());
-		func_inst_list_t::iterator it;
+		func_inst_list_mt::iterator it;
 		for (it = inst_list->begin(); it != inst_list->end(); it++) {
 			FuncInst *inst = *it;
 			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());

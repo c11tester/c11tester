@@ -66,7 +66,9 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler, NodeStack 
 	node_stack(node_stack),
 	priv(new struct model_snapshot_members ()),
 	mo_graph(new CycleGraph()),
-	fuzzer(new Fuzzer())
+	fuzzer(new Fuzzer()),
+	thrd_func_list(),
+	thrd_func_inst_lists()
 {
 	/* Initialize a model-checker thread, for special ModelActions */
 	model_thread = new Thread(get_next_id());

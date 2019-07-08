@@ -21,6 +21,7 @@ public:
 
 	ModelVector<FuncNode *> * getFuncAtomics() { return &func_atomics; }
 
+	void link_insts(func_inst_list_t * inst_list);
 	void print();
 
 	MEMALLOC
