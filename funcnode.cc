@@ -17,9 +17,8 @@ FuncInst * FuncNode::get_or_add_action(ModelAction *act)
 	 * ATOMIC_LOCK, ATOMIC_TRYLOCK, and ATOMIC_UNLOCK are not tagged with their
 	 * source line numbers
 	 */
-	if (position == NULL) {
+	if (position == NULL)
 		return NULL;
-	}
 
 	if ( func_insts.contains(position) ) {
 		FuncInst * inst = func_insts.get(position);
@@ -33,7 +32,7 @@ FuncInst * FuncNode::get_or_add_action(ModelAction *act)
 				return func_inst;
 			}
 
-			func_inst = new FuncInst(act);
+			func_inst = new FuncInst(act, this);
 			inst->get_collisions()->push_back(func_inst);
 			inst_list.push_back(func_inst);		// delete?
 			// model_print("collision added\n");
@@ -44,9 +43,23 @@ FuncInst * FuncNode::get_or_add_action(ModelAction *act)
 		return inst;
 	}
 
-	FuncInst * func_inst = new FuncInst(act);
+	FuncInst * func_inst = new FuncInst(act, this);
 	func_insts.put(position, func_inst);
 
 	inst_list.push_back(func_inst);
 	return func_inst;
+}
+
+void FuncNode::add_entry_inst(FuncInst * inst)
+{
+	if (inst == NULL)
+		return;
+
+	func_inst_list_mt::iterator it;
+	for (it = entry_insts.begin(); it != entry_insts.end(); it++) {
+		if (inst == *it)
+			return;
+	}
+
+	entry_insts.push_back(inst);
 }

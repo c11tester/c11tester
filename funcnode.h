@@ -11,15 +11,17 @@ public:
 	FuncNode();
 	~FuncNode();
 
-	FuncInst * get_or_add_action(ModelAction *act);
-
-	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncInsts() { return &func_insts; }
-	func_inst_list_mt * get_inst_list() { return &inst_list; }
-
 	uint32_t get_func_id() { return func_id; }
 	const char * get_func_name() { return func_name; }
 	void set_func_id(uint32_t id) { func_id = id; }
 	void set_func_name(const char * name) { func_name = name; }
+
+	FuncInst * get_or_add_action(ModelAction *act);
+
+	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncInsts() { return &func_insts; }
+	func_inst_list_mt * get_inst_list() { return &inst_list; }
+	func_inst_list_mt * get_entry_insts() { return &entry_insts; }
+	void add_entry_inst(FuncInst * inst);
 
 	MEMALLOC
 private:
@@ -37,6 +39,6 @@ private:
 	/* list of all atomic instructions in this function */
 	func_inst_list_mt inst_list;
 
-	/* possible entry (atomic) instructions in this function */
+	/* possible entry atomic instructions in this function */
 	func_inst_list_mt entry_insts;
 };

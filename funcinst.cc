@@ -1,14 +1,22 @@
 #include "funcinst.h"
 
-FuncInst::FuncInst(ModelAction *act) :
+FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
 	collisions()
 {
 	ASSERT(act);
+	ASSERT(func_node);
 	this->position = act->get_position();
 	this->location = act->get_location();
 	this->type = act->get_type();
+	this->func_node = func_node;
 }
 
+/* @param other Preceding FuncInst in the same execution trace
+ * Add other to predecessors if it has been added 
+ *
+ * @return false: other is already in predecessors
+ *         true : other is added to precedessors
+ */
 bool FuncInst::add_pred(FuncInst * other) {
 	func_inst_list_mt::iterator it;
 	for (it = predecessors.begin(); it != predecessors.end(); it++) {

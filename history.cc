@@ -121,9 +121,14 @@ void ModelHistory::link_insts(func_inst_list_t * inst_list)
 		return;
 
 	func_inst_list_t::iterator it = inst_list->begin();
-	func_inst_list_t::iterator prev = inst_list->end();
-	it++;
+	func_inst_list_t::iterator prev;
 
+	/* add the first instruction to the list of entry insts */
+	FuncInst * entry_inst = *it;
+	FuncNode * func_node = entry_inst->get_func_node();
+	func_node->add_entry_inst(entry_inst);
+
+	it++;
 	while (it != inst_list->end()) {
 		prev = it;
 		prev--;
@@ -142,10 +147,20 @@ void ModelHistory::print()
 {
 	for (uint32_t i = 0; i < func_atomics.size(); i++ ) {
 		FuncNode * funcNode = func_atomics[i];
-		func_inst_list_mt * inst_list = funcNode->get_inst_list();
-
 		if (funcNode == NULL)
 			continue;
+
+		func_inst_list_mt * entry_insts = funcNode->get_entry_insts();
+
+		model_print("function %s has entry actions\n", funcNode->get_func_name());
+		func_inst_list_mt::iterator it;
+		for (it = entry_insts->begin(); it != entry_insts->end(); it++) {
+			FuncInst *inst = *it;
+			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
+		}
+
+/*
+		func_inst_list_mt * inst_list = funcNode->get_inst_list();
 
 		model_print("function %s has following actions\n", funcNode->get_func_name());
 		func_inst_list_mt::iterator it;
@@ -153,5 +168,6 @@ void ModelHistory::print()
 			FuncInst *inst = *it;
 			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
 		}
+*/
 	}
 }
