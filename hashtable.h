@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "stl-model.h"
 #include "mymemory.h"
 #include "common.h"
 
@@ -56,6 +57,8 @@ public:
 	HashTable(unsigned int initialcapacity = 1024, double factor = 0.5) {
 		// Allocate space for the hash table
 		table = (struct hashlistnode<_Key, _Val> *)_calloc(initialcapacity, sizeof(struct hashlistnode<_Key, _Val>));
+		keyset = (_Key *)_calloc(initialcapacity, sizeof(_Key));
+		keyset_end = keyset;
 		loadfactor = factor;
 		capacity = initialcapacity;
 		capacitymask = initialcapacity - 1;
@@ -67,6 +70,7 @@ public:
 	/** @brief Hash table destructor */
 	~HashTable() {
 		_free(table);
+		_free(keyset);
 	}
 
 	/** Override: new operator */
@@ -92,6 +96,7 @@ public:
 	/** @brief Reset the table to its initial state. */
 	void reset() {
 		memset(table, 0, capacity * sizeof(struct hashlistnode<_Key, _Val>));
+		memset(keyset, 0, capacity * sizeof(_Key));
 		size = 0;
 	}
 
@@ -122,6 +127,8 @@ public:
 
 		search->key = key;
 		search->val = val;
+		*keyset_end = key;
+		keyset_end++;
 		size++;
 	}
 
@@ -176,6 +183,9 @@ public:
 	void resize(unsigned int newsize) {
 		struct hashlistnode<_Key, _Val> *oldtable = table;
 		struct hashlistnode<_Key, _Val> *newtable;
+		_Key *oldkeyset = keyset;
+		_Key *newkeyset;
+
 		unsigned int oldcapacity = capacity;
 
 		if ((newtable = (struct hashlistnode<_Key, _Val> *)_calloc(newsize, sizeof(struct hashlistnode<_Key, _Val>))) == NULL) {
@@ -183,7 +193,15 @@ public:
 			exit(EXIT_FAILURE);
 		}
 
+		if ((newkeyset = (_Key *)_calloc(newsize, sizeof(_Key))) == NULL ) {
+			model_print("calloc error %s %d\n", __FILE__, __LINE__);
+			exit(EXIT_FAILURE);
+		}
+
 		table = newtable;	// Update the global hashtable upon resize()
+		keyset = newkeyset;
+		keyset_end = newkeyset;
+
 		capacity = newsize;
 		capacitymask = newsize - 1;
 
@@ -207,11 +225,25 @@ public:
 			search->val = bin->val;
 		}
 
+		memcpy(keyset, oldkeyset, size * sizeof(_Key));	// copy keyset
+		keyset_end = keyset + size;	// pointer arithmetic
+
 		_free(oldtable);	// Free the memory of the old hash table
+		_free(oldkeyset);
+	}
+
+	_Key * getKeySet() {
+		return keyset;
+	}
+
+	unsigned int getSize() {
+		return size;
 	}
 
 private:
 	struct hashlistnode<_Key, _Val> *table;
+	_Key *keyset;
+	_Key *keyset_end;
 	unsigned int capacity;
 	unsigned int size;
 	unsigned int capacitymask;
