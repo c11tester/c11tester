@@ -6,6 +6,7 @@
 #include "datarace.h"
 #include "model.h"
 #include "threads-model.h"
+#include "snapshot-interface.h"
 
 void store_8(void *addr, uint8_t val)
 {
@@ -101,6 +102,8 @@ uint64_t load_64(const void *addr)
 void cds_store8(void *addr)
 {
 	//DEBUG("addr = %p, val = %" PRIu8 "\n", addr, val);
+	if (!model)
+		return;
 	thread_id_t tid = thread_current()->get_id();
 	raceCheckWrite(tid, addr);
 }
@@ -108,6 +111,8 @@ void cds_store8(void *addr)
 void cds_store16(void *addr)
 {
 	//DEBUG("addr = %p, val = %" PRIu16 "\n", addr, val);
+	if (!model)
+		return;
 	thread_id_t tid = thread_current()->get_id();
 	raceCheckWrite(tid, addr);
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
@@ -116,6 +121,8 @@ void cds_store16(void *addr)
 void cds_store32(void *addr)
 {
 	//DEBUG("addr = %p, val = %" PRIu32 "\n", addr, val);
+	if (!model)
+		return;
 	thread_id_t tid = thread_current()->get_id();
 	raceCheckWrite(tid, addr);
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
@@ -126,6 +133,8 @@ void cds_store32(void *addr)
 void cds_store64(void *addr)
 {
 	//DEBUG("addr = %p, val = %" PRIu64 "\n", addr, val);
+	if (!model)
+		return;
 	thread_id_t tid = thread_current()->get_id();
 	raceCheckWrite(tid, addr);
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
@@ -137,7 +146,41 @@ void cds_store64(void *addr)
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 7));
 }
 
-void cds_load8(const void *addr) { load_8(addr); }
-void cds_load16(const void *addr) { load_16(addr); }
-void cds_load32(const void *addr) { load_32(addr); }
-void cds_load64(const void *addr) { load_64(addr); }
+void cds_load8(const void *addr) {
+	if (!model)
+		return;
+	thread_id_t tid = thread_current()->get_id();
+	raceCheckRead(tid, addr);
+}
+
+void cds_load16(const void *addr) {
+	if (!model)
+		return;
+	thread_id_t tid = thread_current()->get_id();
+	raceCheckRead(tid, addr);
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
+}
+
+void cds_load32(const void *addr) {
+	if (!model)
+		return;
+	thread_id_t tid = thread_current()->get_id();
+	raceCheckRead(tid, addr);
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 2));
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 3));
+}
+
+void cds_load64(const void *addr) {
+	if (!model)
+		return;
+	thread_id_t tid = thread_current()->get_id();
+	raceCheckRead(tid, addr);
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 2));
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 3));
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 4));
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 5));
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 6));
+	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 7));
+}

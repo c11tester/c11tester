@@ -198,8 +198,6 @@ int main(int argc, char **argv)
 	model_params *params = model->getParams();
 	parse_options(params, main_argc, main_argv);
 
-	//Initialize race detector
-	initRaceDetector();
 
 	snapshot_stack_init();
 	install_trace_analyses(model->get_execution());

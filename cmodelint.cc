@@ -363,7 +363,7 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
 
 void cds_func_entry(const char * funcName) {
 	if (!model) return;
-
+	/*
 	Thread * th = thread_current();
 	uint32_t func_id;
 
@@ -384,11 +384,12 @@ void cds_func_entry(const char * funcName) {
 	}
 
 	history->enter_function(func_id, th->get_id());
+	*/
 }
 
 void cds_func_exit(const char * funcName) {
 	if (!model) return;
-
+	/*
 	Thread * th = thread_current();
 	uint32_t func_id;
 
@@ -396,4 +397,5 @@ void cds_func_exit(const char * funcName) {
 	func_id = history->getFuncMap()->get(funcName);
 
 	history->exit_function(func_id, th->get_id());
+	*/
 }

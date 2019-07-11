@@ -45,6 +45,7 @@ ModelChecker::ModelChecker() :
 	scheduler->set_current_thread(init_thread);
 	execution->setParams(&params);
 	param_defaults(&params);
+	initRaceDetector();
 }
 
 /** @brief Destructor */
