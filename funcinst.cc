@@ -17,7 +17,8 @@ FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
  * @return false: other is already in predecessors
  *         true : other is added to precedessors
  */
-bool FuncInst::add_pred(FuncInst * other) {
+bool FuncInst::add_pred(FuncInst * other)
+{
 	func_inst_list_mt::iterator it;
 	for (it = predecessors.begin(); it != predecessors.end(); it++) {
 		FuncInst * inst = *it;
@@ -29,7 +30,8 @@ bool FuncInst::add_pred(FuncInst * other) {
 	return true;
 }
 
-bool FuncInst::add_succ(FuncInst * other) {
+bool FuncInst::add_succ(FuncInst * other)
+{
 	func_inst_list_mt::iterator it;
 	for (it = successors.begin(); it != successors.end(); it++) {
 		FuncInst * inst = *it;
@@ -41,7 +43,8 @@ bool FuncInst::add_succ(FuncInst * other) {
 	return true;
 }
 
-FuncInst * FuncInst::search_in_collision(ModelAction *act) {
+FuncInst * FuncInst::search_in_collision(ModelAction *act)
+{
 	action_type type = act->get_type();
 
 	func_inst_list_mt::iterator it;
@@ -51,4 +54,9 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act) {
 			return inst;
 	}
 	return NULL;
+}
+
+bool FuncInst::is_read() const
+{
+	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS;
 }

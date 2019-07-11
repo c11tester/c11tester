@@ -25,6 +25,8 @@ public:
 	func_inst_list_mt * get_preds() { return &predecessors; }
 	func_inst_list_mt * get_succs() { return &successors; }
 
+	bool is_read() const;
+
 	MEMALLOC
 private:
 	//ModelAction * const action;

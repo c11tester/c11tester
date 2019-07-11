@@ -18,10 +18,12 @@ public:
 
 	FuncInst * get_or_add_action(ModelAction *act);
 
-	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncInsts() { return &func_insts; }
+	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncInstMap() { return &func_inst_map; }
 	func_inst_list_mt * get_inst_list() { return &inst_list; }
 	func_inst_list_mt * get_entry_insts() { return &entry_insts; }
 	void add_entry_inst(FuncInst * inst);
+
+	void group_reads_by_loc(FuncInst * inst);
 
 	MEMALLOC
 private:
@@ -34,11 +36,14 @@ private:
 	 * To do: cds_atomic_compare_exchange contains three atomic operations
 	 * that are feeded with the same source line number by llvm pass
 	 */
-	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> func_insts;
+	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> func_inst_map;
 
-	/* list of all atomic instructions in this function */
+	/* list of all atomic actions in this function */
 	func_inst_list_mt inst_list;
 
-	/* possible entry atomic instructions in this function */
+	/* possible entry atomic actions in this function */
 	func_inst_list_mt entry_insts;
+
+	/* group atomic read actions by memory location */
+	HashTable<void *, func_inst_list_mt *, uintptr_t, 4, model_malloc, model_calloc, model_free> reads_by_loc;
 };
