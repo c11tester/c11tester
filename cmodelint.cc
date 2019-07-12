@@ -395,5 +395,12 @@ void cds_func_exit(const char * funcName) {
 	ModelHistory *history = model->get_history();
 	func_id = history->getFuncMap()->get(funcName);
 
+	/* func_id not found; this could happen in the case where a function calls cds_func_entry
+	* when the model has been defined yet, but then an atomic inside the function initializes 
+	* the model. And then cds_func_exit is called upon the function exiting. 
+	*/
+	if (func_id == 0)
+		return;
+
 	history->exit_function(func_id, th->get_id());
 }

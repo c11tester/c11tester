@@ -46,6 +46,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	func_inst_lists->push_back( new func_inst_list_t() );
 }
 
+/* @param func_id a non-zero value */
 void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 {
 	uint32_t id = id_to_int(tid);
