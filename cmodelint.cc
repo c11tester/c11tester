@@ -363,18 +363,18 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
 
 void cds_func_entry(const char * funcName) {
 	if (!model) return;
-	/*
+
 	Thread * th = thread_current();
 	uint32_t func_id;
 
 	ModelHistory *history = model->get_history();
 	if ( !history->getFuncMap()->contains(funcName) ) {
-		/* add func id to func map */
+		// add func id to func map
 		func_id = history->get_func_counter();
 		history->incr_func_counter();
 		history->getFuncMap()->put(funcName, func_id);
 
-		/* add func id to reverse func map */
+		// add func id to reverse func map
 		ModelVector<const char *> * func_map_rev = history->getFuncMapRev();
 	        if ( func_map_rev->size() <= func_id )
                 	func_map_rev->resize( func_id + 1 );
@@ -384,12 +384,11 @@ void cds_func_entry(const char * funcName) {
 	}
 
 	history->enter_function(func_id, th->get_id());
-	*/
 }
 
 void cds_func_exit(const char * funcName) {
 	if (!model) return;
-	/*
+
 	Thread * th = thread_current();
 	uint32_t func_id;
 
@@ -397,5 +396,4 @@ void cds_func_exit(const char * funcName) {
 	func_id = history->getFuncMap()->get(funcName);
 
 	history->exit_function(func_id, th->get_id());
-	*/
 }

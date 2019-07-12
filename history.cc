@@ -123,6 +123,9 @@ void ModelHistory::link_insts(func_inst_list_t * inst_list)
 	func_inst_list_t::iterator it = inst_list->begin();
 	func_inst_list_t::iterator prev;
 
+	if (inst_list->size() == 0)
+		return;
+
 	/* add the first instruction to the list of entry insts */
 	FuncInst * entry_inst = *it;
 	FuncNode * func_node = entry_inst->get_func_node();
