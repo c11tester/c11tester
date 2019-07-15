@@ -61,6 +61,10 @@ namespace std _GLIBCXX_VISIBILITY(default)
 		// INT_MAX wakes all the waiters at the address __addr
 		ModelExecution *execution = model->get_execution();
 		cdsc::condition_variable *v = execution->getCondMap()->get( (pthread_cond_t *) __addr);
+
+		if (v == NULL)
+			return;		// do nothing
+
 		v->notify_all();
 	}
 
