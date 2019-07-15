@@ -1,3 +1,12 @@
+/*      Copyright (c) 2015 Regents of the University of California
+ *
+ *      Author: Brian Demsky <bdemsky@uci.edu>
+ *
+ *      This program is free software; you can redistribute it and/or
+ *      modify it under the terms of the GNU General Public License
+ *      version 2 as published by the Free Software Foundation.
+ */
+
 /** @file hashtable.h
  *  @brief Hashtable.  Standard chained bucket variety.
  */
@@ -8,7 +17,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "stl-model.h"
 #include "mymemory.h"
 #include "common.h"
 
@@ -23,6 +31,16 @@ struct hashlistnode {
 	_Key key;
 	_Val val;
 };
+
+template<typename _Key, int _Shift, typename _KeyInt>
+inline unsigned int default_hash_function(_Key hash) {
+	return (unsigned int)(((_KeyInt)hash) >> _Shift);
+}
+
+template<typename _Key>
+inline bool default_equals(_Key key1, _Key key2) {
+	return key1 == key2;
+}
 
 /**
  * @brief A simple, custom hash table
@@ -44,7 +62,7 @@ struct hashlistnode {
  * @tparam _free   Provide your own 'free' for the table, or default to
  *                 snapshotting.
  */
-template<typename _Key, typename _Val, typename _KeyInt, int _Shift = 0, void * (*_malloc)(size_t) = snapshot_malloc, void * (*_calloc)(size_t, size_t) = snapshot_calloc, void (*_free)(void *) = snapshot_free>
+template<typename _Key, typename _Val, typename _KeyInt, int _Shift = 0, void * (* _malloc)(size_t) = snapshot_malloc, void * (* _calloc)(size_t, size_t) = snapshot_calloc, void (*_free)(void *) = snapshot_free, unsigned int (*hash_function)(_Key) = default_hash_function<_Key, _Shift, _KeyInt>, bool (*equals)(_Key, _Key) = default_equals<_Key> >
 class HashTable {
 public:
 	/**
@@ -57,20 +75,20 @@ public:
 	HashTable(unsigned int initialcapacity = 1024, double factor = 0.5) {
 		// Allocate space for the hash table
 		table = (struct hashlistnode<_Key, _Val> *)_calloc(initialcapacity, sizeof(struct hashlistnode<_Key, _Val>));
-		keyset = (_Key *)_calloc(initialcapacity, sizeof(_Key));
-		keyset_end = keyset;
+		zero = NULL;
 		loadfactor = factor;
 		capacity = initialcapacity;
 		capacitymask = initialcapacity - 1;
 
 		threshold = (unsigned int)(initialcapacity * loadfactor);
-		size = 0;	// Initial number of elements in the hash
+		size = 0;							// Initial number of elements in the hash
 	}
 
 	/** @brief Hash table destructor */
 	~HashTable() {
 		_free(table);
-		_free(keyset);
+		if (zero)
+			_free(zero);
 	}
 
 	/** Override: new operator */
@@ -96,7 +114,50 @@ public:
 	/** @brief Reset the table to its initial state. */
 	void reset() {
 		memset(table, 0, capacity * sizeof(struct hashlistnode<_Key, _Val>));
-		memset(keyset, 0, capacity * sizeof(_Key));
+		if (zero) {
+			_free(zero);
+			zero = NULL;
+		}
+		size = 0;
+	}
+
+	void resetanddelete() {
+		for(unsigned int i=0;i<capacity;i++) {
+			struct hashlistnode<_Key, _Val> *bin = &table[i];
+			if (bin->key != NULL) {
+				bin->key = NULL;
+				if (bin->val != NULL) {
+					delete bin->val;
+					bin->val = NULL;
+				}
+			}
+		}
+		if (zero) {
+			if (zero->val != NULL)
+				delete zero->val;
+			_free(zero);
+			zero = NULL;
+		}
+		size = 0;
+	}
+
+	void resetandfree() {
+		for(unsigned int i=0;i<capacity;i++) {
+			struct hashlistnode<_Key, _Val> *bin = &table[i];
+			if (bin->key != NULL) {
+				bin->key = NULL;
+				if (bin->val != NULL) {
+					_free(bin->val);
+					bin->val = NULL;
+				}
+			}
+		}
+		if (zero) {
+			if (zero->val != NULL)
+				_free(zero->val);
+			_free(zero);
+			zero = NULL;
+		}
 		size = 0;
 	}
 
@@ -107,28 +168,38 @@ public:
 	 */
 	void put(_Key key, _Val val) {
 		/* HashTable cannot handle 0 as a key */
-		ASSERT(key);
+		if (!key) {
+			if (!zero) {
+				zero=(struct hashlistnode<_Key, _Val> *)_malloc(sizeof(struct hashlistnode<_Key, _Val>));
+				size++;
+			}
+			zero->key=key;
+			zero->val=val;
+			return;
+		}
 
 		if (size > threshold)
 			resize(capacity << 1);
 
 		struct hashlistnode<_Key, _Val> *search;
 
-		unsigned int index = ((_KeyInt)key) >> _Shift;
+		unsigned int index = hash_function(key);
 		do {
 			index &= capacitymask;
 			search = &table[index];
-			if (search->key == key) {
+			if (!search->key) {
+				//key is null, probably done
+				break;
+			}
+			if (equals(search->key, key)) {
 				search->val = val;
 				return;
 			}
 			index++;
-		} while (search->key);
+		} while (true);
 
 		search->key = key;
 		search->val = val;
-		*keyset_end = key;
-		keyset_end++;
 		size++;
 	}
 
@@ -141,18 +212,78 @@ public:
 		struct hashlistnode<_Key, _Val> *search;
 
 		/* HashTable cannot handle 0 as a key */
-		ASSERT(key);
+		if (!key) {
+			if (zero)
+				return zero->val;
+			else
+				return (_Val) 0;
+		}
 
-		unsigned int index = ((_KeyInt)key) >> _Shift;
+		unsigned int oindex = hash_function(key) & capacitymask;
+		unsigned int index=oindex;
+		do {
+			search = &table[index];
+			if (!search->key) {
+				if (!search->val)
+					break;
+			} else
+			if (equals(search->key, key))
+				return search->val;
+			index++;
+			index &= capacitymask;
+			if (index==oindex)
+				break;
+		} while (true);
+		return (_Val)0;
+	}
+
+	/**
+	 * @brief Remove the given key and return the corresponding value
+	 * @param key The key for finding the value; must not be 0 or NULL
+	 * @return The value in the table, if the key is found; otherwise 0
+	 */
+	_Val remove(_Key key) {
+		struct hashlistnode<_Key, _Val> *search;
+
+		/* HashTable cannot handle 0 as a key */
+		if (!key) {
+			if (!zero) {
+				return (_Val)0;
+			} else {
+				_Val v=zero->val;
+				_free(zero);
+				zero=NULL;
+				size--;
+				return v;
+			}
+		}
+
+
+		unsigned int index = hash_function(key);
 		do {
 			index &= capacitymask;
 			search = &table[index];
-			if (search->key == key)
-				return search->val;
+			if (!search->key) {
+				if (!search->val)
+					break;
+			} else
+			if (equals(search->key, key)) {
+				_Val v=search->val;
+				//empty out this bin
+				search->val=(_Val) 1;
+				search->key=0;
+				size--;
+				return v;
+			}
 			index++;
-		} while (search->key);
+		} while (true);
 		return (_Val)0;
 	}
+
+	unsigned int getSize() const {
+		return size;
+	}
+
 
 	/**
 	 * @brief Check whether the table contains a value for the given key
@@ -163,16 +294,22 @@ public:
 		struct hashlistnode<_Key, _Val> *search;
 
 		/* HashTable cannot handle 0 as a key */
-		ASSERT(key);
+		if (!key) {
+			return zero!=NULL;
+		}
 
-		unsigned int index = ((_KeyInt)key) >> _Shift;
+		unsigned int index = hash_function(key);
 		do {
 			index &= capacitymask;
 			search = &table[index];
-			if (search->key == key)
+			if (!search->key) {
+				if (!search->val)
+					break;
+			} else
+			if (equals(search->key, key))
 				return true;
 			index++;
-		} while (search->key);
+		} while (true);
 		return false;
 	}
 
@@ -183,9 +320,6 @@ public:
 	void resize(unsigned int newsize) {
 		struct hashlistnode<_Key, _Val> *oldtable = table;
 		struct hashlistnode<_Key, _Val> *newtable;
-		_Key *oldkeyset = keyset;
-		_Key *newkeyset;
-
 		unsigned int oldcapacity = capacity;
 
 		if ((newtable = (struct hashlistnode<_Key, _Val> *)_calloc(newsize, sizeof(struct hashlistnode<_Key, _Val>))) == NULL) {
@@ -193,15 +327,7 @@ public:
 			exit(EXIT_FAILURE);
 		}
 
-		if ((newkeyset = (_Key *)_calloc(newsize, sizeof(_Key))) == NULL ) {
-			model_print("calloc error %s %d\n", __FILE__, __LINE__);
-			exit(EXIT_FAILURE);
-		}
-
-		table = newtable;	// Update the global hashtable upon resize()
-		keyset = newkeyset;
-		keyset_end = newkeyset;
-
+		table = newtable;											// Update the global hashtable upon resize()
 		capacity = newsize;
 		capacitymask = newsize - 1;
 
@@ -213,8 +339,10 @@ public:
 			_Key key = bin->key;
 
 			struct hashlistnode<_Key, _Val> *search;
+			if (!key)
+				continue;
 
-			unsigned int index = ((_KeyInt)key) >> _Shift;
+			unsigned int index = hash_function(key);
 			do {
 				index &= capacitymask;
 				search = &table[index];
@@ -225,30 +353,18 @@ public:
 			search->val = bin->val;
 		}
 
-		memcpy(keyset, oldkeyset, size * sizeof(_Key));	// copy keyset
-		keyset_end = keyset + size;	// pointer arithmetic
-
-		_free(oldtable);	// Free the memory of the old hash table
-		_free(oldkeyset);
+		_free(oldtable);												// Free the memory of the old hash table
 	}
-
-	_Key * getKeySet() {
-		return keyset;
-	}
-
-	unsigned int getSize() {
-		return size;
-	}
-
-private:
+	double getLoadFactor() {return loadfactor;}
+	unsigned int getCapacity() {return capacity;}
 	struct hashlistnode<_Key, _Val> *table;
-	_Key *keyset;
-	_Key *keyset_end;
+	struct hashlistnode<_Key, _Val> *zero;
 	unsigned int capacity;
 	unsigned int size;
+private:
 	unsigned int capacitymask;
 	unsigned int threshold;
 	double loadfactor;
 };
 
-#endif	/* __HASHTABLE_H__ */
+#endif/* __HASHTABLE_H__ */
