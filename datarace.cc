@@ -96,6 +96,7 @@ static void expandRecord(uint64_t *shadow)
 		record->thread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * record->capacity);
 		record->readClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * record->capacity);
 		record->numReads = 1;
+		ASSERT(readThread >= 0);
 		record->thread[0] = readThread;
 		record->readClock[0] = readClock;
 	}
@@ -284,6 +285,7 @@ void fullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shado
 		if (clock_may_race(currClock, thread, readClock, readThread)) {
 			/* Still need this read in vector */
 			if (copytoindex != i) {
+			  ASSERT(record->thread[i] >= 0);
 				record->readClock[copytoindex] = record->readClock[i];
 				record->thread[copytoindex] = record->thread[i];
 			}
@@ -306,6 +308,7 @@ void fullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shado
 
 	modelclock_t ourClock = currClock->getClock(thread);
 
+	ASSERT(thread >= 0);
 	record->thread[copytoindex] = thread;
 	record->readClock[copytoindex] = ourClock;
 	record->numReads = copytoindex + 1;
