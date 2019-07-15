@@ -294,16 +294,23 @@ void fullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shado
 	}
 
 	if (copytoindex >= record->capacity) {
-		int newCapacity = record->capacity * 2;
-		thread_id_t *newthread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * newCapacity);
-		modelclock_t *newreadClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * newCapacity);
-		std::memcpy(newthread, record->thread, record->capacity * sizeof(thread_id_t));
-		std::memcpy(newreadClock, record->readClock, record->capacity * sizeof(modelclock_t));
-		snapshot_free(record->readClock);
-		snapshot_free(record->thread);
-		record->readClock = newreadClock;
-		record->thread = newthread;
-		record->capacity = newCapacity;
+		if (record->capacity == 0) {
+			int newCapacity = INITCAPACITY;
+			record->thread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * newCapacity);
+			record->readClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * newCapacity);
+			record->capacity = newCapacity;
+		} else {
+			int newCapacity = record->capacity * 2;
+			thread_id_t *newthread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * newCapacity);
+			modelclock_t *newreadClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * newCapacity);
+			std::memcpy(newthread, record->thread, record->capacity * sizeof(thread_id_t));
+			std::memcpy(newreadClock, record->readClock, record->capacity * sizeof(modelclock_t));
+			snapshot_free(record->readClock);
+			snapshot_free(record->thread);
+			record->readClock = newreadClock;
+			record->thread = newthread;
+			record->capacity = newCapacity;
+		}
 	}
 
 	modelclock_t ourClock = currClock->getClock(thread);
