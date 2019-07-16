@@ -93,64 +93,45 @@ void model_rmwc_action_helper(void *obj, int atomic_index, const char *position)
 }
 
 // cds atomic inits
-void cds_atomic_init8(void * obj, uint8_t val, const char * position) {
-	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val));
-}
-void cds_atomic_init16(void * obj, uint16_t val, const char * position) {
-	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val));
-}
-void cds_atomic_init32(void * obj, uint32_t val, const char * position) {
-	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val));
-}
-void cds_atomic_init64(void * obj, uint64_t val, const char * position) {
-	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, val));
-}
+#define CDSATOMICINT(size)                                              \
+	void cds_atomic_init ## size (void * obj, uint ## size ## _t val, const char * position) { \
+		ensureModel();                                                      \
+		model->switch_to_master(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)); \
+		*((uint ## size ## _t *)obj) = val;                                 \
+	}
 
+CDSATOMICINT(8)
+CDSATOMICINT(16)
+CDSATOMICINT(32)
+CDSATOMICINT(64)
 
 // cds atomic loads
-uint8_t cds_atomic_load8(void * obj, int atomic_index, const char * position) {
-	ensureModel();
-	return (uint8_t) model->switch_to_master(
-		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
-}
-uint16_t cds_atomic_load16(void * obj, int atomic_index, const char * position) {
-	ensureModel();
-	return (uint16_t) model->switch_to_master(
-		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
-}
-uint32_t cds_atomic_load32(void * obj, int atomic_index, const char * position) {
-	ensureModel();
-	return (uint32_t) model->switch_to_master(
-		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)
-		);
-}
-uint64_t cds_atomic_load64(void * obj, int atomic_index, const char * position) {
-	ensureModel();
-	return model->switch_to_master(
-		new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj));
-}
+#define CDSATOMICLOAD(size)                                             \
+	uint ## size ## _t cds_atomic_load ## size(void * obj, int atomic_index, const char * position) { \
+		ensureModel();                                                      \
+		return (uint ## size ## _t) model->switch_to_master( \
+			new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)); \
+	}
+
+CDSATOMICLOAD(8)
+CDSATOMICLOAD(16)
+CDSATOMICLOAD(32)
+CDSATOMICLOAD(64)
 
 // cds atomic stores
-void cds_atomic_store8(void * obj, uint8_t val, int atomic_index, const char * position) {
-	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val));
-}
-void cds_atomic_store16(void * obj, uint16_t val, int atomic_index, const char * position) {
-	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val));
-}
-void cds_atomic_store32(void * obj, uint32_t val, int atomic_index, const char * position) {
-	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val));
-}
-void cds_atomic_store64(void * obj, uint64_t val, int atomic_index, const char * position) {
-	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val));
-}
+
+#define CDSATOMICSTORE(size)                                            \
+	void cds_atomic_store ## size(void * obj, uint ## size ## _t val, int atomic_index, const char * position) { \
+		ensureModel();                                                        \
+		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)); \
+		*((uint ## size ## _t *)obj) = val;                                   \
+	}
+
+CDSATOMICSTORE(8)
+CDSATOMICSTORE(16)
+CDSATOMICSTORE(32)
+CDSATOMICSTORE(64)
+
 
 #define _ATOMIC_RMW_(__op__, size, addr, val, atomic_index, position)            \
 	({                                                                      \
@@ -163,88 +144,70 @@ void cds_atomic_store64(void * obj, uint64_t val, int atomic_index, const char *
 	})
 
 // cds atomic exchange
-uint8_t cds_atomic_exchange8(void* addr, uint8_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( =, 8, addr, val, atomic_index, position);
-}
-uint16_t cds_atomic_exchange16(void* addr, uint16_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( =, 16, addr, val, atomic_index, position);
-}
-uint32_t cds_atomic_exchange32(void* addr, uint32_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( =, 32, addr, val, atomic_index, position);
-}
-uint64_t cds_atomic_exchange64(void* addr, uint64_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( =, 64, addr, val, atomic_index, position);
-}
+#define CDSATOMICEXCHANGE(size)                                         \
+	uint ## size ## _t cds_atomic_exchange ## size(void* addr, uint ## size ## _t val, int atomic_index, const char * position) { \
+		_ATOMIC_RMW_( =, size, addr, val, atomic_index, position);          \
+	}
+
+CDSATOMICEXCHANGE(8)
+CDSATOMICEXCHANGE(16)
+CDSATOMICEXCHANGE(32)
+CDSATOMICEXCHANGE(64)
 
 // cds atomic fetch add
-uint8_t cds_atomic_fetch_add8(void* addr, uint8_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( +=, 8, addr, val, atomic_index, position);
-}
-uint16_t cds_atomic_fetch_add16(void* addr, uint16_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( +=, 16, addr, val, atomic_index, position);
-}
-uint32_t cds_atomic_fetch_add32(void* addr, uint32_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( +=, 32, addr, val, atomic_index, position);
-}
-uint64_t cds_atomic_fetch_add64(void* addr, uint64_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( +=, 64, addr, val, atomic_index, position);
-}
+#define CDSATOMICADD(size)                                              \
+	uint ## size ## _t cds_atomic_fetch_add ## size(void* addr, uint ## size ## _t val, int atomic_index, const char * position) { \
+		_ATOMIC_RMW_( +=, size, addr, val, atomic_index, position);         \
+	}
+
+CDSATOMICADD(8)
+CDSATOMICADD(16)
+CDSATOMICADD(32)
+CDSATOMICADD(64)
 
 // cds atomic fetch sub
-uint8_t cds_atomic_fetch_sub8(void* addr, uint8_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( -=, 8, addr, val, atomic_index, position);
-}
-uint16_t cds_atomic_fetch_sub16(void* addr, uint16_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( -=, 16, addr, val, atomic_index, position);
-}
-uint32_t cds_atomic_fetch_sub32(void* addr, uint32_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( -=, 32, addr, val, atomic_index, position);
-}
-uint64_t cds_atomic_fetch_sub64(void* addr, uint64_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( -=, 64, addr, val, atomic_index, position);
-}
+#define CDSATOMICSUB(size)                                              \
+	uint ## size ## _t cds_atomic_fetch_sub ## size(void* addr, uint ## size ## _t val, int atomic_index, const char * position) { \
+		_ATOMIC_RMW_( -=, size, addr, val, atomic_index, position);         \
+	}
+
+CDSATOMICSUB(8)
+CDSATOMICSUB(16)
+CDSATOMICSUB(32)
+CDSATOMICSUB(64)
 
 // cds atomic fetch and
-uint8_t cds_atomic_fetch_and8(void* addr, uint8_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( &=, 8, addr, val, atomic_index, position);
-}
-uint16_t cds_atomic_fetch_and16(void* addr, uint16_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( &=, 16, addr, val, atomic_index, position);
-}
-uint32_t cds_atomic_fetch_and32(void* addr, uint32_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( &=, 32, addr, val, atomic_index, position);
-}
-uint64_t cds_atomic_fetch_and64(void* addr, uint64_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( &=, 64, addr, val, atomic_index, position);
-}
+#define CDSATOMICAND(size)                                              \
+	uint ## size ## _t cds_atomic_fetch_and ## size(void* addr, uint ## size ## _t val, int atomic_index, const char * position) { \
+		_ATOMIC_RMW_( &=, size, addr, val, atomic_index, position);         \
+	}
+
+CDSATOMICAND(8)
+CDSATOMICAND(16)
+CDSATOMICAND(32)
+CDSATOMICAND(64)
 
 // cds atomic fetch or
-uint8_t cds_atomic_fetch_or8(void* addr, uint8_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( |=, 8, addr, val, atomic_index, position);
-}
-uint16_t cds_atomic_fetch_or16(void* addr, uint16_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( |=, 16, addr, val, atomic_index, position);
-}
-uint32_t cds_atomic_fetch_or32(void* addr, uint32_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( |=, 32, addr, val, atomic_index, position);
-}
-uint64_t cds_atomic_fetch_or64(void* addr, uint64_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( |=, 64, addr, val, atomic_index, position);
-}
+#define CDSATOMICOR(size)                                               \
+	uint ## size ## _t cds_atomic_fetch_or ## size(void* addr, uint ## size ## _t val, int atomic_index, const char * position) { \
+		_ATOMIC_RMW_( |=, size, addr, val, atomic_index, position);         \
+	}
+
+CDSATOMICOR(8)
+CDSATOMICOR(16)
+CDSATOMICOR(32)
+CDSATOMICOR(64)
 
 // cds atomic fetch xor
-uint8_t cds_atomic_fetch_xor8(void* addr, uint8_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( ^=, 8, addr, val, atomic_index, position);
-}
-uint16_t cds_atomic_fetch_xor16(void* addr, uint16_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( ^=, 16, addr, val, atomic_index, position);
-}
-uint32_t cds_atomic_fetch_xor32(void* addr, uint32_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( ^=, 32, addr, val, atomic_index, position);
-}
-uint64_t cds_atomic_fetch_xor64(void* addr, uint64_t val, int atomic_index, const char * position) {
-	_ATOMIC_RMW_( ^=, 64, addr, val, atomic_index, position);
-}
+#define CDSATOMICXOR(size)                                              \
+	uint ## size ## _t cds_atomic_fetch_xor ## size(void* addr, uint ## size ## _t val, int atomic_index, const char * position) { \
+		_ATOMIC_RMW_( ^=, size, addr, val, atomic_index, position);         \
+	}
+
+CDSATOMICXOR(8)
+CDSATOMICXOR(16)
+CDSATOMICXOR(32)
+CDSATOMICXOR(64)
 
 // cds atomic compare and exchange
 // In order to accomodate the LLVM PASS, the return values are not true or false.
@@ -263,66 +226,27 @@ uint64_t cds_atomic_fetch_xor64(void* addr, uint64_t val, int atomic_index, cons
 
 // atomic_compare_exchange version 1: the CmpOperand (corresponds to expected)
 // extracted from LLVM IR is an integer type.
+#define CDSATOMICCASV1(size)                                            \
+	uint ## size ## _t cds_atomic_compare_exchange ## size ## _v1(void* addr, uint ## size ## _t expected, uint ## size ## _t desired, int atomic_index_succ, int atomic_index_fail, const char *position) { \
+		_ATOMIC_CMPSWP_(size, addr, expected, desired, atomic_index_succ, position); \
+	}
 
-uint8_t cds_atomic_compare_exchange8_v1(void* addr, uint8_t expected, uint8_t desired,
-																				int atomic_index_succ, int atomic_index_fail, const char *position )
-{
-	_ATOMIC_CMPSWP_(8, addr, expected, desired,
-									atomic_index_succ, position);
-}
-uint16_t cds_atomic_compare_exchange16_v1(void* addr, uint16_t expected, uint16_t desired,
-																					int atomic_index_succ, int atomic_index_fail, const char *position)
-{
-	_ATOMIC_CMPSWP_(16, addr, expected, desired,
-									atomic_index_succ, position);
-}
-uint32_t cds_atomic_compare_exchange32_v1(void* addr, uint32_t expected, uint32_t desired,
-																					int atomic_index_succ, int atomic_index_fail, const char *position)
-{
-	_ATOMIC_CMPSWP_(32, addr, expected, desired,
-									atomic_index_succ, position);
-}
-uint64_t cds_atomic_compare_exchange64_v1(void* addr, uint64_t expected, uint64_t desired,
-																					int atomic_index_succ, int atomic_index_fail, const char *position)
-{
-	_ATOMIC_CMPSWP_(64, addr, expected, desired,
-									atomic_index_succ, position);
-}
+CDSATOMICCASV1(8)
+CDSATOMICCASV1(16)
+CDSATOMICCASV1(32)
+CDSATOMICCASV1(64)
 
 // atomic_compare_exchange version 2
-bool cds_atomic_compare_exchange8_v2(void* addr, uint8_t* expected, uint8_t desired,
-																		 int atomic_index_succ, int atomic_index_fail, const char *position )
-{
-	uint8_t ret = cds_atomic_compare_exchange8_v1(addr, *expected,
-																								desired, atomic_index_succ, atomic_index_fail, position);
-	if (ret == *expected) return true;
-	else return false;
-}
-bool cds_atomic_compare_exchange16_v2(void* addr, uint16_t* expected, uint16_t desired,
-																			int atomic_index_succ, int atomic_index_fail, const char *position)
-{
-	uint16_t ret = cds_atomic_compare_exchange16_v1(addr, *expected,
-																									desired, atomic_index_succ, atomic_index_fail, position);
-	if (ret == *expected) return true;
-	else return false;
-}
-bool cds_atomic_compare_exchange32_v2(void* addr, uint32_t* expected, uint32_t desired,
-																			int atomic_index_succ, int atomic_index_fail, const char *position)
-{
-	uint32_t ret = cds_atomic_compare_exchange32_v1(addr, *expected,
-																									desired, atomic_index_succ, atomic_index_fail, position);
-	if (ret == *expected) return true;
-	else return false;
-}
-bool cds_atomic_compare_exchange64_v2(void* addr, uint64_t* expected, uint64_t desired,
-																			int atomic_index_succ, int atomic_index_fail, const char *position)
-{
-	uint64_t ret = cds_atomic_compare_exchange64_v1(addr, *expected,
-																									desired, atomic_index_succ, atomic_index_fail, position);
-	if (ret == *expected) return true;
-	else return false;
-}
+#define CDSATOMICCASV2(size)                                            \
+	bool cds_atomic_compare_exchange ## size ## _v2(void* addr, uint ## size ## _t* expected, uint ## size ## _t desired, int atomic_index_succ, int atomic_index_fail, const char *position) { \
+		uint ## size ## _t ret = cds_atomic_compare_exchange ## size ## _v1(addr, *expected, desired, atomic_index_succ, atomic_index_fail, position); \
+		if (ret == *expected) {return true;} else {return false;}               \
+	}
 
+CDSATOMICCASV2(8)
+CDSATOMICCASV2(16)
+CDSATOMICCASV2(32)
+CDSATOMICCASV2(64)
 
 // cds atomic thread fence
 
