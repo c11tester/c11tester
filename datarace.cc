@@ -158,7 +158,7 @@ bool checkDataRaces()
  */
 void assert_race(struct DataRace *race)
 {
-	model->assert_bug(
+	model->assert_race(
 		"Data race detected @ address %p:\n"
 		"    Access 1: %5s in thread %2d @ clock %3u\n"
 		"    Access 2: %5s in thread %2d @ clock %3u",
@@ -169,7 +169,7 @@ void assert_race(struct DataRace *race)
 		race->isnewwrite ? "write" : "read",
 		id_to_int(race->newaction->get_tid()),
 		race->newaction->get_seq_number()
-		);
+	);
 }
 
 /** This function does race detection for a write on an expanded record. */
