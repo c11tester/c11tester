@@ -81,7 +81,7 @@ public:
 		capacitymask = initialcapacity - 1;
 
 		threshold = (unsigned int)(initialcapacity * loadfactor);
-		size = 0;							// Initial number of elements in the hash
+		size = 0;	// Initial number of elements in the hash
 	}
 
 	/** @brief Hash table destructor */
@@ -327,7 +327,7 @@ public:
 			exit(EXIT_FAILURE);
 		}
 
-		table = newtable;											// Update the global hashtable upon resize()
+		table = newtable;	// Update the global hashtable upon resize()
 		capacity = newsize;
 		capacitymask = newsize - 1;
 
@@ -353,7 +353,7 @@ public:
 			search->val = bin->val;
 		}
 
-		_free(oldtable);												// Free the memory of the old hash table
+		_free(oldtable);	// Free the memory of the old hash table
 	}
 	double getLoadFactor() {return loadfactor;}
 	unsigned int getCapacity() {return capacity;}
@@ -367,4 +367,4 @@ private:
 	double loadfactor;
 };
 
-#endif/* __HASHTABLE_H__ */
+#endif	/* __HASHTABLE_H__ */

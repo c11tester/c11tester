@@ -192,17 +192,17 @@ private:
 
 	Thread * action_select_next_thread(const ModelAction *curr) const;
 
-	/* thrd_func_list stores a list of function ids for each thread. 
+	/* thrd_func_list stores a list of function ids for each thread.
 	 * Each element in thrd_func_list stores the functions that
-	 * thread i has entered and yet to exit from 
+	 * thread i has entered and yet to exit from
 	 *
 	 * This data structure is handled by ModelHistory
 	 */
 	SnapVector< func_id_list_t * > thrd_func_list;
 
 	/* Keeps track of atomic actions that thread i has performed in some
-	 * function. Index of SnapVector is thread id. SnapList simulates 
-	 * the call stack. 
+	 * function. Index of SnapVector is thread id. SnapList simulates
+	 * the call stack.
 	 *
 	 * This data structure is handled by ModelHistory
 	 */

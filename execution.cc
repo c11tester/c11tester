@@ -63,7 +63,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
-	mo_graph(new CycleGraph()),
+			 mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer()),
 	thrd_func_list(),
 	thrd_func_inst_lists()

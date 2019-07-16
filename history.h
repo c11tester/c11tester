@@ -28,9 +28,9 @@ public:
 private:
 	uint32_t func_counter;
 
-	/* map function names to integer ids */ 
+	/* map function names to integer ids */
 	HashTable<const char *, uint32_t, uintptr_t, 4, model_malloc, model_calloc, model_free> func_map;
-	/* map integer ids to function names */ 
+	/* map integer ids to function names */
 	ModelVector<const char *> func_map_rev;
 
 	ModelVector<FuncNode *> func_atomics;

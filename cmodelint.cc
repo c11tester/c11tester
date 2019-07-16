@@ -376,8 +376,8 @@ void cds_func_entry(const char * funcName) {
 
 		// add func id to reverse func map
 		ModelVector<const char *> * func_map_rev = history->getFuncMapRev();
-	        if ( func_map_rev->size() <= func_id )
-                	func_map_rev->resize( func_id + 1 );
+		if ( func_map_rev->size() <= func_id )
+			func_map_rev->resize( func_id + 1 );
 		func_map_rev->at(func_id) = funcName;
 	} else {
 		func_id = history->getFuncMap()->get(funcName);
@@ -396,9 +396,9 @@ void cds_func_exit(const char * funcName) {
 	func_id = history->getFuncMap()->get(funcName);
 
 	/* func_id not found; this could happen in the case where a function calls cds_func_entry
-	* when the model has been defined yet, but then an atomic inside the function initializes 
-	* the model. And then cds_func_exit is called upon the function exiting. 
-	*/
+	 * when the model has been defined yet, but then an atomic inside the function initializes
+	 * the model. And then cds_func_exit is called upon the function exiting.
+	 */
 	if (func_id == 0)
 		return;
 

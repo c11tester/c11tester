@@ -63,7 +63,7 @@ namespace std _GLIBCXX_VISIBILITY(default)
 		cdsc::condition_variable *v = execution->getCondMap()->get( (pthread_cond_t *) __addr);
 
 		if (v == NULL)
-			return;		// do nothing
+			return;// do nothing
 
 		v->notify_all();
 	}

@@ -285,7 +285,7 @@ void fullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shado
 		if (clock_may_race(currClock, thread, readClock, readThread)) {
 			/* Still need this read in vector */
 			if (copytoindex != i) {
-			  ASSERT(record->thread[i] >= 0);
+				ASSERT(record->thread[i] >= 0);
 				record->readClock[copytoindex] = record->readClock[i];
 				record->thread[copytoindex] = record->thread[i];
 			}

@@ -30,7 +30,7 @@ private:
 	uint32_t func_id;
 	const char * func_name;
 
-	/* Use source line number as the key of hashtable, to check if 
+	/* Use source line number as the key of hashtable, to check if
 	 * atomic operation with this line number has been added or not
 	 *
 	 * To do: cds_atomic_compare_exchange contains three atomic operations

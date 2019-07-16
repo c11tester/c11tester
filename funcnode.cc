@@ -6,7 +6,7 @@ FuncNode::FuncNode() :
 	entry_insts()
 {}
 
-/* Check whether FuncInst with the same type, position, and location 
+/* Check whether FuncInst with the same type, position, and location
  * as act has been added to func_inst_map or not. If so, return it;
  * if not, add it and return it.
  *
@@ -38,7 +38,7 @@ FuncInst * FuncNode::get_or_add_action(ModelAction *act)
 
 			func_inst = new FuncInst(act, this);
 			inst->get_collisions()->push_back(func_inst);
-			inst_list.push_back(func_inst);		// delete?
+			inst_list.push_back(func_inst);	// delete?
 			if (func_inst->is_read())
 				group_reads_by_loc(func_inst);
 
@@ -64,7 +64,7 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 		return;
 
 	func_inst_list_mt::iterator it;
-	for (it = entry_insts.begin(); it != entry_insts.end(); it++) {
+	for (it = entry_insts.begin();it != entry_insts.end();it++) {
 		if (inst == *it)
 			return;
 	}
@@ -91,7 +91,7 @@ void FuncNode::group_reads_by_loc(FuncInst * inst)
 
 	reads = reads_by_loc.get(location);
 	func_inst_list_mt::iterator it;
-	for (it = reads->begin(); it != reads->end(); it++) {
+	for (it = reads->begin();it != reads->end();it++) {
 		if (inst == *it)
 			return;
 	}
