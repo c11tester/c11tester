@@ -45,6 +45,7 @@ struct DataRace {
 void initRaceDetector();
 void raceCheckWrite(thread_id_t thread, void *location);
 void raceCheckRead(thread_id_t thread, const void *location);
+void recordWrite(thread_id_t thread, void *location);
 bool checkDataRaces();
 void assert_race(struct DataRace *race);
 

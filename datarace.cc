@@ -270,6 +270,42 @@ Exit:
 		else model_free(race);
 	}
 }
+
+/** This function does race detection for a write on an expanded record. */
+void fullRecordWrite(thread_id_t thread, void *location, uint64_t *shadow, ClockVector *currClock) {
+	struct RaceRecord *record = (struct RaceRecord *)(*shadow);
+	record->numReads = 0;
+	record->writeThread = thread;
+	modelclock_t ourClock = currClock->getClock(thread);
+	record->writeClock = ourClock;
+}
+
+/** This function just updates metadata on atomic write. */
+void recordWrite(thread_id_t thread, void *location) {
+	uint64_t *shadow = lookupAddressEntry(location);
+	uint64_t shadowval = *shadow;
+	ClockVector *currClock = get_execution()->get_cv(thread);
+	/* Do full record */
+	if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+		fullRecordWrite(thread, location, shadow, currClock);
+		return;
+	}
+
+	int threadid = id_to_int(thread);
+	modelclock_t ourClock = currClock->getClock(thread);
+
+	/* Thread ID is too large or clock is too large. */
+	if (threadid > MAXTHREADID || ourClock > MAXWRITEVECTOR) {
+		expandRecord(shadow);
+		fullRecordWrite(thread, location, shadow, currClock);
+		return;
+	}
+
+	*shadow = ENCODEOP(0, 0, threadid, ourClock);
+}
+
+
+
 /** This function does race detection on a read for an expanded record. */
 struct DataRace * fullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
 {

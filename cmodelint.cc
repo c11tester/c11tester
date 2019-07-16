@@ -8,6 +8,7 @@
 #include "cmodelint.h"
 #include "snapshot-interface.h"
 #include "threads-model.h"
+#include "datarace.h"
 
 memory_order orders[6] = {
 	memory_order_relaxed, memory_order_consume, memory_order_acquire,
@@ -98,6 +99,10 @@ void model_rmwc_action_helper(void *obj, int atomic_index, const char *position)
 		ensureModel();                                                      \
 		model->switch_to_master(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)); \
 		*((uint ## size ## _t *)obj) = val;                                 \
+		thread_id_t tid = thread_current()->get_id();           \
+		for(int i=0;i < size / 8;i++) {                       \
+			recordWrite(tid, (void *)(((char *)obj)+i));          \
+		}                                                       \
 	}
 
 CDSATOMICINT(8)
@@ -119,12 +124,15 @@ CDSATOMICLOAD(32)
 CDSATOMICLOAD(64)
 
 // cds atomic stores
-
 #define CDSATOMICSTORE(size)                                            \
 	void cds_atomic_store ## size(void * obj, uint ## size ## _t val, int atomic_index, const char * position) { \
 		ensureModel();                                                        \
 		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)); \
-		*((uint ## size ## _t *)obj) = val;                                   \
+		*((uint ## size ## _t *)obj) = val;                     \
+		thread_id_t tid = thread_current()->get_id();           \
+		for(int i=0;i < size / 8;i++) {                       \
+			recordWrite(tid, (void *)(((char *)obj)+i));          \
+		}                                                       \
 	}
 
 CDSATOMICSTORE(8)
@@ -140,6 +148,11 @@ CDSATOMICSTORE(64)
 		uint ## size ## _t _val = val;                                            \
 		_copy __op__ _val;                                                    \
 		model_rmw_action_helper(addr, (uint64_t) _copy, atomic_index, position);        \
+		*((uint ## size ## _t *)addr) = _copy;                  \
+		thread_id_t tid = thread_current()->get_id();           \
+		for(int i=0;i < size / 8;i++) {                       \
+			recordWrite(tid, (void *)(((char *)addr)+i));         \
+		}                                                       \
 		return _old;                                                          \
 	})
 
@@ -219,7 +232,13 @@ CDSATOMICXOR(64)
 		uint ## size ## _t _expected = expected;                                                          \
 		uint ## size ## _t _old = model_rmwrcas_action_helper(addr, atomic_index, _expected, sizeof(_expected), position); \
 		if (_old == _expected) {                                                                    \
-			model_rmw_action_helper(addr, (uint64_t) _desired, atomic_index, position); return _expected; }      \
+			model_rmw_action_helper(addr, (uint64_t) _desired, atomic_index, position); \
+			*((uint ## size ## _t *)addr) = desired;                        \
+			thread_id_t tid = thread_current()->get_id();           \
+			for(int i=0;i < size / 8;i++) {                       \
+				recordWrite(tid, (void *)(((char *)addr)+i));         \
+			}                                                       \
+			return _expected; }                                     \
 		else {                                                                                        \
 			model_rmwc_action_helper(addr, atomic_index, position); _expected = _old; return _old; }              \
 	})
