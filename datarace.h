@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include "modeltypes.h"
 #include "classlist.h"
+#include "hashset.h"
 
 struct ShadowTable {
 	void * array[65536];
@@ -35,6 +36,8 @@ struct DataRace {
 
 	/* Address of data race. */
 	const void *address;
+	void * backtrace[64];
+	int numframes;
 };
 
 #define MASK16BIT 0xffff
@@ -44,7 +47,6 @@ void raceCheckWrite(thread_id_t thread, void *location);
 void raceCheckRead(thread_id_t thread, const void *location);
 bool checkDataRaces();
 void assert_race(struct DataRace *race);
-bool haveUnrealizedRaces();
 
 /**
  * @brief A record of information for detecting data races
@@ -58,19 +60,22 @@ struct RaceRecord {
 	modelclock_t writeClock;
 };
 
+unsigned int race_hash(struct DataRace *race);
+bool race_equals(struct DataRace *r1, struct DataRace *r2);
+
 #define INITCAPACITY 4
 
 #define ISSHORTRECORD(x) ((x)&0x1)
 
-#define THREADMASK 0xff
+#define THREADMASK 0x3f
 #define RDTHREADID(x) (((x)>>1)&THREADMASK)
-#define READMASK 0x07fffff
-#define READVECTOR(x) (((x)>>9)&READMASK)
+#define READMASK 0x1ffffff
+#define READVECTOR(x) (((x)>>7)&READMASK)
 
 #define WRTHREADID(x) (((x)>>32)&THREADMASK)
 
 #define WRITEMASK READMASK
-#define WRITEVECTOR(x) (((x)>>40)&WRITEMASK)
+#define WRITEVECTOR(x) (((x)>>38)&WRITEMASK)
 
 /**
  * The basic encoding idea is that (void *) either:
@@ -78,15 +83,17 @@ struct RaceRecord {
  *  -# encodes the information in a 64 bit word. Encoding is as
  *     follows:
  *     - lowest bit set to 1
- *     - next 8 bits are read thread id
- *     - next 23 bits are read clock vector
- *     - next 8 bits are write thread id
- *     - next 23 bits are write clock vector
+ *     - next 6 bits are read thread id
+ *     - next 25 bits are read clock vector
+ *     - next 6 bits are write thread id
+ *     - next 25 bits are write clock vector
  */
-#define ENCODEOP(rdthread, rdtime, wrthread, wrtime) (0x1ULL | ((rdthread)<<1) | ((rdtime) << 9) | (((uint64_t)wrthread)<<32) | (((uint64_t)wrtime)<<40))
+#define ENCODEOP(rdthread, rdtime, wrthread, wrtime) (0x1ULL | ((rdthread)<<1) | ((rdtime) << 7) | (((uint64_t)wrthread)<<32) | (((uint64_t)wrtime)<<38))
 
 #define MAXTHREADID (THREADMASK-1)
 #define MAXREADVECTOR (READMASK-1)
 #define MAXWRITEVECTOR (WRITEMASK-1)
+
+typedef HashSet<struct DataRace *, uintptr_t, 0, model_malloc, model_calloc, model_free, race_hash, race_equals> RaceSet;
 
 #endif	/* __DATARACE_H__ */
