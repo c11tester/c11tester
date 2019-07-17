@@ -55,8 +55,8 @@ void assert_race(struct DataRace *race);
 struct RaceRecord {
 	modelclock_t *readClock;
 	thread_id_t *thread;
-	int capacity;
-	int numReads;
+	int numReads : 31;
+	int isAtomic : 1;
 	thread_id_t writeThread;
 	modelclock_t writeClock;
 };
@@ -78,6 +78,9 @@ bool race_equals(struct DataRace *r1, struct DataRace *r2);
 #define WRITEMASK READMASK
 #define WRITEVECTOR(x) (((x)>>38)&WRITEMASK)
 
+#define ATOMICMASK (0x1ULL << 63)
+#define NONATOMICMASK ~(0x1ULL << 63)
+
 /**
  * The basic encoding idea is that (void *) either:
  *  -# points to a full record (RaceRecord) or
@@ -88,6 +91,7 @@ bool race_equals(struct DataRace *r1, struct DataRace *r2);
  *     - next 25 bits are read clock vector
  *     - next 6 bits are write thread id
  *     - next 25 bits are write clock vector
+ *     - highest bit is 1 if the write is from an atomic
  */
 #define ENCODEOP(rdthread, rdtime, wrthread, wrtime) (0x1ULL | ((rdthread)<<1) | ((rdtime) << 7) | (((uint64_t)wrthread)<<32) | (((uint64_t)wrtime)<<38))
 

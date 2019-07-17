@@ -93,14 +93,15 @@ static void expandRecord(uint64_t *shadow)
 	record->writeClock = writeClock;
 
 	if (readClock != 0) {
-		record->capacity = INITCAPACITY;
-		record->thread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * record->capacity);
-		record->readClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * record->capacity);
+		record->thread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * INITCAPACITY);
+		record->readClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * INITCAPACITY);
 		record->numReads = 1;
 		ASSERT(readThread >= 0);
 		record->thread[0] = readThread;
 		record->readClock[0] = readClock;
 	}
+	if (shadowval & ATOMICMASK)
+		record->isAtomic = 1;
 	*shadow = (uint64_t) record;
 }
 
@@ -201,6 +202,7 @@ struct DataRace * fullRaceCheckWrite(thread_id_t thread, void *location, uint64_
 Exit:
 	record->numReads = 0;
 	record->writeThread = thread;
+	record->isAtomic = 0;
 	modelclock_t ourClock = currClock->getClock(thread);
 	record->writeClock = ourClock;
 	return race;
@@ -278,6 +280,7 @@ void fullRecordWrite(thread_id_t thread, void *location, uint64_t *shadow, Clock
 	record->writeThread = thread;
 	modelclock_t ourClock = currClock->getClock(thread);
 	record->writeClock = ourClock;
+	record->isAtomic = 1;
 }
 
 /** This function just updates metadata on atomic write. */
@@ -301,7 +304,7 @@ void recordWrite(thread_id_t thread, void *location) {
 		return;
 	}
 
-	*shadow = ENCODEOP(0, 0, threadid, ourClock);
+	*shadow = ENCODEOP(0, 0, threadid, ourClock) | ATOMICMASK;
 }
 
 
@@ -346,23 +349,21 @@ struct DataRace * fullRaceCheckRead(thread_id_t thread, const void *location, ui
 		}
 	}
 
-	if (copytoindex >= record->capacity) {
-		if (record->capacity == 0) {
+	if (__builtin_popcount(copytoindex) <= 1) {
+		if (copytoindex == 0) {
 			int newCapacity = INITCAPACITY;
 			record->thread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * newCapacity);
 			record->readClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * newCapacity);
-			record->capacity = newCapacity;
-		} else {
-			int newCapacity = record->capacity * 2;
+		} else if (copytoindex>=INITCAPACITY) {
+			int newCapacity = copytoindex * 2;
 			thread_id_t *newthread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * newCapacity);
 			modelclock_t *newreadClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * newCapacity);
-			std::memcpy(newthread, record->thread, record->capacity * sizeof(thread_id_t));
-			std::memcpy(newreadClock, record->readClock, record->capacity * sizeof(modelclock_t));
+			std::memcpy(newthread, record->thread, copytoindex * sizeof(thread_id_t));
+			std::memcpy(newreadClock, record->readClock, copytoindex * sizeof(modelclock_t));
 			snapshot_free(record->readClock);
 			snapshot_free(record->thread);
 			record->readClock = newreadClock;
 			record->thread = newthread;
-			record->capacity = newCapacity;
 		}
 	}
 
@@ -424,7 +425,7 @@ ShadowExit:
 			}
 		}
 
-		*shadow = ENCODEOP(threadid, ourClock, id_to_int(writeThread), writeClock);
+		*shadow = ENCODEOP(threadid, ourClock, id_to_int(writeThread), writeClock) | (shadowval & ATOMICMASK);
 	}
 Exit:
 	if (race) {
