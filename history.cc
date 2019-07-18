@@ -10,7 +10,7 @@
 
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
-	func_counter(0), /* function id starts with 0 */
+	func_counter(1), /* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
 	func_atomics()
@@ -106,6 +106,7 @@ void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
 		func_atomics[func_id] = func_node;
 	}
 
+	/* add corresponding FuncInst to func_node and curr_inst_list*/
 	FuncInst * inst = func_node->get_or_add_action(act);
 	if (inst != NULL) {
 		func_inst_list_t * curr_inst_list = func_inst_lists->back();
