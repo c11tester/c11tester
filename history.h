@@ -14,12 +14,12 @@ public:
 	uint32_t get_func_counter() { return func_counter; }
 	void incr_func_counter() { func_counter++; }
 
-	void add_func_atomic(ModelAction *act, thread_id_t tid);
+	void process_action(ModelAction *act, thread_id_t tid);
 
 	HashTable<const char *, uint32_t, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncMap() { return &func_map; }
 	ModelVector<const char *> * getFuncMapRev() { return &func_map_rev; }
 
-	ModelVector<FuncNode *> * getFuncAtomics() { return &func_atomics; }
+	ModelVector<FuncNode *> * getFuncNodes() { return &func_nodes; }
 
 	void link_insts(func_inst_list_t * inst_list);
 	void print();
@@ -33,5 +33,5 @@ private:
 	/* map integer ids to function names */ 
 	ModelVector<const char *> func_map_rev;
 
-	ModelVector<FuncNode *> func_atomics;
+	ModelVector<FuncNode *> func_nodes;
 };

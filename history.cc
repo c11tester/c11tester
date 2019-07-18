@@ -13,7 +13,7 @@ ModelHistory::ModelHistory() :
 	func_counter(1), /* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
-	func_atomics()
+	func_nodes()
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -73,7 +73,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 	//model_print("thread %d exiting func %d\n", tid, func_id);
 }
 
-void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
+void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 {
 	/* return if thread i has not entered any function or has exited
 	   from all functions */
@@ -93,17 +93,17 @@ void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
 
 	uint32_t func_id = func_list->back();
 
-	if ( func_atomics.size() <= func_id )
-		func_atomics.resize( func_id + 1 );
+	if ( func_nodes.size() <= func_id )
+		func_nodes.resize( func_id + 1 );
 
-	FuncNode * func_node = func_atomics[func_id];
+	FuncNode * func_node = func_nodes[func_id];
 	if (func_node == NULL) {
 		const char * func_name = func_map_rev[func_id];
 		func_node = new FuncNode();
 		func_node->set_func_id(func_id);
 		func_node->set_func_name(func_name);
 
-		func_atomics[func_id] = func_node;
+		func_nodes[func_id] = func_node;
 	}
 
 	/* add corresponding FuncInst to func_node and curr_inst_list*/
@@ -150,8 +150,8 @@ void ModelHistory::link_insts(func_inst_list_t * inst_list)
 
 void ModelHistory::print()
 {
-	for (uint32_t i = 0; i < func_atomics.size(); i++ ) {
-		FuncNode * funcNode = func_atomics[i];
+	for (uint32_t i = 0; i < func_nodes.size(); i++ ) {
+		FuncNode * funcNode = func_nodes[i];
 		if (funcNode == NULL)
 			continue;
 

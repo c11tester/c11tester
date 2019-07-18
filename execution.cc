@@ -1569,8 +1569,8 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	curr = check_current_action(curr);
 	ASSERT(curr);
 
-	// model_print("poitner loc: %p, thread: %d, type: %d, order: %d, position: %s\n", curr, curr->get_tid(), curr->get_type(), curr->get_mo(), curr->get_position() );
-	model->get_history()->add_func_atomic( curr, curr_thrd->get_id() );
+	/* Process this action in ModelHistory for records*/
+	model->get_history()->process_action( curr, curr_thrd->get_id() );
 
 	if (curr_thrd->is_blocked() || curr_thrd->is_complete())
 		scheduler->remove_thread(curr_thrd);
