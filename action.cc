@@ -262,7 +262,7 @@ bool ModelAction::is_read() const
 
 bool ModelAction::is_write() const
 {
-	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT;
+	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT || type == NONATOMIC_WRITE;
 }
 
 bool ModelAction::could_be_write() const
@@ -594,9 +594,9 @@ void ModelAction::set_read_from(ModelAction *act)
 
 	if (act->is_uninitialized()) {	// WL
 		uint64_t val = *((uint64_t *) location);
-		ModelAction * act_initialized = (ModelAction *)act;
-		act_initialized->set_value(val);
-		reads_from = act_initialized;
+		ModelAction * act_uninitialized = (ModelAction *)act;
+		act_uninitialized->set_value(val);
+		reads_from = act_uninitialized;
 
 // disabled by WL, because LLVM IR is unable to detect atomic init
 /*		model->assert_bug("May read from uninitialized atomic:\n"
@@ -650,6 +650,7 @@ const char * ModelAction::get_type_str() const
 	case PTHREAD_JOIN: return "pthread join";
 
 	case ATOMIC_UNINIT: return "uninitialized";
+	case NONATOMIC_WRITE: return "nonatomic write";
 	case ATOMIC_READ: return "atomic read";
 	case ATOMIC_WRITE: return "atomic write";
 	case ATOMIC_RMW: return "atomic rmw";

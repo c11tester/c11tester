@@ -60,6 +60,44 @@ static uint64_t * lookupAddressEntry(const void *address)
 	return &basetable->array[((uintptr_t)address) & MASK16BIT];
 }
 
+
+bool hasNonAtomicStore(const void *address) {
+	uint64_t * shadow = lookupAddressEntry(address);
+	uint64_t shadowval = *shadow;
+	if (ISSHORTRECORD(shadowval)) {
+		//Do we have a non atomic write with a non-zero clock
+		return ((WRITEVECTOR(shadowval) != 0) && !(ATOMICMASK & shadowval));
+	} else {
+		struct RaceRecord *record = (struct RaceRecord *)shadowval;
+		return !record->isAtomic && record->writeClock != 0;
+	}
+}
+
+void setAtomicStoreFlag(const void *address) {
+	uint64_t * shadow = lookupAddressEntry(address);
+	uint64_t shadowval = *shadow;
+	if (ISSHORTRECORD(shadowval)) {
+		*shadow = shadowval | ATOMICMASK;
+	} else {
+		struct RaceRecord *record = (struct RaceRecord *)shadowval;
+		record->isAtomic = 1;
+	}
+}
+
+void getStoreThreadAndClock(const void *address, thread_id_t * thread, modelclock_t * clock) {
+	uint64_t * shadow = lookupAddressEntry(address);
+	uint64_t shadowval = *shadow;
+	if (ISSHORTRECORD(shadowval)) {
+		//Do we have a non atomic write with a non-zero clock
+		*thread = WRTHREADID(shadowval);
+		*clock = WRITEVECTOR(shadowval);
+	} else {
+		struct RaceRecord *record = (struct RaceRecord *)shadowval;
+		*thread = record->writeThread;
+		*clock = record->writeClock;
+	}
+}
+
 /**
  * Compares a current clock-vector/thread-ID pair with a clock/thread-ID pair
  * to check the potential for a data race.
@@ -150,11 +188,11 @@ static struct DataRace * reportDataRace(thread_id_t oldthread, modelclock_t oldc
  */
 void assert_race(struct DataRace *race)
 {
-	model_print("At location: \n");
+	model_print("Race detected at location: \n");
 	backtrace_symbols_fd(race->backtrace, race->numframes, model_out);
-	model_print("Data race detected @ address %p:\n"
+	model_print("\nData race detected @ address %p:\n"
 							"    Access 1: %5s in thread %2d @ clock %3u\n"
-							"    Access 2: %5s in thread %2d @ clock %3u",
+							"    Access 2: %5s in thread %2d @ clock %3u\n\n",
 							race->address,
 							race->isoldwrite ? "write" : "read",
 							id_to_int(race->oldthread),

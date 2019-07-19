@@ -118,6 +118,7 @@ private:
 	bool synchronize(const ModelAction *first, ModelAction *second);
 
 	void add_action_to_lists(ModelAction *act);
+	void add_normal_write_to_lists(ModelAction *act);
 	void add_write_to_lists(ModelAction *act);
 	ModelAction * get_last_fence_release(thread_id_t tid) const;
 	ModelAction * get_last_seq_cst_write(ModelAction *curr) const;
@@ -130,6 +131,7 @@ private:
 	void w_modification_order(ModelAction *curr);
 	ClockVector * get_hb_from_write(ModelAction *rf) const;
 	ModelAction * get_uninitialized_action(ModelAction *curr) const;
+	ModelAction * convertNonAtomicStore(void*);
 
 	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;

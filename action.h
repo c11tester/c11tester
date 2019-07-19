@@ -55,13 +55,15 @@ typedef enum action_type {
 	PTHREAD_CREATE,	// < A pthread creation action
 	PTHREAD_JOIN,	// < A pthread join action
 	ATOMIC_UNINIT,	// < Represents an uninitialized atomic
-	ATOMIC_READ,	// < An atomic read action
+	NONATOMIC_WRITE,	// < Represents a non-atomic store
+	ATOMIC_INIT,	// < Initialization of an atomic object (e.g., atomic_init())
 	ATOMIC_WRITE,	// < An atomic write action
+	ATOMIC_RMW,	// < The write part of an atomic RMW action
+	ATOMIC_READ,	// < An atomic read action
 	ATOMIC_RMWR,	// < The read part of an atomic RMW action
 	ATOMIC_RMWRCAS,	// < The read part of an atomic RMW action
-	ATOMIC_RMW,	// < The write part of an atomic RMW action
 	ATOMIC_RMWC,	// < Convert an atomic RMW action into a READ
-	ATOMIC_INIT,	// < Initialization of an atomic object (e.g., atomic_init())
+
 	ATOMIC_FENCE,	// < A fence action
 	ATOMIC_LOCK,	// < A lock action
 	ATOMIC_TRYLOCK,	// < A trylock action
