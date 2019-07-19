@@ -39,8 +39,6 @@ FuncInst * FuncNode::get_or_add_action(ModelAction *act)
 			func_inst = new FuncInst(act, this);
 			inst->get_collisions()->push_back(func_inst);
 			inst_list.push_back(func_inst);		// delete?
-			if (func_inst->is_read())
-				group_reads_by_loc(func_inst);
 
 			return func_inst;
 		}
@@ -49,11 +47,9 @@ FuncInst * FuncNode::get_or_add_action(ModelAction *act)
 	}
 
 	FuncInst * func_inst = new FuncInst(act, this);
+
 	func_inst_map.put(position, func_inst);
 	inst_list.push_back(func_inst);
-
-	if (func_inst->is_read())
-		group_reads_by_loc(func_inst);
 
 	return func_inst;
 }
@@ -72,29 +68,51 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	entry_insts.push_back(inst);
 }
 
-/* group atomic read actions by memory location */
-void FuncNode::group_reads_by_loc(FuncInst * inst)
+/* Store the values read by atomic read actions into loc_thrd_read_map */
+void FuncNode::store_read(ModelAction * act, uint32_t tid)
 {
-	ASSERT(inst);
-	if ( !inst->is_read() )
-		return;
+	ASSERT(act);
 
-	void * location = inst->get_location();
+	void * location = act->get_location();
+	uint64_t read_from_val = act->get_reads_from_value();
 
-	func_inst_list_mt * reads;
-	if ( !reads_by_loc.contains(location) ) {
-		reads = new func_inst_list_mt();
-		reads->push_back(inst);
-		reads_by_loc.put(location, reads);
-		return;
+	ModelVector<uint64_t> * read_vals = loc_thrd_read_map.get(location);
+	if (read_vals == NULL) {
+		read_vals = new ModelVector<uint64_t>();
+		loc_thrd_read_map.put(location, read_vals);
 	}
 
-	reads = reads_by_loc.get(location);
-	func_inst_list_mt::iterator it;
-	for (it = reads->begin(); it != reads->end(); it++) {
-		if (inst == *it)
-			return;
+	if (read_vals->size() <= tid) {
+		read_vals->resize(tid + 1);
+	}
+	read_vals->at(tid) = read_from_val;
+
+	/* Store keys of loc_thrd_read_map into read_locations */
+	bool push_loc = true;
+	ModelList<void *>::iterator it;
+	for (it = read_locations.begin(); it != read_locations.end(); it++) {
+		if (location == *it) {
+			push_loc = false;
+			break;
+		}
 	}
 
-	reads->push_back(inst);
+	if (push_loc)
+		read_locations.push_back(location);
+}
+
+/* @param tid thread id
+ * Print the values read by the last read actions per memory location
+ */
+void FuncNode::print_last_read(uint32_t tid)
+{
+	ModelList<void *>::iterator it;
+	for (it = read_locations.begin(); it != read_locations.end(); it++) {
+		ModelVector<uint64_t> * read_vals = loc_thrd_read_map.get(*it);
+		if (read_vals->size() <= tid)
+			break;
+
+		int64_t read_val = read_vals->at(tid);
+		model_print("last read of thread %d at %p: 0x%x\n", tid, *it, read_val);
+	}
 }

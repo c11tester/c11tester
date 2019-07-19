@@ -108,12 +108,16 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	/* add corresponding FuncInst to func_node and curr_inst_list*/
 	FuncInst * inst = func_node->get_or_add_action(act);
-	if (inst != NULL) {
-		func_inst_list_t * curr_inst_list = func_inst_lists->back();
 
-		ASSERT(curr_inst_list != NULL);
-		curr_inst_list->push_back(inst);
-	}
+	if (inst == NULL)
+		return;
+
+	if (inst->is_read())
+		func_node->store_read(act, tid);
+
+	func_inst_list_t * curr_inst_list = func_inst_lists->back();
+	ASSERT(curr_inst_list != NULL);
+	curr_inst_list->push_back(inst);
 }
 
 /* Link FuncInsts in a list - add one FuncInst to another's predecessors and successors */

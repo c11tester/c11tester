@@ -23,7 +23,8 @@ public:
 	func_inst_list_mt * get_entry_insts() { return &entry_insts; }
 	void add_entry_inst(FuncInst * inst);
 
-	void group_reads_by_loc(FuncInst * inst);
+	void store_read(ModelAction * act, uint32_t tid);
+	void print_last_read(uint32_t tid);
 
 	MEMALLOC
 private:
@@ -44,6 +45,7 @@ private:
 	/* possible entry atomic actions in this function */
 	func_inst_list_mt entry_insts;
 
-	/* group atomic read actions by memory location */
-	HashTable<void *, func_inst_list_mt *, uintptr_t, 4, model_malloc, model_calloc, model_free> reads_by_loc;
+	/* Store the values read by atomic read actions per thread for each memory location */
+	HashTable<void *, ModelVector<uint64_t> *, uintptr_t, 4, model_malloc, model_calloc, model_free> loc_thrd_read_map;
+	ModelList<void *> read_locations;
 };
