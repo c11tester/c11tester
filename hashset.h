@@ -78,7 +78,7 @@ private:
 	HashSet <_Key, _KeyInt, _Shift, _malloc, _calloc, _free, hash_function, equals> * set;
 };
 
-template<typename _Key, typename _KeyInt, int _Shift = 0, void * (* _malloc)(size_t) = snapshot_malloc, void * (* _calloc)(size_t, size_t) = snapshot_calloc, void (*_free)(void *) = snapshot_free, unsigned int (*hash_function)(_Key) = default_hash_function<_Key, _Shift, _KeyInt>, bool (*equals)(_Key, _Key) = default_equals<_Key> >
+template<typename _Key, typename _KeyInt, int _Shift = 0, void * (*_malloc)(size_t) = snapshot_malloc, void * (*_calloc)(size_t, size_t) = snapshot_calloc, void (*_free)(void *) = snapshot_free, unsigned int (*hash_function)(_Key) = default_hash_function<_Key, _Shift, _KeyInt>, bool (*equals)(_Key, _Key) = default_equals<_Key> >
 class HashSet {
 public:
 	HashSet(unsigned int initialcapacity = 16, double factor = 0.5) :

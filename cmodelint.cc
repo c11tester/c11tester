@@ -114,7 +114,7 @@ CDSATOMICINT(64)
 #define CDSATOMICLOAD(size)                                             \
 	uint ## size ## _t cds_atomic_load ## size(void * obj, int atomic_index, const char * position) { \
 		ensureModel();                                                      \
-		return (uint ## size ## _t) model->switch_to_master( \
+		return (uint ## size ## _t)model->switch_to_master( \
 			new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)); \
 	}
 

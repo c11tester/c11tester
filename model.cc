@@ -160,7 +160,7 @@ void ModelChecker::print_bugs() const
 							bugs->size(),
 							bugs->size() > 1 ? "s" : "");
 	for (unsigned int i = 0;i < bugs->size();i++)
-		(*bugs)[i]->print();
+		(*bugs)[i] -> print();
 }
 
 /**
@@ -171,15 +171,15 @@ void ModelChecker::print_bugs() const
  */
 void ModelChecker::record_stats()
 {
-	stats.num_total++;
+	stats.num_total ++;
 	if (!execution->isfeasibleprefix())
-		stats.num_infeasible++;
+		stats.num_infeasible ++;
 	else if (execution->have_bug_reports())
-		stats.num_buggy_executions++;
+		stats.num_buggy_executions ++;
 	else if (execution->is_complete_execution())
-		stats.num_complete++;
+		stats.num_complete ++;
 	else {
-		stats.num_redundant++;
+		stats.num_redundant ++;
 
 		/**
 		 * @todo We can violate this ASSERT() when fairness/sleep sets
@@ -260,15 +260,15 @@ bool ModelChecker::next_execution()
 		return true;
 	}
 // test code
-	execution_number++;
+	execution_number ++;
 	reset_to_initial_state();
 	return false;
 }
 
 /** @brief Run trace analyses on complete trace */
 void ModelChecker::run_trace_analyses() {
-	for (unsigned int i = 0;i < trace_analyses.size();i++)
-		trace_analyses[i]->analyze(execution->get_action_trace());
+	for (unsigned int i = 0;i < trace_analyses.size();i ++)
+		trace_analyses[i] -> analyze(execution->get_action_trace());
 }
 
 /**

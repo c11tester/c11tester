@@ -63,7 +63,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
-			 mo_graph(new CycleGraph()),
+	mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer()),
 	thrd_func_list(),
 	thrd_func_inst_lists()
@@ -1132,11 +1132,33 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 void insertIntoActionList(action_list_t *list, ModelAction *act) {
 	action_list_t::reverse_iterator rit = list->rbegin();
 	modelclock_t next_seq = act->get_seq_number();
-	if ((*rit)->get_seq_number() == next_seq)
+	if (rit == list->rend() || (*rit)->get_seq_number() == next_seq)
 		list->push_back(act);
 	else {
 		for(;rit != list->rend();rit++) {
 			if ((*rit)->get_seq_number() == next_seq) {
+				action_list_t::iterator it = rit.base();
+				it++;	//get to right sequence number
+				it++;	//get to item after it
+				list->insert(it, act);
+				break;
+			}
+		}
+	}
+}
+
+void insertIntoActionListAndSetCV(action_list_t *list, ModelAction *act) {
+	action_list_t::reverse_iterator rit = list->rbegin();
+	modelclock_t next_seq = act->get_seq_number();
+	if (rit == list->rend()) {
+		act->create_cv(NULL);
+	} else if ((*rit)->get_seq_number() == next_seq) {
+		act->create_cv((*rit));
+		list->push_back(act);
+	} else {
+		for(;rit != list->rend();rit++) {
+			if ((*rit)->get_seq_number() == next_seq) {
+				act->create_cv((*rit));
 				action_list_t::iterator it = rit.base();
 				it++;	//get to right sequence number
 				it++;	//get to item after it
@@ -1160,7 +1182,7 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 	int tid = id_to_int(act->get_tid());
 	action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
 	insertIntoActionList(list, act);
-	insertIntoActionList(&action_trace, act);
+	insertIntoActionListAndSetCV(&action_trace, act);
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());

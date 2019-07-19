@@ -82,12 +82,12 @@ inline void atomic_flag::clear( memory_order __x__ ) volatile
 
 #define _ATOMIC_LOAD_( __a__, __x__ )                                         \
 	({ volatile __typeof__((__a__)->__f__)* __p__ = &((__a__)->__f__);   \
-		 __typeof__((__a__)->__f__) __r__ = (__typeof__((__a__)->__f__))model_read_action((void *)__p__, __x__);  \
+		 __typeof__((__a__)->__f__)__r__ = (__typeof__((__a__)->__f__))model_read_action((void *)__p__, __x__);  \
 		 __r__; })
 
 #define _ATOMIC_STORE_( __a__, __m__, __x__ )                                 \
 	({ volatile __typeof__((__a__)->__f__)* __p__ = &((__a__)->__f__);   \
-		 __typeof__(__m__) __v__ = (__m__);                            \
+		 __typeof__(__m__)__v__ = (__m__);                            \
 		 model_write_action((void *) __p__,  __x__, (uint64_t) __v__); \
 		 __v__ = __v__;	/* Silence clang (-Wunused-value) */           \
 	 })
@@ -95,16 +95,16 @@ inline void atomic_flag::clear( memory_order __x__ ) volatile
 
 #define _ATOMIC_INIT_( __a__, __m__ )                                         \
 	({ volatile __typeof__((__a__)->__f__)* __p__ = &((__a__)->__f__);   \
-		 __typeof__(__m__) __v__ = (__m__);                            \
+		 __typeof__(__m__)__v__ = (__m__);                            \
 		 model_init_action((void *) __p__,  (uint64_t) __v__);         \
 		 __v__ = __v__;	/* Silence clang (-Wunused-value) */           \
 	 })
 
 #define _ATOMIC_MODIFY_( __a__, __o__, __m__, __x__ )                         \
 	({ volatile __typeof__((__a__)->__f__)* __p__ = &((__a__)->__f__);   \
-		 __typeof__((__a__)->__f__) __old__=(__typeof__((__a__)->__f__))model_rmwr_action((void *)__p__, __x__); \
-		 __typeof__(__m__) __v__ = (__m__);                                    \
-		 __typeof__((__a__)->__f__) __copy__= __old__;                         \
+		 __typeof__((__a__)->__f__)__old__=(__typeof__((__a__)->__f__))model_rmwr_action((void *)__p__, __x__); \
+		 __typeof__(__m__)__v__ = (__m__);                                    \
+		 __typeof__((__a__)->__f__)__copy__= __old__;                         \
 		 __copy__ __o__ __v__;                                                 \
 		 model_rmw_action((void *)__p__, __x__, (uint64_t) __copy__);          \
 		 __old__ = __old__;	/* Silence clang (-Wunused-value) */               \
@@ -115,10 +115,10 @@ inline void atomic_flag::clear( memory_order __x__ ) volatile
 
 #define _ATOMIC_CMPSWP_( __a__, __e__, __m__, __x__ )                         \
 	({ volatile __typeof__((__a__)->__f__)* __p__ = &((__a__)->__f__);   \
-		 __typeof__(__e__) __q__ = (__e__);                            \
-		 __typeof__(__m__) __v__ = (__m__);                            \
+		 __typeof__(__e__)__q__ = (__e__);                            \
+		 __typeof__(__m__)__v__ = (__m__);                            \
 		 bool __r__;                                                   \
-		 __typeof__((__a__)->__f__) __t__=(__typeof__((__a__)->__f__))model_rmwrcas_action((void *)__p__, __x__, (uint64_t) *__q__, sizeof((__a__)->__f__)); \
+		 __typeof__((__a__)->__f__)__t__=(__typeof__((__a__)->__f__))model_rmwrcas_action((void *)__p__, __x__, (uint64_t) *__q__, sizeof((__a__)->__f__)); \
 		 if (__t__ == *__q__ ) {;                                     \
 														model_rmw_action((void *)__p__, __x__, (uint64_t) __v__); __r__ = true; } \
 		 else {  model_rmwc_action((void *)__p__, __x__); *__q__ = __t__;  __r__ = false;} \
@@ -2418,8 +2418,8 @@ inline void* atomic_fetch_add_explicit
 	( volatile atomic_address* __a__, ptrdiff_t __m__, memory_order __x__ )
 {
 	volatile __typeof__((__a__)->__f__)* __p__ = &((__a__)->__f__);
-	__typeof__((__a__)->__f__) __old__=(__typeof__((__a__)->__f__))model_rmwr_action((void *)__p__, __x__);
-	__typeof__((__a__)->__f__) __copy__= __old__;
+	__typeof__((__a__)->__f__)__old__=(__typeof__((__a__)->__f__))model_rmwr_action((void *)__p__, __x__);
+	__typeof__((__a__)->__f__)__copy__= __old__;
 	__copy__ = (void *) (((char *)__copy__) + __m__);
 	model_rmw_action((void *)__p__, __x__, (uint64_t) __copy__);
 	return __old__;
@@ -2434,8 +2434,8 @@ inline void* atomic_fetch_sub_explicit
 	( volatile atomic_address* __a__, ptrdiff_t __m__, memory_order __x__ )
 {
 	volatile __typeof__((__a__)->__f__)* __p__ = &((__a__)->__f__);
-	__typeof__((__a__)->__f__) __old__=(__typeof__((__a__)->__f__))model_rmwr_action((void *)__p__, __x__);
-	__typeof__((__a__)->__f__) __copy__= __old__;
+	__typeof__((__a__)->__f__)__old__=(__typeof__((__a__)->__f__))model_rmwr_action((void *)__p__, __x__);
+	__typeof__((__a__)->__f__)__copy__= __old__;
 	__copy__ = (void *) (((char *)__copy__) - __m__);
 	model_rmw_action((void *)__p__, __x__, (uint64_t) __copy__);
 	return __old__;
