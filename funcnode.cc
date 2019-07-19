@@ -3,7 +3,8 @@
 FuncNode::FuncNode() :
 	func_inst_map(),
 	inst_list(),
-	entry_insts()
+	entry_insts(),
+	read_locations()
 {}
 
 /* Check whether FuncInst with the same type, position, and location 
@@ -68,7 +69,8 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	entry_insts.push_back(inst);
 }
 
-/* Store the values read by atomic read actions into loc_thrd_read_map */
+/* @param tid thread id
+ * Store the values read by atomic read actions into thrd_read_map */
 void FuncNode::store_read(ModelAction * act, uint32_t tid)
 {
 	ASSERT(act);
@@ -76,18 +78,18 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	void * location = act->get_location();
 	uint64_t read_from_val = act->get_reads_from_value();
 
-	ModelVector<uint64_t> * read_vals = loc_thrd_read_map.get(location);
-	if (read_vals == NULL) {
-		read_vals = new ModelVector<uint64_t>();
-		loc_thrd_read_map.put(location, read_vals);
+	if (thrd_read_map.size() <= tid)
+		thrd_read_map.resize(tid + 1);
+
+	read_map_t * read_map = thrd_read_map[tid];
+	if (read_map == NULL) {
+		read_map = new read_map_t();
+		thrd_read_map[tid] = read_map;
 	}
 
-	if (read_vals->size() <= tid) {
-		read_vals->resize(tid + 1);
-	}
-	read_vals->at(tid) = read_from_val;
+	read_map->put(location, read_from_val);
 
-	/* Store keys of loc_thrd_read_map into read_locations */
+	/* Store the memory locations where atomic reads happen */
 	bool push_loc = true;
 	ModelList<void *>::iterator it;
 	for (it = read_locations.begin(); it != read_locations.end(); it++) {
@@ -101,18 +103,46 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 		read_locations.push_back(location);
 }
 
+uint64_t FuncNode::query_last_read(ModelAction * act, uint32_t tid)
+{
+	if (thrd_read_map.size() <= tid)
+		return 0xdeadbeef;
+
+	read_map_t * read_map = thrd_read_map[tid];
+	void * location = act->get_location();
+
+	/* last read value not found */
+	if ( !read_map->contains(location) )
+		return 0xdeadbeef;
+
+	uint64_t read_val = read_map->get(location);
+	return read_val;
+}
+
+/* @param tid thread id
+ * Reset read map for a thread. This function shall only be called
+ * when a thread exits a function
+ */
+void FuncNode::clear_read_map(uint32_t tid)
+{
+	ASSERT(thrd_read_map.size() > tid);
+	thrd_read_map[tid]->reset();
+}
+
 /* @param tid thread id
  * Print the values read by the last read actions per memory location
  */
 void FuncNode::print_last_read(uint32_t tid)
 {
+	ASSERT(thrd_read_map.size() > tid);
+	read_map_t * read_map = thrd_read_map[tid];
+
 	ModelList<void *>::iterator it;
 	for (it = read_locations.begin(); it != read_locations.end(); it++) {
-		ModelVector<uint64_t> * read_vals = loc_thrd_read_map.get(*it);
-		if (read_vals->size() <= tid)
+		if ( !read_map->contains(*it) )
 			break;
 
-		int64_t read_val = read_vals->at(tid);
+		uint64_t read_val = read_map->get(*it);
 		model_print("last read of thread %d at %p: 0x%x\n", tid, *it, read_val);
 	}
 }
