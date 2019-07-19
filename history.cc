@@ -62,8 +62,12 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 	if (last_func_id == func_id) {
 		func_list->pop_back();
 
+		/* clear read map upon exiting functions */
+		FuncNode * func_node = func_nodes[func_id];
+		func_node->clear_read_map(tid);
+
 		func_inst_list_t * curr_inst_list = func_inst_lists->back();
-		link_insts(curr_inst_list);
+		func_node->link_insts(curr_inst_list);
 
 		func_inst_lists->pop_back();
 	} else {
@@ -106,7 +110,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		func_nodes[func_id] = func_node;
 	}
 
-	/* add corresponding FuncInst to func_node and curr_inst_list*/
+	/* add corresponding FuncInst to func_node */
 	FuncInst * inst = func_node->get_or_add_action(act);
 
 	if (inst == NULL)
@@ -115,53 +119,21 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (inst->is_read())
 		func_node->store_read(act, tid);
 
+	/* add to curr_inst_list */
 	func_inst_list_t * curr_inst_list = func_inst_lists->back();
 	ASSERT(curr_inst_list != NULL);
 	curr_inst_list->push_back(inst);
 }
 
-/* Link FuncInsts in a list - add one FuncInst to another's predecessors and successors */
-void ModelHistory::link_insts(func_inst_list_t * inst_list)
-{
-	if (inst_list == NULL)
-		return;
-
-	func_inst_list_t::iterator it = inst_list->begin();
-	func_inst_list_t::iterator prev;
-
-	if (inst_list->size() == 0)
-		return;
-
-	/* add the first instruction to the list of entry insts */
-	FuncInst * entry_inst = *it;
-	FuncNode * func_node = entry_inst->get_func_node();
-	func_node->add_entry_inst(entry_inst);
-
-	it++;
-	while (it != inst_list->end()) {
-		prev = it;
-		prev--;
-
-		FuncInst * prev_inst = *prev;
-		FuncInst * curr_inst = *it;
-
-		prev_inst->add_succ(curr_inst);
-		curr_inst->add_pred(prev_inst);
-
-		it++;
-	}
-}
-
 void ModelHistory::print()
 {
-	for (uint32_t i = 0; i < func_nodes.size(); i++ ) {
-		FuncNode * funcNode = func_nodes[i];
-		if (funcNode == NULL)
-			continue;
+	/* function id starts with 1 */
+	for (uint32_t i = 1; i < func_nodes.size(); i++) {
+		FuncNode * func_node = func_nodes[i];
 
-		func_inst_list_mt * entry_insts = funcNode->get_entry_insts();
+		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
+		model_print("function %s has entry actions\n", func_node->get_func_name());
 
-		model_print("function %s has entry actions\n", funcNode->get_func_name());
 		func_inst_list_mt::iterator it;
 		for (it = entry_insts->begin(); it != entry_insts->end(); it++) {
 			FuncInst *inst = *it;

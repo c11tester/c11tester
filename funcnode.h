@@ -23,6 +23,7 @@ public:
 	func_inst_list_mt * get_inst_list() { return &inst_list; }
 	func_inst_list_mt * get_entry_insts() { return &entry_insts; }
 	void add_entry_inst(FuncInst * inst);
+	void link_insts(func_inst_list_t * inst_list);
 
 	void store_read(ModelAction * act, uint32_t tid);
 	uint64_t query_last_read(ModelAction * act, uint32_t tid);

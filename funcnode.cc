@@ -4,6 +4,7 @@ FuncNode::FuncNode() :
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
+	thrd_read_map(),
 	read_locations()
 {}
 
@@ -67,6 +68,39 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	}
 
 	entry_insts.push_back(inst);
+}
+
+/* @param inst_list a list of FuncInsts; this argument comes from ModelExecution
+ * Link FuncInsts in a list - add one FuncInst to another's predecessors and successors
+ */
+void FuncNode::link_insts(func_inst_list_t * inst_list)
+{
+	if (inst_list == NULL)
+		return;
+
+	func_inst_list_t::iterator it = inst_list->begin();
+	func_inst_list_t::iterator prev;
+
+	if (inst_list->size() == 0)
+		return;
+
+	/* add the first instruction to the list of entry insts */
+	FuncInst * entry_inst = *it;
+	add_entry_inst(entry_inst);
+
+	it++;
+	while (it != inst_list->end()) {
+		prev = it;
+		prev--;
+
+		FuncInst * prev_inst = *prev;
+		FuncInst * curr_inst = *it;
+
+		prev_inst->add_succ(curr_inst);
+		curr_inst->add_pred(prev_inst);
+
+		it++;
+	}
 }
 
 /* @param tid thread id
