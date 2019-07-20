@@ -20,6 +20,7 @@ public:
 	ModelVector<const char *> * getFuncMapRev() { return &func_map_rev; }
 
 	ModelVector<FuncNode *> * getFuncNodes() { return &func_nodes; }
+	FuncNode * get_func_node(uint32_t func_id);
 
 	void print();
 

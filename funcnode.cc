@@ -164,7 +164,7 @@ void FuncNode::clear_read_map(uint32_t tid)
 }
 
 /* @param tid thread id
- * Print the values read by the last read actions per memory location
+ * Print the values read by the last read actions for each memory location
  */
 void FuncNode::print_last_read(uint32_t tid)
 {

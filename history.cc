@@ -60,8 +60,6 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 	uint32_t last_func_id = func_list->back();
 
 	if (last_func_id == func_id) {
-		func_list->pop_back();
-
 		/* clear read map upon exiting functions */
 		FuncNode * func_node = func_nodes[func_id];
 		func_node->clear_read_map(tid);
@@ -69,6 +67,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 		func_inst_list_t * curr_inst_list = func_inst_lists->back();
 		func_node->link_insts(curr_inst_list);
 
+		func_list->pop_back();
 		func_inst_lists->pop_back();
 	} else {
 		model_print("trying to exit with a wrong function id\n");
@@ -123,6 +122,15 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	func_inst_list_t * curr_inst_list = func_inst_lists->back();
 	ASSERT(curr_inst_list != NULL);
 	curr_inst_list->push_back(inst);
+}
+
+/* return the FuncNode given its func_id  */
+FuncNode * ModelHistory::get_func_node(uint32_t func_id)
+{
+	if (func_nodes.size() <= func_id)	// this node has not been added
+		return NULL;
+
+	return func_nodes[func_id];
 }
 
 void ModelHistory::print()
