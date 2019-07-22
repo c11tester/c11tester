@@ -10,9 +10,10 @@
 #include "threads-model.h"
 #include "datarace.h"
 
-memory_order orders[6] = {
+memory_order orders[8] = {
 	memory_order_relaxed, memory_order_consume, memory_order_acquire,
-	memory_order_release, memory_order_acq_rel, memory_order_seq_cst
+	memory_order_release, memory_order_acq_rel, memory_order_seq_cst,
+	volatile_order
 };
 
 static void ensureModel() {
@@ -91,6 +92,47 @@ void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index, const ch
 void model_rmwc_action_helper(void *obj, int atomic_index, const char *position) {
 	ensureModel();
 	model->switch_to_master(new ModelAction(ATOMIC_RMWC, position, orders[atomic_index], obj));
+}
+
+// cds volatile loads
+uint8_t cds_volatile_load8(void * obj, int atomic_index, const char * position) {
+	ensureModel();
+	return (uint8_t) model->switch_to_master(
+		new ModelAction(VOLATILE_READ, position, orders[atomic_index], obj));
+}
+uint16_t cds_volatile_load16(void * obj, int atomic_index, const char * position) {
+	ensureModel();
+	return (uint16_t) model->switch_to_master(
+		new ModelAction(VOLATILE_READ, position, orders[atomic_index], obj));
+}
+uint32_t cds_volatile_load32(void * obj, int atomic_index, const char * position) {
+	ensureModel();
+	return (uint32_t) model->switch_to_master(
+		new ModelAction(VOLATILE_READ, position, orders[atomic_index], obj)
+		);
+}
+uint64_t cds_volatile_load64(void * obj, int atomic_index, const char * position) {
+	ensureModel();
+	return model->switch_to_master(
+		new ModelAction(VOLATILE_READ, position, orders[atomic_index], obj));
+}
+
+// cds volatile stores
+void cds_volatile_store8(void * obj, uint8_t val, int atomic_index, const char * position) {
+	ensureModel();
+	model->switch_to_master(new ModelAction(VOLATILE_WRITE, position, orders[atomic_index], obj, (uint64_t) val));
+}
+void cds_volatile_store16(void * obj, uint16_t val, int atomic_index, const char * position) {
+	ensureModel();
+	model->switch_to_master(new ModelAction(VOLATILE_WRITE, position, orders[atomic_index], obj, (uint64_t) val));
+}
+void cds_volatile_store32(void * obj, uint32_t val, int atomic_index, const char * position) {
+	ensureModel();
+	model->switch_to_master(new ModelAction(VOLATILE_WRITE, position, orders[atomic_index], obj, (uint64_t) val));
+}
+void cds_volatile_store64(void * obj, uint64_t val, int atomic_index, const char * position) {
+	ensureModel();
+	model->switch_to_master(new ModelAction(VOLATILE_WRITE, position, orders[atomic_index], obj, (uint64_t) val));
 }
 
 // cds atomic inits

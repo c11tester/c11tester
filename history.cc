@@ -10,10 +10,10 @@
 
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
-	func_counter(0),	/* function id starts with 0 */
+	func_counter(1), /* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
-	func_atomics()
+	func_nodes()
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -60,11 +60,14 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 	uint32_t last_func_id = func_list->back();
 
 	if (last_func_id == func_id) {
-		func_list->pop_back();
+		/* clear read map upon exiting functions */
+		FuncNode * func_node = func_nodes[func_id];
+		func_node->clear_read_map(tid);
 
 		func_inst_list_t * curr_inst_list = func_inst_lists->back();
-		link_insts(curr_inst_list);
+		func_node->link_insts(curr_inst_list);
 
+		func_list->pop_back();
 		func_inst_lists->pop_back();
 	} else {
 		model_print("trying to exit with a wrong function id\n");
@@ -73,7 +76,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 	//model_print("thread %d exiting func %d\n", tid, func_id);
 }
 
-void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
+void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 {
 	/* return if thread i has not entered any function or has exited
 	   from all functions */
@@ -93,70 +96,52 @@ void ModelHistory::add_func_atomic(ModelAction *act, thread_id_t tid)
 
 	uint32_t func_id = func_list->back();
 
-	if ( func_atomics.size() <= func_id )
-		func_atomics.resize( func_id + 1 );
+	if ( func_nodes.size() <= func_id )
+		func_nodes.resize( func_id + 1 );
 
-	FuncNode * func_node = func_atomics[func_id];
+	FuncNode * func_node = func_nodes[func_id];
 	if (func_node == NULL) {
 		const char * func_name = func_map_rev[func_id];
 		func_node = new FuncNode();
 		func_node->set_func_id(func_id);
 		func_node->set_func_name(func_name);
 
-		func_atomics[func_id] = func_node;
+		func_nodes[func_id] = func_node;
 	}
 
+	/* add corresponding FuncInst to func_node */
 	FuncInst * inst = func_node->get_or_add_action(act);
-	if (inst != NULL) {
-		func_inst_list_t * curr_inst_list = func_inst_lists->back();
 
-		ASSERT(curr_inst_list != NULL);
-		curr_inst_list->push_back(inst);
-	}
+	if (inst == NULL)
+		return;
+
+	if (inst->is_read())
+		func_node->store_read(act, tid);
+
+	/* add to curr_inst_list */
+	func_inst_list_t * curr_inst_list = func_inst_lists->back();
+	ASSERT(curr_inst_list != NULL);
+	curr_inst_list->push_back(inst);
 }
 
-/* Link FuncInsts in a list - add one FuncInst to another's predecessors and successors */
-void ModelHistory::link_insts(func_inst_list_t * inst_list)
+/* return the FuncNode given its func_id  */
+FuncNode * ModelHistory::get_func_node(uint32_t func_id)
 {
-	if (inst_list == NULL)
-		return;
+	if (func_nodes.size() <= func_id)	// this node has not been added
+		return NULL;
 
-	func_inst_list_t::iterator it = inst_list->begin();
-	func_inst_list_t::iterator prev;
-
-	if (inst_list->size() == 0)
-		return;
-
-	/* add the first instruction to the list of entry insts */
-	FuncInst * entry_inst = *it;
-	FuncNode * func_node = entry_inst->get_func_node();
-	func_node->add_entry_inst(entry_inst);
-
-	it++;
-	while (it != inst_list->end()) {
-		prev = it;
-		prev--;
-
-		FuncInst * prev_inst = *prev;
-		FuncInst * curr_inst = *it;
-
-		prev_inst->add_succ(curr_inst);
-		curr_inst->add_pred(prev_inst);
-
-		it++;
-	}
+	return func_nodes[func_id];
 }
 
 void ModelHistory::print()
 {
-	for (uint32_t i = 0;i < func_atomics.size();i++ ) {
-		FuncNode * funcNode = func_atomics[i];
-		if (funcNode == NULL)
-			continue;
+	/* function id starts with 1 */
+	for (uint32_t i = 1; i < func_nodes.size(); i++) {
+		FuncNode * func_node = func_nodes[i];
 
-		func_inst_list_mt * entry_insts = funcNode->get_entry_insts();
+		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
+		model_print("function %s has entry actions\n", func_node->get_func_name());
 
-		model_print("function %s has entry actions\n", funcNode->get_func_name());
 		func_inst_list_mt::iterator it;
 		for (it = entry_insts->begin();it != entry_insts->end();it++) {
 			FuncInst *inst = *it;

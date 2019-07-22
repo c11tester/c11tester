@@ -44,7 +44,6 @@ int pthread_attr_setscope(pthread_attr_t *, int);
 int pthread_attr_setstackaddr(pthread_attr_t *, void *);
 int pthread_attr_setstacksize(pthread_attr_t *, size_t);
 int pthread_cancel(pthread_t);
-int pthread_cond_broadcast(pthread_cond_t *);
 int pthread_cond_destroy(pthread_cond_t *);
 int pthread_condattr_destroy(pthread_condattr_t *);
 int pthread_condattr_getpshared(const pthread_condattr_t *, int *);

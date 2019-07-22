@@ -68,7 +68,11 @@ public:
 	bool check_action_enabled(ModelAction *curr);
 
 	bool assert_bug(const char *msg);
+	bool assert_race(const char *msg);
+
 	bool have_bug_reports() const;
+	bool have_fatal_bug_reports() const;
+
 	SnapVector<bug_message *> * get_bugs() const;
 
 	bool has_asserted() const;

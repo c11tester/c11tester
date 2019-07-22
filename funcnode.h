@@ -5,6 +5,7 @@
 class ModelAction;
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
+typedef HashTable<void *, uint64_t, uintptr_t, 4, model_malloc, model_calloc, model_free> read_map_t;
 
 class FuncNode {
 public:
@@ -22,8 +23,13 @@ public:
 	func_inst_list_mt * get_inst_list() { return &inst_list; }
 	func_inst_list_mt * get_entry_insts() { return &entry_insts; }
 	void add_entry_inst(FuncInst * inst);
+	void link_insts(func_inst_list_t * inst_list);
 
-	void group_reads_by_loc(FuncInst * inst);
+	void store_read(ModelAction * act, uint32_t tid);
+	uint64_t query_last_read(ModelAction * act, uint32_t tid);
+	void clear_read_map(uint32_t tid);
+
+	void print_last_read(uint32_t tid);
 
 	MEMALLOC
 private:
@@ -32,9 +38,6 @@ private:
 
 	/* Use source line number as the key of hashtable, to check if
 	 * atomic operation with this line number has been added or not
-	 *
-	 * To do: cds_atomic_compare_exchange contains three atomic operations
-	 * that are feeded with the same source line number by llvm pass
 	 */
 	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> func_inst_map;
 
@@ -44,6 +47,7 @@ private:
 	/* possible entry atomic actions in this function */
 	func_inst_list_mt entry_insts;
 
-	/* group atomic read actions by memory location */
-	HashTable<void *, func_inst_list_mt *, uintptr_t, 4, model_malloc, model_calloc, model_free> reads_by_loc;
+	/* Store the values read by atomic read actions per memory location for each thread */
+	ModelVector<read_map_t *> thrd_read_map;
+	ModelList<void *> read_locations;
 };

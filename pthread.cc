@@ -202,3 +202,15 @@ int pthread_cond_signal(pthread_cond_t *p_cond) {
 	v->notify_one();
 	return 0;
 }
+
+int pthread_cond_broadcast(pthread_cond_t *p_cond) {
+	// notify all blocked threads
+	ModelExecution *execution = model->get_execution();
+	if ( !execution->getCondMap()->contains(p_cond) )
+		pthread_cond_init(p_cond, NULL);
+
+	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
+
+	v->notify_all();
+	return 0;
+}

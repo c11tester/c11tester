@@ -25,6 +25,7 @@ using std::memory_order_acquire;
 using std::memory_order_release;
 using std::memory_order_acq_rel;
 using std::memory_order_seq_cst;
+using std::volatile_order;
 
 /**
  * @brief A recognizable don't-care value for use in the ModelAction::value
@@ -72,6 +73,8 @@ typedef enum action_type {
 	ATOMIC_NOTIFY_ALL,	// < A notify all action
 	ATOMIC_WAIT,	// < A wait action
 	ATOMIC_ANNOTATION,	// < An annotation action to pass information to a trace analysis
+	VOLATILE_READ,
+	VOLATILE_WRITE,
 	NOOP	// no operation, which returns control to scheduler
 } action_type_t;
 

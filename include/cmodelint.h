@@ -31,6 +31,17 @@ void model_rmwc_action_helper(void *obj, int atomic_index, const char *position)
 // void model_fence_action_helper(int atomic_index);
 
 /* the following functions are used by llvm pass */
+// cds volatile loads
+uint8_t cds_volatile_load8(void * obj, int atomic_index, const char * position);
+uint16_t cds_volatile_load16(void * obj, int atomic_index, const char * position);
+uint32_t cds_volatile_load32(void * obj, int atomic_index, const char * position);
+uint64_t cds_volatile_load64(void * obj, int atomic_index, const char * position);
+
+// cds volatile stores
+void cds_volatile_store8(void * obj, uint8_t val, int atomic_index, const char * position);
+void cds_volatile_store16(void * obj, uint16_t val, int atomic_index, const char * position);
+void cds_volatile_store32(void * obj, uint32_t val, int atomic_index, const char * position);
+void cds_volatile_store64(void * obj, uint64_t val, int atomic_index, const char * position);
 
 void cds_atomic_init8(void * obj, uint8_t val, const char * position);
 void cds_atomic_init16(void * obj, uint16_t val, const char * position);
