@@ -266,7 +266,6 @@ bool ModelChecker::next_execution()
 		if (execution->is_deadlocked())
 			assert_bug("Deadlock detected");
 
-		checkDataRaces();
 		run_trace_analyses();
 	}
 
