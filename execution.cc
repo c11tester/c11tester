@@ -260,6 +260,7 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
 	getStoreThreadAndClock(location, &storethread, &storeclock);
 	setAtomicStoreFlag(location);
 	ModelAction * act = new ModelAction(NONATOMIC_WRITE, memory_order_relaxed, location, value, get_thread(storethread));
+	act->set_seq_number(storeclock);
 	add_normal_write_to_lists(act);
 	add_write_to_lists(act);
 	w_modification_order(act);
@@ -276,13 +277,13 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
 void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
 {
 	SnapVector<const ModelAction *> * priorset = new SnapVector<const ModelAction *>();
-	while(true) {
-		bool hasnonatomicstore = hasNonAtomicStore(curr->get_location());
-		if (hasnonatomicstore) {
-			ModelAction * nonatomicstore = convertNonAtomicStore(curr->get_location());
-			rf_set->push_back(nonatomicstore);
-		}
+	bool hasnonatomicstore = hasNonAtomicStore(curr->get_location());
+	if (hasnonatomicstore) {
+	  ModelAction * nonatomicstore = convertNonAtomicStore(curr->get_location());
+	  rf_set->push_back(nonatomicstore);
+	}
 
+	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
 		ModelAction *rf = (*rf_set)[index];
 
@@ -1138,8 +1139,6 @@ void insertIntoActionList(action_list_t *list, ModelAction *act) {
 		for(;rit != list->rend();rit++) {
 			if ((*rit)->get_seq_number() == next_seq) {
 				action_list_t::iterator it = rit.base();
-				it++;	//get to right sequence number
-				it++;	//get to item after it
 				list->insert(it, act);
 				break;
 			}
@@ -1160,8 +1159,6 @@ void insertIntoActionListAndSetCV(action_list_t *list, ModelAction *act) {
 			if ((*rit)->get_seq_number() == next_seq) {
 				act->create_cv((*rit));
 				action_list_t::iterator it = rit.base();
-				it++;	//get to right sequence number
-				it++;	//get to item after it
 				list->insert(it, act);
 				break;
 			}
@@ -1180,9 +1177,10 @@ void insertIntoActionListAndSetCV(action_list_t *list, ModelAction *act) {
 void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 {
 	int tid = id_to_int(act->get_tid());
+	insertIntoActionListAndSetCV(&action_trace, act);
+	
 	action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
 	insertIntoActionList(list, act);
-	insertIntoActionListAndSetCV(&action_trace, act);
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
