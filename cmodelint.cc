@@ -95,10 +95,10 @@ void model_rmwc_action_helper(void *obj, int atomic_index, const char *position)
 
 // cds volatile loads
 #define VOLATILELOAD(size) \
-  uint ## size ## _t cds_volatile_load ## size(void * obj, const char * position) { \
-    ensureModel();							\
-    return (uint ## size ## _t) model->switch_to_master(new ModelAction(ATOMIC_READ, position, memory_order_relaxed, obj)); \
-  }
+	uint ## size ## _t cds_volatile_load ## size(void * obj, const char * position) { \
+		ensureModel();                                                      \
+		return (uint ## size ## _t)model->switch_to_master(new ModelAction(ATOMIC_READ, position, memory_order_relaxed, obj)); \
+	}
 
 VOLATILELOAD(8)
 VOLATILELOAD(16)
@@ -107,10 +107,10 @@ VOLATILELOAD(64)
 
 // cds volatile stores
 #define VOLATILESTORE(size) \
-  void cds_volatile_store ## size (void * obj, uint ## size ## _t val, const char * position) {	\
-    ensureModel();							\
-    model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, memory_order_relaxed, obj, (uint64_t) val)); \
-}
+	void cds_volatile_store ## size (void * obj, uint ## size ## _t val, const char * position) { \
+		ensureModel();                                                      \
+		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, memory_order_relaxed, obj, (uint64_t) val)); \
+	}
 
 VOLATILESTORE(8)
 VOLATILESTORE(16)

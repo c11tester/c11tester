@@ -40,7 +40,7 @@ FuncInst * FuncNode::get_or_add_action(ModelAction *act)
 
 			func_inst = new FuncInst(act, this);
 			inst->get_collisions()->push_back(func_inst);
-			inst_list.push_back(func_inst);		// delete?
+			inst_list.push_back(func_inst);	// delete?
 
 			return func_inst;
 		}
@@ -126,7 +126,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	/* Store the memory locations where atomic reads happen */
 	bool push_loc = true;
 	ModelList<void *>::iterator it;
-	for (it = read_locations.begin(); it != read_locations.end(); it++) {
+	for (it = read_locations.begin();it != read_locations.end();it++) {
 		if (location == *it) {
 			push_loc = false;
 			break;
@@ -172,7 +172,7 @@ void FuncNode::print_last_read(uint32_t tid)
 	read_map_t * read_map = thrd_read_map[tid];
 
 	ModelList<void *>::iterator it;
-	for (it = read_locations.begin(); it != read_locations.end(); it++) {
+	for (it = read_locations.begin();it != read_locations.end();it++) {
 		if ( !read_map->contains(*it) )
 			break;
 

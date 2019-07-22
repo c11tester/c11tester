@@ -10,7 +10,7 @@
 
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
-	func_counter(1), /* function id starts with 1 */
+	func_counter(1),	/* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
 	func_nodes()
@@ -136,7 +136,7 @@ FuncNode * ModelHistory::get_func_node(uint32_t func_id)
 void ModelHistory::print()
 {
 	/* function id starts with 1 */
-	for (uint32_t i = 1; i < func_nodes.size(); i++) {
+	for (uint32_t i = 1;i < func_nodes.size();i++) {
 		FuncNode * func_node = func_nodes[i];
 
 		func_inst_list_mt * entry_insts = func_node->get_entry_insts();

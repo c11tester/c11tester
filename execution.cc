@@ -27,7 +27,6 @@ struct model_snapshot_members {
 		next_thread_id(INITIAL_THREAD_ID),
 		used_sequence_numbers(0),
 		bugs(),
-		dataraces(),
 		bad_synchronization(false),
 		asserted(false)
 	{ }
@@ -35,16 +34,12 @@ struct model_snapshot_members {
 	~model_snapshot_members() {
 		for (unsigned int i = 0;i < bugs.size();i++)
 			delete bugs[i];
-		for (unsigned int i = 0;i < dataraces.size(); i++) 
-			delete dataraces[i];
 		bugs.clear();
-		dataraces.clear();
 	}
 
 	unsigned int next_thread_id;
 	modelclock_t used_sequence_numbers;
 	SnapVector<bug_message *> bugs;
-	SnapVector<bug_message *> dataraces;
 	/** @brief Incorrectly-ordered synchronization was made */
 	bool bad_synchronization;
 	bool asserted;
@@ -190,22 +185,6 @@ bool ModelExecution::assert_bug(const char *msg)
 	return false;
 }
 
-/* @brief Put data races in a different list from other bugs. The purpose
- *  is to continue the program untill the number of data races exceeds a 
- *  threshold */
-
-/* TODO: check whether set_assert should be called */
-bool ModelExecution::assert_race(const char *msg)
-{
-	priv->dataraces.push_back(new bug_message(msg));
-
-	if (isfeasibleprefix()) {
-		set_assert();
-		return true;
-	}
-	return false;
-}
-
 /** @return True, if any bugs have been reported for this execution */
 bool ModelExecution::have_bug_reports() const
 {
@@ -213,13 +192,13 @@ bool ModelExecution::have_bug_reports() const
 }
 
 /** @return True, if any fatal bugs have been reported for this execution.
- *  Any bug other than a data race is considered a fatal bug. Data races 
+ *  Any bug other than a data race is considered a fatal bug. Data races
  *  are not considered fatal unless the number of races is exceeds
- *  a threshold (temporarily set as 15). 
+ *  a threshold (temporarily set as 15).
  */
 bool ModelExecution::have_fatal_bug_reports() const
 {
-	return priv->bugs.size() != 0 || priv->dataraces.size() >= 15;
+	return priv->bugs.size() != 0;
 }
 
 SnapVector<bug_message *> * ModelExecution::get_bugs() const
@@ -310,8 +289,8 @@ void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 	SnapVector<const ModelAction *> * priorset = new SnapVector<const ModelAction *>();
 	bool hasnonatomicstore = hasNonAtomicStore(curr->get_location());
 	if (hasnonatomicstore) {
-	  ModelAction * nonatomicstore = convertNonAtomicStore(curr->get_location());
-	  rf_set->push_back(nonatomicstore);
+		ModelAction * nonatomicstore = convertNonAtomicStore(curr->get_location());
+		rf_set->push_back(nonatomicstore);
 	}
 
 	while(true) {
@@ -1209,7 +1188,7 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 {
 	int tid = id_to_int(act->get_tid());
 	insertIntoActionListAndSetCV(&action_trace, act);
-	
+
 	action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
 	insertIntoActionList(list, act);
 

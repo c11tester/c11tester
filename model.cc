@@ -140,28 +140,6 @@ bool ModelChecker::assert_bug(const char *msg, ...)
 }
 
 /**
- * @brief Assert a data race in the executing program.
- *
- * Different from assert_bug, the program will not be aborted immediately
- * upon calling this function, unless the number of data races exceeds
- * a threshold.
- *
- * @param msg Descriptive message for the bug (do not include newline char)
- * @return True if bug is immediately-feasible
- */
-bool ModelChecker::assert_race(const char *msg, ...)
-{
-	char str[800];
-
-	va_list ap;
-	va_start(ap, msg);
-	vsnprintf(str, sizeof(str), msg, ap);
-	va_end(ap);
-
-	return execution->assert_race(str);
-}
-
-/**
  * @brief Assert a bug in the executing program, asserted by a user thread
  * @see ModelChecker::assert_bug
  * @param msg Descriptive message for the bug (do not include newline char)

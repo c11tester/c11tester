@@ -59,7 +59,6 @@ public:
 	uint64_t switch_to_master(ModelAction *act);
 
 	bool assert_bug(const char *msg, ...);
-	bool assert_race(const char *msg, ...);
 
 	void assert_user_bug(const char *msg);
 
