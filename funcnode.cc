@@ -159,7 +159,9 @@ uint64_t FuncNode::query_last_read(ModelAction * act, uint32_t tid)
  */
 void FuncNode::clear_read_map(uint32_t tid)
 {
-	ASSERT(thrd_read_map.size() > tid);
+	if (thrd_read_map.size() <= tid)
+		return;
+
 	thrd_read_map[tid]->reset();
 }
 

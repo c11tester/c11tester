@@ -14,6 +14,7 @@ public:
 	uint32_t get_func_counter() { return func_counter; }
 	void incr_func_counter() { func_counter++; }
 
+	void resize_func_nodes(uint32_t max_func_id);
 	void process_action(ModelAction *act, thread_id_t tid);
 
 	HashTable<const char *, uint32_t, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncMap() { return &func_map; }

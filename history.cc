@@ -76,6 +76,22 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 	//model_print("thread %d exiting func %d\n", tid, func_id);
 }
 
+void ModelHistory::resize_func_nodes(uint32_t new_size)
+{
+	uint32_t old_size = func_nodes.size();
+
+	if ( old_size < new_size )
+		func_nodes.resize(new_size);
+
+	for (uint32_t id = old_size; id < new_size; id++) {
+		const char * func_name = func_map_rev[id];
+		FuncNode * func_node = new FuncNode();
+		func_node->set_func_id(id);
+		func_node->set_func_name(func_name);
+		func_nodes[id] = func_node;
+	}
+}
+
 void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 {
 	/* return if thread i has not entered any function or has exited
@@ -97,17 +113,10 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	uint32_t func_id = func_list->back();
 
 	if ( func_nodes.size() <= func_id )
-		func_nodes.resize( func_id + 1 );
+		resize_func_nodes( func_id + 1 );
 
 	FuncNode * func_node = func_nodes[func_id];
-	if (func_node == NULL) {
-		const char * func_name = func_map_rev[func_id];
-		func_node = new FuncNode();
-		func_node->set_func_id(func_id);
-		func_node->set_func_name(func_name);
-
-		func_nodes[func_id] = func_node;
-	}
+	ASSERT (func_node != NULL);
 
 	/* add corresponding FuncInst to func_node */
 	FuncInst * inst = func_node->get_or_add_action(act);
