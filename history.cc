@@ -44,6 +44,9 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 
 	func_list->push_back(func_id);
 	func_inst_lists->push_back( new func_inst_list_t() );
+
+	if ( func_nodes.size() <= func_id )
+		resize_func_nodes( func_id + 1 );
 }
 
 /* @param func_id a non-zero value */
