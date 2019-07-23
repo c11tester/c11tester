@@ -1,61 +1,34 @@
-CDSChecker: A Model Checker for C11 and C++11 Atomics
+C11Tester: A Fuzzer for C11 and C++11 Atomics
 =====================================================
 
-CDSChecker is a model checker for C11/C++11 which exhaustively explores the
-behaviors of code under the C/C++ memory model. It uses partial order reduction
-as well as a few other novel techniques to eliminate time spent on redundant
-execution behaviors and to significantly shrink the state space. The model
-checking algorithm is described in more detail in this paper (published in
-OOPSLA '13):
+C11Tester is a fuzzer for C11/C++11 which randomly explores the
+behaviors of code under the C/C++ memory model.
 
->   <http://demsky.eecs.uci.edu/publications/c11modelcheck.pdf>
-
-It is designed to support unit tests on concurrent data structure written using
-C/C++ atomics.
-
-CDSChecker is constructed as a dynamically-linked shared library which
+C11Tester is constructed as a dynamically-linked shared library which
 implements the C and C++ atomic types and portions of the other thread-support
-libraries of C/C++ (e.g., std::atomic, std::mutex, etc.). Notably, we only
-support the C version of threads (i.e., `thrd_t` and similar, from `<threads.h>`),
-because C++ threads require features which are only available to a C++11
-compiler (and we want to support others, at least for now).
+libraries of C/C++ (e.g., std::atomic, std::mutex, etc.).
 
-CDSChecker should compile on Linux and Mac OSX with no dependencies and has been
-tested with LLVM (clang/clang++) and GCC. It likely can be ported to other \*NIX
-flavors. We have not attempted to port to Windows.
+C11Tester should compile on Linux OSX.  Instrumenting programs
+requires using our LLVM pass.  It likely can be ported to other \*NIX
+flavors.
 
 
 Getting Started
 ---------------
 
-If you haven't done so already, you may download CDSChecker using
-[git](http://git-scm.com/):
+If you haven't done so already, you may download C11Tester using git:
 
-      git clone git://demsky.eecs.uci.edu/model-checker.git
+      git clone git://demsky.eecs.uci.edu/c11fuzzer.git
 
-Source code can also be downloaded via the snapshot links on Gitweb (found in
-the __See Also__ section).
+Get the benchmarks (not required; distributed separately):
 
-Get the benchmarks (not required; distributed separately), placing them as a
-subdirectory under the `model-checker` directory:
+      git clone git://demsky.eecs.uci.edu/concurrency-benchmarks.git
 
-      cd model-checker
-      git clone git://demsky.eecs.uci.edu/model-checker-benchmarks.git benchmarks
-
-Compile the model checker:
+Compile the fuzzer:
 
       make
 
-Compile the benchmarks:
-
-      make benchmarks
-
-Run a simple example (the `run.sh` script does some very minimal processing for
-you):
-
-      ./run.sh test/userprog.o
-
-To see the help message on how to run CDSChecker, execute:
+To see the help message on how to run C11Tester, execute:
 
       ./run.sh -h
 
@@ -63,35 +36,9 @@ To see the help message on how to run CDSChecker, execute:
 Useful Options
 --------------
 
-`-m num`
-
-  > Controls the liveness of the memory system. Note that multithreaded programs
-  > often rely on memory liveness for termination, so this parameter is
-  > necessary for such programs.
-  >
-  > Liveness is controlled by `num`: the number of times a load is allowed to
-  > see the same store when a newer store exists---one that is ordered later in
-  > the modification order.
-
-`-y`
-
-  > Turns on CHESS-like yield-based fairness support (requires `thrd_yield()`
-  > instrumentation in test program).
-
-`-f num`
-
-  > Turns on alternative fairness support (less desirable than `-y`). A
-  > necessary alternative for some programs that do not support yield-based
-  > fairness properly.
-
 `-v`
 
   > Verbose: show all executions and not just buggy ones.
-
-`-s num`
-
-  > Constrain how long we will run to wait for a future value past when it is
-  > expected
 
 `-u num`
 
@@ -99,21 +46,12 @@ Useful Options
   > default is 0, but this may cause some programs to throw exceptions
   > (segfault) before the model checker prints a trace.
 
-Suggested options:
-
->     -m 2 -y
-
-or
-
->     -m 2 -f 10
-
-
 Benchmarks
 -------------------
 
 Many simple tests are located in the `tests/` directory. You may also want to
 try the larger benchmarks (distributed separately), which can be placed under
-the `benchmarks/` directory. After building CDSChecker, you can build and run
+the `benchmarks/` directory. After building C11Tester, you can build and run
 the benchmarks as follows:
 
 >     make benchmarks
@@ -135,17 +73,17 @@ Running your own code
 You likely want to test your own code, not just our simple tests. To do so, you
 need to perform a few steps.
 
-First, because CDSChecker executes your program dozens (if not hundreds or
+First, because C11Tester executes your program dozens (if not hundreds or
 thousands) of times, you will have the most success if your code is written as a
 unit test and not as a full-blown program.
 
-Second, because CDSChecker must be able to manage your program for you, your
+Second, because C11Tester must be able to manage your program for you, your
 program should declare its main entry point as `user_main(int, char**)` rather
 than `main(int, char**)`.
 
 Third, test programs must use the standard C11/C++11 library headers (see below
 for supported APIs) and must compile against the versions provided in
-CDSChecker's `include/` directory. Notably, we only support C11 thread syntax
+C11Tester's `include/` directory. Notably, we only support C11 thread syntax
 (`thrd_t`, etc. from `<thread.h>`).
 
 Test programs may also use our included happens-before race detector by
@@ -153,9 +91,9 @@ including <librace.h> and utilizing the appropriate functions
 (`store_{8,16,32,64}()` and `load_{8,16,32,64}()`) for storing/loading data
 to/from non-atomic shared memory.
 
-CDSChecker can also check boolean assertions in your test programs. Just
+C11Tester can also check boolean assertions in your test programs. Just
 include `<model-assert.h>` and use the `MODEL_ASSERT()` macro in your test program.
-CDSChecker will report a bug in any possible execution in which the argument to
+C11Tester will report a bug in any possible execution in which the argument to
 `MODEL_ASSERT()` evaluates to false (that is, 0).
 
 Test programs should be compiled against our shared library (libmodel.so) using
@@ -166,7 +104,7 @@ variable, for instance.
 
 ### Supported C11/C++11 APIs ###
 
-To model-check multithreaded code properly, CDSChecker needs to instrument any
+To model-check multithreaded code properly, C11Tester needs to instrument any
 concurrency-related API calls made in your code. Currently, we support parts of
 the following thread-support libraries. The C versions can be used in either C
 or C++.
@@ -183,11 +121,11 @@ C++ `<thread>`).
 Reading an execution trace
 --------------------------
 
-When CDSChecker detects a bug in your program (or when run with the `--verbose`
+When C11Tester detects a bug in your program (or when run with the `--verbose`
 flag), it prints the output of the program run (STDOUT) along with some summary
 trace information for the execution in question. The trace is given as a
 sequence of lines, where each line represents an operation in the execution
-trace. These lines are ordered by the order in which they were run by CDSChecker
+trace. These lines are ordered by the order in which they were run by C11Tester
 (i.e., the "execution order"), which does not necessarily align with the "order"
 of the values observed (i.e., the modification order or the reads-from
 relation).
@@ -195,7 +133,7 @@ relation).
 The following list describes each of the columns in the execution trace output:
 
  * \#: The sequence number within the execution. That is, sequence number "9"
-   means the operation was the 9th operation executed by CDSChecker. Note that
+   means the operation was the 9th operation executed by C11Tester. Note that
    this represents the execution order, not necessarily any other order (e.g.,
    modification order or reads-from).
 
@@ -208,11 +146,11 @@ The following list describes each of the columns in the execution trace output:
 
  * Location: The memory location on which this operation is operating. This is
    well-defined for atomic write/read/RMW, but other operations are subject to
-   CDSChecker implementation details.
+   C11Tester implementation details.
 
  * Value: For reads/writes/RMW, the value returned by the operation. Note that
    for RMW, this is the value that is *read*, not the value that was *written*.
-   For other operations, 'value' may have some CDSChecker-internal meaning, or
+   For other operations, 'value' may have some C11Tester-internal meaning, or
    it may simply be a don't-care (such as `0xdeadbeef`).
 
  * Rf: For reads, the sequence number of the operation from which it reads.
@@ -231,7 +169,7 @@ The following list describes each of the columns in the execution trace output:
 
    So for any thread i, we say CV[i] is the sequence number of the most recent
    operation in thread i such that operation i happens-before this operation.
-   Notably, thread 0 is reserved as a dummy thread for certain CDSChecker
+   Notably, thread 0 is reserved as a dummy thread for certain C11Tester
    operations.
 
 See the following example trace:
@@ -270,7 +208,7 @@ vector consists of the following values:
 End of Execution Summary
 ------------------------
 
-CDSChecker prints summary statistics at the end of each execution. These
+C11Tester prints summary statistics at the end of each execution. These
 summaries are based off of a few different properties of an execution, which we
 will break down here:
 
@@ -278,15 +216,15 @@ will break down here:
   memory model. Such an execution can be considered overhead for the
   model-checker, since it should never appear in practice.
 
-* A _buggy_ execution is an execution in which CDSChecker has found a real
+* A _buggy_ execution is an execution in which C11Tester has found a real
   bug: a data race, a deadlock, failure of a user-provided assertion, or an
-  uninitialized load, for instance. CDSChecker will only report bugs in feasible
+  uninitialized load, for instance. C11Tester will only report bugs in feasible
   executions.
 
 * A _redundant_ execution is a feasible execution that is exploring the same
   state space explored by a previous feasible execution. Such exploration is
-  another instance of overhead, so CDSChecker terminates these executions as
-  soon as they are detected. CDSChecker is mostly able to avoid such executions
+  another instance of overhead, so C11Tester terminates these executions as
+  soon as they are detected. C11Tester is mostly able to avoid such executions
   but may encounter them if a fairness option is enabled.
 
 Now, we can examine the end-of-execution summary of one test program:
@@ -305,7 +243,7 @@ Now, we can examine the end-of-execution summary of one test program:
   can expect to see in practice.
 
 * _Number of redundant executions:_ these are feasible but redundant executions
-  that were terminated as soon as CDSChecker noticed the redundancy.
+  that were terminated as soon as C11Tester noticed the redundancy.
 
 * _Number of buggy executions:_ these are feasible, buggy executions. These are
   the trouble spots where your program is triggering a bug or assertion.
@@ -314,7 +252,7 @@ Now, we can examine the end-of-execution summary of one test program:
 * _Number of infeasible executions:_ these are infeasible executions,
   representing some of the overhead of model-checking.
 
-* _Total executions:_ the total number of executions explored by CDSChecker.
+* _Total executions:_ the total number of executions explored by C11Tester.
   Should be the sum of the above categories, since they are mutually exclusive.
 
 
@@ -322,12 +260,12 @@ Other Notes and Pitfalls
 ------------------------
 
 * Many programs require some form of fairness in order to terminate in a finite
-  amount of time. CDSChecker supports the `-y num` and `-f num` flags for these
+  amount of time. C11Tester supports the `-y num` and `-f num` flags for these
   cases. The `-y` option (yield-based fairness) is preferable, but it requires
   careful usage of yields (i.e., `thrd_yield()`) in the test program. For
   programs without proper `thrd_yield()`, you may consider using `-f` instead.
 
-* Deadlock detection: CDSChecker can detect deadlocks. For instance, try the
+* Deadlock detection: C11Tester can detect deadlocks. For instance, try the
   following test program.
 
   >     ./run.sh test/deadlock.o
@@ -336,19 +274,19 @@ Other Notes and Pitfalls
   deadlock, without actually including the final step in the trace. But you can
   examine the program to see the next step.
 
-* CDSChecker has to speculatively explore many execution behaviors due to the
+* C11Tester has to speculatively explore many execution behaviors due to the
   relaxed memory model, and many of these turn out to be infeasible (that is,
-  they cannot be legally produced by the memory model). CDSChecker discards
+  they cannot be legally produced by the memory model). C11Tester discards
   these executions as soon as it identifies them (see the "Number of infeasible
   executions" statistic); however, the speculation can occasionally cause
-  CDSChecker to hit unexpected parts of the unit test program (causing a
+  C11Tester to hit unexpected parts of the unit test program (causing a
   division by 0, for instance). In such programs, you might consider running
-  CDSChecker with the `-u num` option.
+  C11Tester with the `-u num` option.
 
-* Related to the previous point, CDSChecker may report more than one bug for a
+* Related to the previous point, C11Tester may report more than one bug for a
   particular candidate execution. This is because some bugs may not be
-  reportable until CDSChecker has explored more of the program, and in the
-  time between initial discovery and final assessment of the bug, CDSChecker may
+  reportable until C11Tester has explored more of the program, and in the
+  time between initial discovery and final assessment of the bug, C11Tester may
   discover another bug.
 
 * Data races may be reported as multiple bugs, one for each byte-address of the
@@ -374,11 +312,11 @@ Other Notes and Pitfalls
 See Also
 --------
 
-The CDSChecker project page:
+The C11Tester project page:
 
 >   <http://demsky.eecs.uci.edu/c11modelchecker.html>
 
-The CDSChecker source and accompanying benchmarks on Gitweb:
+The C11Tester source and accompanying benchmarks on Gitweb:
 
 >   <http://demsky.eecs.uci.edu/git/?p=model-checker.git>
 >
@@ -390,17 +328,17 @@ Contact
 
 Please feel free to contact us for more information. Bug reports are welcome,
 and we are happy to hear from our users. We are also very interested to know if
-CDSChecker catches bugs in your programs.
+C11Tester catches bugs in your programs.
 
-Contact Brian Norris at <banorris@uci.edu> or Brian Demsky at <bdemsky@uci.edu>.
+Contact Weiyu Luo at <weiyul7@uci.edu> or Brian Demsky at <bdemsky@uci.edu>.
 
 
 Copyright
 ---------
 
-Copyright &copy; 2013 Regents of the University of California. All rights reserved.
+Copyright &copy; 2013 and 2019 Regents of the University of California. All rights reserved.
 
-CDSChecker is distributed under the GPL v2. See the LICENSE file for details.
+C11Tester is distributed under the GPL v2. See the LICENSE file for details.
 
 
 References
