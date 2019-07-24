@@ -110,6 +110,7 @@ VOLATILELOAD(64)
 	void cds_volatile_store ## size (void * obj, uint ## size ## _t val, const char * position) { \
 		ensureModel();                                                      \
 		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, memory_order_relaxed, obj, (uint64_t) val)); \
+		*((volatile uint ## size ## _t *)obj) = val;		\
 	}
 
 VOLATILESTORE(8)
@@ -122,7 +123,7 @@ VOLATILESTORE(64)
 	void cds_atomic_init ## size (void * obj, uint ## size ## _t val, const char * position) { \
 		ensureModel();                                                      \
 		model->switch_to_master(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)); \
-		*((uint ## size ## _t *)obj) = val;                                 \
+		*((volatile uint ## size ## _t *)obj) = val;                                 \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
 			recordWrite(tid, (void *)(((char *)obj)+i));          \
@@ -152,7 +153,7 @@ CDSATOMICLOAD(64)
 	void cds_atomic_store ## size(void * obj, uint ## size ## _t val, int atomic_index, const char * position) { \
 		ensureModel();                                                        \
 		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)); \
-		*((uint ## size ## _t *)obj) = val;                     \
+		*((volatile uint ## size ## _t *)obj) = val;                     \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
 			recordWrite(tid, (void *)(((char *)obj)+i));          \
@@ -172,7 +173,7 @@ CDSATOMICSTORE(64)
 		uint ## size ## _t _val = val;                                            \
 		_copy __op__ _val;                                                    \
 		model_rmw_action_helper(addr, (uint64_t) _copy, atomic_index, position);        \
-		*((uint ## size ## _t *)addr) = _copy;                  \
+		*((volatile uint ## size ## _t *)addr) = _copy;                  \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
 			recordWrite(tid, (void *)(((char *)addr)+i));         \
@@ -257,7 +258,7 @@ CDSATOMICXOR(64)
 		uint ## size ## _t _old = model_rmwrcas_action_helper(addr, atomic_index, _expected, sizeof(_expected), position); \
 		if (_old == _expected) {                                                                    \
 			model_rmw_action_helper(addr, (uint64_t) _desired, atomic_index, position); \
-			*((uint ## size ## _t *)addr) = desired;                        \
+			*((volatile uint ## size ## _t *)addr) = desired;                        \
 			thread_id_t tid = thread_current()->get_id();           \
 			for(int i=0;i < size / 8;i++) {                       \
 				recordWrite(tid, (void *)(((char *)addr)+i));         \
