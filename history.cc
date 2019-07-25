@@ -98,13 +98,11 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	uint32_t id = id_to_int(tid);
 	if ( thrd_func_list->size() <= id )
 		return;
-//	else if ( (*thrd_func_list)[id] == NULL)
-//		return;
 
 	/* get the function id that thread i is currently in */
+	uint32_t func_id = (*thrd_func_list)[id].back();
 	SnapList<func_inst_list_t *> * func_inst_lists = thrd_func_inst_lists->at(id);
 
-	uint32_t func_id = (*thrd_func_list)[id].back();
 	if ( func_nodes.size() <= func_id )
 		resize_func_nodes( func_id + 1 );
 

@@ -112,15 +112,15 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	void * location = act->get_location();
 	uint64_t read_from_val = act->get_reads_from_value();
 
-	if (thrd_read_map.size() <= tid)
+	/* resize and initialize */
+	uint32_t old_size = thrd_read_map.size();
+	if (old_size <= tid) {
 		thrd_read_map.resize(tid + 1);
-
-	read_map_t * read_map = thrd_read_map[tid];
-	if (read_map == NULL) {
-		read_map = new read_map_t();
-		thrd_read_map[tid] = read_map;
+		for (uint32_t i = old_size; i < tid + 1; i++)
+			thrd_read_map[i] = new read_map_t();
 	}
 
+	read_map_t * read_map = thrd_read_map[tid];
 	read_map->put(location, read_from_val);
 
 	/* Store the memory locations where atomic reads happen */
@@ -137,13 +137,12 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 		read_locations.push_back(location);
 }
 
-uint64_t FuncNode::query_last_read(ModelAction * act, uint32_t tid)
+uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
 {
 	if (thrd_read_map.size() <= tid)
 		return 0xdeadbeef;
 
 	read_map_t * read_map = thrd_read_map[tid];
-	void * location = act->get_location();
 
 	/* last read value not found */
 	if ( !read_map->contains(location) )

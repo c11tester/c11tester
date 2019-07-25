@@ -26,7 +26,7 @@ public:
 	void link_insts(func_inst_list_t * inst_list);
 
 	void store_read(ModelAction * act, uint32_t tid);
-	uint64_t query_last_read(ModelAction * act, uint32_t tid);
+	uint64_t query_last_read(void * location, uint32_t tid);
 	void clear_read_map(uint32_t tid);
 
 	void print_last_read(uint32_t tid);
