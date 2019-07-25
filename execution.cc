@@ -47,6 +47,123 @@ struct model_snapshot_members {
 	SNAPSHOTALLOC
 };
 
+
+#ifdef TLS
+#include <dlfcn.h>
+
+//Code taken from LLVM and licensed under the University of Illinois Open Source
+//License.
+static uintptr_t thread_descriptor_size;
+#if __LP64__ || defined(_WIN64)
+#  define SANITIZER_WORDSIZE 64
+#else
+#  define SANITIZER_WORDSIZE 32
+#endif
+
+#if SANITIZER_WORDSIZE == 64
+# define FIRST_32_SECOND_64(a, b) (b)
+#else
+# define FIRST_32_SECOND_64(a, b) (a)
+#endif
+
+#if defined(__x86_64__) && !defined(_LP64)
+# define SANITIZER_X32 1
+#else
+# define SANITIZER_X32 0
+#endif
+
+#if defined(__arm__)
+# define SANITIZER_ARM 1
+#else
+# define SANITIZER_ARM 0
+#endif
+
+uintptr_t ThreadDescriptorSize() {
+	uintptr_t val = thread_descriptor_size;
+	if (val)
+		return val;
+#if defined(__x86_64__) || defined(__i386__) || defined(__arm__)
+#ifdef _CS_GNU_LIBC_VERSION
+	char buf[64];
+	uintptr_t len = confstr(_CS_GNU_LIBC_VERSION, buf, sizeof(buf));
+	if (len < sizeof(buf) && strncmp(buf, "glibc 2.", 8) == 0) {
+		char *end;
+		int minor = strtoll(buf + 8, &end, 10);
+		if (end != buf + 8 && (*end == '\0' || *end == '.' || *end == '-')) {
+			int patch = 0;
+			if (*end == '.')
+				// strtoll will return 0 if no valid conversion could be performed
+				patch = strtoll(end + 1, nullptr, 10);
+
+			/* sizeof(struct pthread) values from various glibc versions.  */
+			if (SANITIZER_X32)
+				val = 1728;// Assume only one particular version for x32.
+			// For ARM sizeof(struct pthread) changed in Glibc 2.23.
+			else if (SANITIZER_ARM)
+				val = minor <= 22 ? 1120 : 1216;
+			else if (minor <= 3)
+				val = FIRST_32_SECOND_64(1104, 1696);
+			else if (minor == 4)
+				val = FIRST_32_SECOND_64(1120, 1728);
+			else if (minor == 5)
+				val = FIRST_32_SECOND_64(1136, 1728);
+			else if (minor <= 9)
+				val = FIRST_32_SECOND_64(1136, 1712);
+			else if (minor == 10)
+				val = FIRST_32_SECOND_64(1168, 1776);
+			else if (minor == 11 || (minor == 12 && patch == 1))
+				val = FIRST_32_SECOND_64(1168, 2288);
+			else if (minor <= 13)
+				val = FIRST_32_SECOND_64(1168, 2304);
+			else
+				val = FIRST_32_SECOND_64(1216, 2304);
+		}
+	}
+#endif
+#elif defined(__mips__)
+	// TODO(sagarthakur): add more values as per different glibc versions.
+	val = FIRST_32_SECOND_64(1152, 1776);
+#elif defined(__aarch64__)
+	// The sizeof (struct pthread) is the same from GLIBC 2.17 to 2.22.
+	val = 1776;
+#elif defined(__powerpc64__)
+	val = 1776;	// from glibc.ppc64le 2.20-8.fc21
+#elif defined(__s390__)
+	val = FIRST_32_SECOND_64(1152, 1776);	// valid for glibc 2.22
+#endif
+	if (val)
+		thread_descriptor_size = val;
+	return val;
+}
+
+#ifdef __i386__
+# define DL_INTERNAL_FUNCTION __attribute__((regparm(3), stdcall))
+#else
+# define DL_INTERNAL_FUNCTION
+#endif
+
+intptr_t RoundUpTo(uintptr_t size, uintptr_t boundary) {
+	return (size + boundary - 1) & ~(boundary - 1);
+}
+
+uintptr_t getTlsSize() {
+	// all current supported platforms have 16 bytes stack alignment
+	const size_t kStackAlign = 16;
+	typedef void (*get_tls_func)(size_t*, size_t*) DL_INTERNAL_FUNCTION;
+	get_tls_func get_tls;
+	void *get_tls_static_info_ptr = dlsym(RTLD_NEXT, "_dl_get_tls_static_info");
+	memcpy(&get_tls, &get_tls_static_info_ptr, sizeof(get_tls_static_info_ptr));
+	ASSERT(get_tls != 0);
+	size_t tls_size = 0;
+	size_t tls_align = 0;
+	get_tls(&tls_size, &tls_align);
+	if (tls_align < kStackAlign)
+		tls_align = kStackAlign;
+	return RoundUpTo(tls_size, tls_align);
+}
+
+#endif
+
 /** @brief Constructor */
 ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	model(m),
@@ -67,12 +184,30 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	fuzzer(new Fuzzer()),
 	thrd_func_list(),
 	thrd_func_inst_lists()
+#ifdef TLS
+	,tls_base(NULL),
+	tls_addr(0),
+	tls_size(0),
+	thd_desc_size(0)
+#endif
 {
 	/* Initialize a model-checker thread, for special ModelActions */
 	model_thread = new Thread(get_next_id());
 	add_thread(model_thread);
 	scheduler->register_engine(this);
 }
+
+#ifdef TLS
+void ModelExecution::initTLS() {
+	tls_addr = get_tls_addr();
+	tls_size = getTlsSize();
+	tls_addr -= tls_size;
+	thd_desc_size = ThreadDescriptorSize();
+	tls_addr += thd_desc_size;
+	tls_base = (char *) snapshot_calloc(tls_size,1);
+	memcpy(tls_base, reinterpret_cast<const char *>(tls_addr), tls_size);
+}
+#endif
 
 /** @brief Destructor */
 ModelExecution::~ModelExecution()

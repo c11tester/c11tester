@@ -212,6 +212,20 @@ private:
 	 * This data structure is handled by ModelHistory
 	 */
 	SnapVector< SnapList< func_inst_list_t *> *> thrd_func_inst_lists;
+
+#ifdef TLS
+public:
+	char * getTLSBase() {return tls_base;}
+	uintptr_t getTLSAddr() {return tls_addr;}
+	uintptr_t getTLSSize() {if (!tls_base) initTLS();return tls_size;}
+	uintptr_t getThdDescSize() {return thd_desc_size;}
+private:
+	void initTLS();
+	char * tls_base;
+	uintptr_t tls_addr;
+	uintptr_t tls_size;
+	uintptr_t thd_desc_size;
+#endif
 };
 
 #endif	/* __EXECUTION_H__ */

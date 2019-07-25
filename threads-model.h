@@ -118,6 +118,9 @@ public:
 	void operator delete[](void *p, size_t size) {
 		Thread_free(p);
 	}
+#ifdef TLS
+	void setTLS(char *_tls) { tls = _tls;}
+#endif
 private:
 	int create_context();
 
@@ -142,6 +145,9 @@ private:
 	void *arg;
 	ucontext_t context;
 	void *stack;
+#ifdef TLS
+	char *tls;
+#endif
 	thrd_t *user_thread;
 	thread_id_t id;
 	thread_state state;
@@ -159,6 +165,10 @@ private:
 	/** @brief Is this Thread a special model-checker thread? */
 	const bool model_thread;
 };
+
+#ifdef TLS
+uintptr_t get_tls_addr();
+#endif
 
 Thread * thread_current();
 void thread_startup();

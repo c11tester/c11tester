@@ -12,6 +12,25 @@
 
 /* global "model" object */
 #include "model.h"
+#include "execution.h"
+
+#ifdef TLS
+uintptr_t get_tls_addr() {
+	uintptr_t addr;
+	asm ("mov %%fs:0, %0" : "=r" (addr));
+	return addr;
+}
+
+#include <asm/prctl.h>
+#include <sys/prctl.h>
+extern "C" {
+int arch_prctl(int code, unsigned long addr);
+}
+static void set_tls_addr(uintptr_t addr) {
+	arch_prctl(ARCH_SET_FS, addr);
+	asm ("mov %0, %%fs:0" : : "r" (addr) : "memory");
+}
+#endif
 
 /** Allocate a stack for a new thread. */
 static void * stack_allocate(size_t size)
@@ -49,6 +68,17 @@ void thread_startup()
 
 	/* Add dummy "start" action, just to create a first clock vector */
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
+
+#ifdef TLS
+	if (curr_thread->tls == NULL) {
+		uintptr_t tlssize = model->get_execution()->getTLSSize();
+		uintptr_t thddesc = model->get_execution()->getThdDescSize();
+		curr_thread->tls = (char*) Thread_malloc(tlssize);
+		memcpy(curr_thread->tls, model->get_execution()->getTLSBase(), tlssize);
+		curr_thread->tls += tlssize - thddesc;
+		set_tls_addr((uintptr_t)curr_thread->tls);
+	}
+#endif
 
 	/* Call the actual thread function */
 	if (curr_thread->start_routine != NULL) {
@@ -98,6 +128,9 @@ int Thread::create_context()
 int Thread::swap(Thread *t, ucontext_t *ctxt)
 {
 	t->set_state(THREAD_READY);
+#ifdef TLS
+	set_tls_addr((uintptr_t)model->getInitThread()->tls);
+#endif
 	return model_swapcontext(&t->context, ctxt);
 }
 
@@ -112,6 +145,10 @@ int Thread::swap(Thread *t, ucontext_t *ctxt)
 int Thread::swap(ucontext_t *ctxt, Thread *t)
 {
 	t->set_state(THREAD_RUNNING);
+#ifdef TLS
+	if (t->tls != NULL)
+		set_tls_addr((uintptr_t)t->tls);
+#endif
 	return model_swapcontext(ctxt, &t->context);
 }
 
@@ -124,6 +161,11 @@ void Thread::complete()
 	state = THREAD_COMPLETED;
 	if (stack)
 		stack_free(stack);
+#ifdef TLS
+	if (tls && get_id() != 1)
+		tls += model->get_execution()->getTLSSize() - model->get_execution()->getThdDescSize();
+	Thread_free(tls);
+#endif
 }
 
 /**
@@ -141,6 +183,9 @@ Thread::Thread(thread_id_t tid) :
 	start_routine(NULL),
 	arg(NULL),
 	stack(NULL),
+#ifdef TLS
+	tls(NULL),
+#endif
 	user_thread(NULL),
 	id(tid),
 	state(THREAD_READY),	/* Thread is always ready? */
@@ -163,6 +208,9 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void (*func)(void *), void *a, Thread
 	start_routine(func),
 	pstart_routine(NULL),
 	arg(a),
+#ifdef TLS
+	tls(NULL),
+#endif
 	user_thread(t),
 	id(tid),
 	state(THREAD_CREATED),
@@ -192,6 +240,9 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void *(*func)(void *), void *a, Threa
 	start_routine(NULL),
 	pstart_routine(func),
 	arg(a),
+#ifdef TLS
+	tls(NULL),
+#endif
 	user_thread(t),
 	id(tid),
 	state(THREAD_CREATED),

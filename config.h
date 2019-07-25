@@ -43,6 +43,8 @@
 /** Page size configuration */
 #define PAGESIZE 4096
 
+#define TLS 1
+
 /** Thread parameters */
 
 /* Size of stack to allocate for a thread. */

@@ -67,6 +67,7 @@ public:
 	void set_inspect_plugin(TraceAnalysis *a) {     inspect_plugin=a;       }
 	void startMainThread();
 	void startChecker();
+	Thread * getInitThread() {return init_thread;}
 	MEMALLOC
 private:
 	/** Flag indicates whether to restart the model checker. */
