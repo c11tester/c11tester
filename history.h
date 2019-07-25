@@ -22,6 +22,7 @@ public:
 
 	ModelVector<FuncNode *> * getFuncNodes() { return &func_nodes; }
 	FuncNode * get_func_node(uint32_t func_id);
+	uint64_t query_last_read(void * location, thread_id_t tid);
 
 	void print();
 
