@@ -596,8 +596,8 @@ bool ModelExecution::process_fence(ModelAction *curr)
 				continue;
 
 			/* Establish hypothetical release sequences */
-			ClockVector *cv = get_hb_from_write(act);
-			if (curr->get_cv()->merge(cv))
+			ClockVector *cv = get_hb_from_write(act->get_reads_from());
+			if (cv != NULL && curr->get_cv()->merge(cv))
 				updated = true;
 		}
 	}
@@ -987,7 +987,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 			if (act->happens_before(curr)) {
 				if (i==0) {
 					if (last_sc_fence_local == NULL ||
-							(*last_sc_fence_local < *prev_same_thread)) {
+							(*last_sc_fence_local < *act)) {
 						prev_same_thread = act;
 					}
 				}
