@@ -305,8 +305,10 @@ void Thread::complete()
 		stack_free(stack);
 #ifdef TLS
 	if (this != model->getInitThread()) {
+		modellock = 1;
 		real_pthread_mutex_unlock(&mutex2);
 		real_pthread_join(thread, NULL);
+		modellock = 0;
 	}
 #endif
 }

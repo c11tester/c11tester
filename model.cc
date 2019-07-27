@@ -319,11 +319,11 @@ void ModelChecker::switch_from_master(Thread *thread)
  */
 uint64_t ModelChecker::switch_to_master(ModelAction *act)
 {
-	if (forklock) {
+	if (modellock) {
 		static bool fork_message_printed = false;
 
 		if (!fork_message_printed) {
-			model_print("Fork handler trying to call into model checker...\n");
+			model_print("Fork handler or dead thread trying to call into model checker...\n");
 			fork_message_printed = true;
 		}
 		delete act;

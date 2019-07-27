@@ -49,7 +49,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	ASSERT(loc || type == ATOMIC_FENCE || type == NOOP);
 
 	Thread *t = thread ? thread : thread_current();
-	this->tid = t->get_id();
+	this->tid = t!= NULL ? t->get_id() : -1;
 }
 
 
