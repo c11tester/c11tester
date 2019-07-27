@@ -8,7 +8,7 @@ OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
 	   sleeps.o history.o funcnode.o funcinst.o printf.o
 
 CPPFLAGS += -Iinclude -I.
-LDFLAGS := -ldl -lrt -rdynamic
+LDFLAGS := -ldl -lrt -rdynamic -lpthread
 SHARED := -shared
 
 # Mac OSX options

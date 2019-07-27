@@ -24,9 +24,6 @@ ModelChecker *model = NULL;
 /** Wrapper to run the user's main function, with appropriate arguments */
 void user_main_wrapper(void *)
 {
-#ifdef TLS
-	model->get_execution()->getTLSSize();
-#endif
 	user_main(model->params.argc, model->params.argv);
 }
 
@@ -388,7 +385,7 @@ void ModelChecker::do_restart()
 void ModelChecker::startMainThread() {
 	init_thread->set_state(THREAD_RUNNING);
 	scheduler->set_current_thread(init_thread);
-	thread_startup();
+	main_thread_startup();
 }
 
 static bool is_nonsc_write(const ModelAction *act) {

@@ -13,6 +13,7 @@
 #include "stl-model.h"
 #include "context.h"
 #include "classlist.h"
+#include "pthread.h"
 
 struct thread_params {
 	thrd_start_t func;
@@ -99,6 +100,11 @@ public:
 	bool is_model_thread() const { return model_thread; }
 
 	friend void thread_startup();
+#ifdef TLS
+	friend void setup_context();
+	friend void * helper_thread(void *);
+	friend void finalize_helper_thread();
+#endif
 
 	/**
 	 * Intentionally NOT allocated with MODELALLOC or SNAPSHOTALLOC.
@@ -146,7 +152,13 @@ private:
 	ucontext_t context;
 	void *stack;
 #ifdef TLS
+public:
 	char *tls;
+	ucontext_t helpercontext;
+	pthread_mutex_t mutex;
+	pthread_mutex_t mutex2;
+	pthread_t thread;
+private:
 #endif
 	thrd_t *user_thread;
 	thread_id_t id;
@@ -172,6 +184,7 @@ uintptr_t get_tls_addr();
 
 Thread * thread_current();
 void thread_startup();
+void main_thread_startup();
 
 static inline thread_id_t thrd_to_id(thrd_t t)
 {
