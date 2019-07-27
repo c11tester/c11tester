@@ -245,7 +245,7 @@ int Thread::create_context()
 	if (model != NULL)
 		makecontext(&context, setup_context, 0);
 	else
-		makecontext(&context, thread_startup, 0);
+		makecontext(&context, main_thread_startup, 0);
 #else
 	makecontext(&context, thread_startup, 0);
 #endif
