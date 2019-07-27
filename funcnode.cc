@@ -1,4 +1,5 @@
 #include "funcnode.h"
+#include "predicate.h"
 
 FuncNode::FuncNode() :
 	func_inst_map(),
@@ -162,6 +163,11 @@ void FuncNode::clear_read_map(uint32_t tid)
 		return;
 
 	thrd_read_map[tid]->reset();
+}
+
+void FuncNode::generate_predicate(FuncInst *func_inst)
+{
+	
 }
 
 /* @param tid thread id

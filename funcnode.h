@@ -1,8 +1,9 @@
+#ifndef __FUNCNODE_H__
+#define __FUNCNODE_H__
+
 #include "action.h"
 #include "funcinst.h"
 #include "hashtable.h"
-
-class ModelAction;
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
 typedef HashTable<void *, uint64_t, uintptr_t, 4, model_malloc, model_calloc, model_free> read_map_t;
@@ -29,6 +30,9 @@ public:
 	uint64_t query_last_read(void * location, uint32_t tid);
 	void clear_read_map(uint32_t tid);
 
+	/* TODO: generate EQUALITY or NULLITY predicate based on write_history in history.cc */
+	void generate_predicate(FuncInst * func_inst);
+
 	void print_last_read(uint32_t tid);
 
 	MEMALLOC
@@ -51,3 +55,5 @@ private:
 	ModelVector<read_map_t *> thrd_read_map;
 	ModelList<void *> read_locations;
 };
+
+#endif /* __FUNCNODE_H__ */

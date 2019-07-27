@@ -13,7 +13,8 @@ ModelHistory::ModelHistory() :
 	func_counter(1),	/* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
-	func_nodes()
+	func_nodes(),
+	write_history()
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -118,6 +119,9 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (inst->is_read())
 		func_node->store_read(act, tid);
 
+	if (inst->is_write())
+		add_to_write_history(act->get_location(), act->get_write_value());
+
 	/* add to curr_inst_list */
 	func_inst_list_t * curr_inst_list = func_inst_lists->back();
 	ASSERT(curr_inst_list != NULL);
@@ -148,6 +152,15 @@ uint64_t ModelHistory::query_last_read(void * location, thread_id_t tid)
 	}
 
 	return last_read_val;
+}
+
+void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
+{
+	if ( !write_history.contains(location) )
+		write_history.put(location, new write_set_t() );
+
+	write_set_t * write_set = write_history.get(location);
+	write_set->add(write_val);
 }
 
 void ModelHistory::print()
