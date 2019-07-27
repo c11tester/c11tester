@@ -13,9 +13,9 @@
 extern int model_out;
 
 #define model_print(fmt, ...) do { \
-		char mprintbuf[256];                                                \
-		int printbuflen=snprintf_(mprintbuf, 256, fmt, ## __VA_ARGS__);     \
-		int lenleft = printbuflen < 256 ? printbuflen : 256;                   \
+		char mprintbuf[2048];                                                \
+		int printbuflen=snprintf_(mprintbuf, 2048, fmt, ## __VA_ARGS__);     \
+		int lenleft = printbuflen < 2048 ? printbuflen : 2048;                   \
 		int totalwritten = 0; \
 		while(lenleft) {                                                    \
 			int byteswritten=write(model_out, &mprintbuf[totalwritten], lenleft); \

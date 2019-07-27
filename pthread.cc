@@ -103,6 +103,12 @@ int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
 }
 
 int pthread_mutex_trylock(pthread_mutex_t *p_mutex) {
+	if (!model) {
+		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
+	
 	ModelExecution *execution = model->get_execution();
 	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 	return m->try_lock();
