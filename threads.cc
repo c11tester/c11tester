@@ -160,7 +160,6 @@ int real_pthread_join (pthread_t __th, void ** __thread_return) {
 
 void finalize_helper_thread() {
 	Thread * curr_thread = thread_current();
-	model_print("finalize_helper_thread\n");
 	real_pthread_mutex_lock(&curr_thread->mutex);
 	curr_thread->tls = (char *) get_tls_addr();
 	real_pthread_mutex_unlock(&curr_thread->mutex);
@@ -173,7 +172,6 @@ void finalize_helper_thread() {
 
 void * helper_thread(void * ptr) {
 	Thread * curr_thread = thread_current();
-	model_print("helper_thread\n");
 
 	//build a context for this real thread so we can take it's context
 	int ret = getcontext(&curr_thread->helpercontext);
@@ -200,7 +198,6 @@ void * helper_thread(void * ptr) {
 
 void setup_context() {
 	Thread * curr_thread = thread_current();
-	model_print("setup_context\n");
 
 	/* Add dummy "start" action, just to create a first clock vector */
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
@@ -212,7 +209,6 @@ void setup_context() {
 
 	/* Create the real thread */
 	real_pthread_create(&curr_thread->thread, NULL, helper_thread, NULL);
-	model_print("thread_created\n");
 	bool notdone = true;
 	while(notdone) {
 		real_pthread_mutex_lock(&curr_thread->mutex);
@@ -222,7 +218,6 @@ void setup_context() {
 	}
 
 	set_tls_addr((uintptr_t)curr_thread->tls);
-	model_print("tls taken\n");
 	setcontext(&curr_thread->context);
 }
 #endif
