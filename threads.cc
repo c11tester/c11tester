@@ -93,8 +93,37 @@ void thread_startup()
 }
 
 #ifdef TLS
+static int (*pthread_mutex_init_p) (pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) = NULL;
+
 int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) {
-	static int (*pthread_mutex_init_p) (pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) = NULL;
+	return pthread_mutex_init_p(__mutex, __mutexattr);
+}
+
+static int (*pthread_mutex_lock_p) (pthread_mutex_t *__mutex) = NULL;
+
+int real_pthread_mutex_lock (pthread_mutex_t *__mutex) {
+	return pthread_mutex_lock_p(__mutex);
+}
+
+static int (*pthread_mutex_unlock_p) (pthread_mutex_t *__mutex) = NULL;
+
+int real_pthread_mutex_unlock (pthread_mutex_t *__mutex) {
+	return pthread_mutex_unlock_p(__mutex);
+}
+
+static int (*pthread_create_p) (pthread_t *__restrict, const pthread_attr_t *__restrict, void *(*)(void *), void * __restrict) = NULL;
+
+int real_pthread_create (pthread_t *__restrict __newthread, const pthread_attr_t *__restrict __attr, void *(*__start_routine)(void *), void *__restrict __arg) {
+	return pthread_create_p(__newthread, __attr, __start_routine, __arg);
+}
+
+static int (*pthread_join_p) (pthread_t __th, void ** __thread_return) = NULL;
+
+int real_pthread_join (pthread_t __th, void ** __thread_return) {
+	return pthread_join_p(__th, __thread_return);
+}
+
+void real_init_all() {
 	char * error;
 	if (!pthread_mutex_init_p) {
 		pthread_mutex_init_p = (int (*)(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr))dlsym(RTLD_NEXT, "pthread_mutex_init");
@@ -103,12 +132,6 @@ int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t 
 			exit(EXIT_FAILURE);
 		}
 	}
-	return pthread_mutex_init_p(__mutex, __mutexattr);
-}
-
-int real_pthread_mutex_lock (pthread_mutex_t *__mutex) {
-	static int (*pthread_mutex_lock_p) (pthread_mutex_t *__mutex) = NULL;
-	char * error;
 	if (!pthread_mutex_lock_p) {
 		pthread_mutex_lock_p = (int (*)(pthread_mutex_t *__mutex))dlsym(RTLD_NEXT, "pthread_mutex_lock");
 		if ((error = dlerror()) != NULL) {
@@ -116,12 +139,6 @@ int real_pthread_mutex_lock (pthread_mutex_t *__mutex) {
 			exit(EXIT_FAILURE);
 		}
 	}
-	return pthread_mutex_lock_p(__mutex);
-}
-
-int real_pthread_mutex_unlock (pthread_mutex_t *__mutex) {
-	static int (*pthread_mutex_unlock_p) (pthread_mutex_t *__mutex) = NULL;
-	char * error;
 	if (!pthread_mutex_unlock_p) {
 		pthread_mutex_unlock_p = (int (*)(pthread_mutex_t *__mutex))dlsym(RTLD_NEXT, "pthread_mutex_unlock");
 		if ((error = dlerror()) != NULL) {
@@ -129,12 +146,6 @@ int real_pthread_mutex_unlock (pthread_mutex_t *__mutex) {
 			exit(EXIT_FAILURE);
 		}
 	}
-	return pthread_mutex_unlock_p(__mutex);
-}
-
-int real_pthread_create (pthread_t *__restrict __newthread, const pthread_attr_t *__restrict __attr, void *(*__start_routine)(void *), void *__restrict __arg) {
-	static int (*pthread_create_p) (pthread_t *__restrict, const pthread_attr_t *__restrict, void *(*)(void *), void * __restrict) = NULL;
-	char * error;
 	if (!pthread_create_p) {
 		pthread_create_p = (int (*)(pthread_t *__restrict, const pthread_attr_t *__restrict, void *(*)(void *), void *__restrict))dlsym(RTLD_NEXT, "pthread_create");
 		if ((error = dlerror()) != NULL) {
@@ -142,12 +153,6 @@ int real_pthread_create (pthread_t *__restrict __newthread, const pthread_attr_t
 			exit(EXIT_FAILURE);
 		}
 	}
-	return pthread_create_p(__newthread, __attr, __start_routine, __arg);
-}
-
-int real_pthread_join (pthread_t __th, void ** __thread_return) {
-	static int (*pthread_join_p) (pthread_t __th, void ** __thread_return) = NULL;
-	char * error;
 	if (!pthread_join_p) {
 		pthread_join_p = (int (*)(pthread_t __th, void ** __thread_return))dlsym(RTLD_NEXT, "pthread_join");
 		if ((error = dlerror()) != NULL) {
@@ -155,7 +160,6 @@ int real_pthread_join (pthread_t __th, void ** __thread_return) {
 			exit(EXIT_FAILURE);
 		}
 	}
-	return pthread_join_p(__th, __thread_return);
 }
 
 void finalize_helper_thread() {
@@ -202,6 +206,8 @@ void setup_context() {
 	/* Add dummy "start" action, just to create a first clock vector */
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
 
+	real_init_all();
+	
 	/* Initialize our lock */
 	real_pthread_mutex_init(&curr_thread->mutex, NULL);
 	real_pthread_mutex_init(&curr_thread->mutex2, NULL);
