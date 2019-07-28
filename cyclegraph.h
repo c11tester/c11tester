@@ -23,6 +23,7 @@ class CycleGraph {
 public:
 	CycleGraph();
 	~CycleGraph();
+	void addEdges(SnapList<ModelAction *> * edgeset, const ModelAction *to);
 	void addEdge(const ModelAction *from, const ModelAction *to);
 	void addEdge(const ModelAction *from, const ModelAction *to, bool forceedge);
 	void addRMWEdge(const ModelAction *from, const ModelAction *rmw);

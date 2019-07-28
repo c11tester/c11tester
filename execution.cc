@@ -910,12 +910,14 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 	unsigned int i;
 	ASSERT(curr->is_write());
 
+	SnapList<ModelAction *> edgeset;
+
 	if (curr->is_seqcst()) {
 		/* We have to at least see the last sequentially consistent write,
 		         so we are initialized. */
 		ModelAction *last_seq_cst = get_last_seq_cst_write(curr);
 		if (last_seq_cst != NULL) {
-			mo_graph->addEdge(last_seq_cst, curr);
+			edgeset.push_back(last_seq_cst);
 		}
 	}
 
@@ -932,7 +934,6 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
 		action_list_t::reverse_iterator rit;
-		bool force_edge = false;
 		for (rit = list->rbegin();rit != list->rend();rit++) {
 			ModelAction *act = *rit;
 			if (act == curr) {
@@ -947,7 +948,6 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 				 * 3) If normal write, we need to look at earlier actions, so
 				 * continue processing list.
 				 */
-				force_edge = true;
 				if (curr->is_rmw()) {
 					if (curr->get_reads_from() != NULL)
 						break;
@@ -960,7 +960,7 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 			/* C++, Section 29.3 statement 7 */
 			if (last_sc_fence_thread_before && act->is_write() &&
 					*act < *last_sc_fence_thread_before) {
-				mo_graph->addEdge(act, curr, force_edge);
+				edgeset.push_back(act);
 				break;
 			}
 
@@ -976,15 +976,17 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 				 *   readfrom(act) --mo--> act
 				 */
 				if (act->is_write())
-					mo_graph->addEdge(act, curr, force_edge);
+					edgeset.push_back(act);
 				else if (act->is_read()) {
 					//if previous read accessed a null, just keep going
-					mo_graph->addEdge(act->get_reads_from(), curr, force_edge);
+					edgeset.push_back(act);
 				}
 				break;
 			}
 		}
 	}
+	mo_graph->addEdges(&edgeset, curr);
+
 }
 
 /**

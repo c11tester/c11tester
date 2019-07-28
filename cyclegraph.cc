@@ -137,6 +137,36 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 	addNodeEdge(fromnode, rmwnode, true);
 }
 
+void CycleGraph::addEdges(SnapList<ModelAction *> * edgeset, const ModelAction *to) {
+	for(SnapList<ModelAction*>::iterator it = edgeset->begin();it!=edgeset->end();) {
+		ModelAction *act = *it;
+		CycleNode *node = getNode(act);
+		SnapList<ModelAction*>::iterator it2 = it;
+		it2++;
+		for(;it2!=edgeset->end(); ) {
+			ModelAction *act2 = *it;
+			CycleNode *node2 = getNode(act2);
+			if (checkReachable(node, node2)) {
+				it = edgeset->erase(it);
+				goto endouterloop;
+			} else if (checkReachable(node2, node)) {
+				it2 = edgeset->erase(it2);
+				goto endinnerloop;
+			}
+			it2++;
+endinnerloop:
+			;
+		}
+		it++;
+endouterloop:
+		;
+	}
+	for(SnapList<ModelAction*>::iterator it = edgeset->begin();it!=edgeset->end();it++) {
+		ModelAction *from = *it;
+		addEdge(from, to, from->get_tid() == to->get_tid());
+	}
+}
+
 /**
  * @brief Adds an edge between objects
  *
