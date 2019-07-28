@@ -979,7 +979,7 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 					edgeset.push_back(act);
 				else if (act->is_read()) {
 					//if previous read accessed a null, just keep going
-					edgeset.push_back(act);
+					edgeset.push_back(act->get_reads_from());
 				}
 				break;
 			}
