@@ -126,8 +126,8 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (inst == NULL)
 		return;
 
-	if (inst->is_read())
-		func_node->store_read(act, tid);
+	//	if (inst->is_read())
+	//	func_node->store_read(act, tid);
 
 	/* add to curr_inst_list */
 	func_inst_list_t * curr_inst_list = func_inst_lists->back();

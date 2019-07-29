@@ -93,7 +93,7 @@ void thread_startup()
 }
 
 #ifdef TLS
-static int (*pthread_mutex_init_p) (pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) = NULL;
+static int (*pthread_mutex_init_p)(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) = NULL;
 
 int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) {
 	return pthread_mutex_init_p(__mutex, __mutexattr);
@@ -207,7 +207,7 @@ void setup_context() {
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
 
 	real_init_all();
-	
+
 	/* Initialize our lock */
 	real_pthread_mutex_init(&curr_thread->mutex, NULL);
 	real_pthread_mutex_init(&curr_thread->mutex2, NULL);

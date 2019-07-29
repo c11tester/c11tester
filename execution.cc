@@ -919,6 +919,8 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 		if (last_seq_cst != NULL) {
 			edgeset.push_back(last_seq_cst);
 		}
+		//update map for next query
+		obj_last_sc_map.put(curr->get_location(), curr);
 	}
 
 	/* Last SC fence in the current thread */
@@ -1207,10 +1209,6 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 
 
 void ModelExecution::add_write_to_lists(ModelAction *write) {
-	// Update seq_cst map
-	if (write->is_seqcst())
-		obj_last_sc_map.put(write->get_location(), write);
-
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, write->get_location());
 	int tid = id_to_int(write->get_tid());
 	if (tid >= (int)vec->size())
