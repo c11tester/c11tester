@@ -63,10 +63,11 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
-	mo_graph(new CycleGraph()),
+			 mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer()),
 	thrd_func_list(),
-	thrd_func_inst_lists()
+	thrd_func_inst_lists(),
+	isfinished(false)
 {
 	/* Initialize a model-checker thread, for special ModelActions */
 	model_thread = new Thread(get_next_id());
@@ -479,10 +480,8 @@ bool ModelExecution::process_fence(ModelAction *curr)
  * @param curr The current action
  * @return True if synchronization was updated or a thread completed
  */
-bool ModelExecution::process_thread_action(ModelAction *curr)
+void ModelExecution::process_thread_action(ModelAction *curr)
 {
-	bool updated = false;
-
 	switch (curr->get_type()) {
 	case THREAD_CREATE: {
 		thrd_t *thrd = (thrd_t *)curr->get_location();
@@ -512,19 +511,25 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		updated = true;	/* trigger rel-seq checks */
 		break;
 	}
 	case PTHREAD_JOIN: {
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		updated = true;	/* trigger rel-seq checks */
 		break;	// WL: to be add (modified)
 	}
 
+	case THREADONLY_FINISH:
 	case THREAD_FINISH: {
 		Thread *th = get_thread(curr);
+		if (curr == THREAD_FINISH &&
+				th == model->getInitThread()) {
+			th->complete();
+			setFinished();
+			break;
+		}
+
 		/* Wake up any joining threads */
 		for (unsigned int i = 0;i < get_num_threads();i++) {
 			Thread *waiting = get_thread(int_to_id(i));
@@ -533,7 +538,6 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 				scheduler->wake(waiting);
 		}
 		th->complete();
-		updated = true;	/* trigger rel-seq checks */
 		break;
 	}
 	case THREAD_START: {
@@ -542,8 +546,6 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 	default:
 		break;
 	}
-
-	return updated;
 }
 
 /**

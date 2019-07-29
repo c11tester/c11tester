@@ -91,6 +91,8 @@ public:
 
 	SnapVector<func_id_list_t> * get_thrd_func_list() { return &thrd_func_list; }
 	SnapVector< SnapList<func_inst_list_t *> *> * get_thrd_func_inst_lists() { return &thrd_func_inst_lists; }
+	bool isFinished() {return isfinished;}
+	void setFinished() {isfinished = true;}
 
 	SNAPSHOTALLOC
 private:
@@ -116,7 +118,7 @@ private:
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
 
-	bool process_thread_action(ModelAction *curr);
+	void process_thread_action(ModelAction *curr);
 	void read_from(ModelAction *act, ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
 
@@ -212,6 +214,7 @@ private:
 	 * This data structure is handled by ModelHistory
 	 */
 	SnapVector< SnapList< func_inst_list_t *> *> thrd_func_inst_lists;
+	bool isfinished;
 };
 
 #endif	/* __EXECUTION_H__ */

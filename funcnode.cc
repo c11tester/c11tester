@@ -117,7 +117,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	uint32_t old_size = thrd_read_map.size();
 	if (old_size <= tid) {
 		thrd_read_map.resize(tid + 1);
-		for (uint32_t i = old_size; i < tid + 1; i++)
+		for (uint32_t i = old_size;i < tid + 1;i++)
 			thrd_read_map[i] = new read_map_t();
 	}
 
@@ -167,7 +167,7 @@ void FuncNode::clear_read_map(uint32_t tid)
 
 void FuncNode::generate_predicate(FuncInst *func_inst)
 {
-	
+
 }
 
 /* @param tid thread id

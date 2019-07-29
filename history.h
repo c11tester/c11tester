@@ -47,4 +47,4 @@ private:
 	HashTable<void *, write_set_t *, uintptr_t, 4, model_malloc, model_calloc, model_free> write_history;
 };
 
-#endif /* __HISTORY_H__ */
+#endif	/* __HISTORY_H__ */

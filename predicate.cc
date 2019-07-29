@@ -17,7 +17,7 @@ inline bool operator==(const predicate_expr& expr_A, const predicate_expr& expr_
 void Predicate::add_predicate(predicate_expr predicate)
 {
 	ModelList<predicate_expr>::iterator it;
-	for (it = predicates.begin(); it != predicates.end(); it++) {
+	for (it = predicates.begin();it != predicates.end();it++) {
 		if (predicate == *it)
 			return;
 	}
