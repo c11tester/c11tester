@@ -7,7 +7,7 @@
 #include "hashset.h"
 #include "threads-model.h"
 
-typedef HashSet<uint64_t, uint64_t, 4, model_malloc, model_calloc, model_free> write_set_t;
+typedef HashSet<uint64_t, uint64_t, 0, model_malloc, model_calloc, model_free> write_set_t;
 
 class ModelHistory {
 public:
