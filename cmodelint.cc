@@ -330,8 +330,7 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
  */
 
 void cds_func_entry(const char * funcName) {
-	if (!model) return;
-
+	ensureModel();
 	Thread * th = thread_current();
 	uint32_t func_id;
 
@@ -355,8 +354,7 @@ void cds_func_entry(const char * funcName) {
 }
 
 void cds_func_exit(const char * funcName) {
-	if (!model) return;
-
+	ensureModel();
 	Thread * th = thread_current();
 	uint32_t func_id;
 
