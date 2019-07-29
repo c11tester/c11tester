@@ -125,17 +125,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	read_map->put(location, read_from_val);
 
 	/* Store the memory locations where atomic reads happen */
-	bool push_loc = true;
-	ModelList<void *>::iterator it;
-	for (it = read_locations.begin();it != read_locations.end();it++) {
-		if (location == *it) {
-			push_loc = false;
-			break;
-		}
-	}
-
-	if (push_loc)
-		read_locations.push_back(location);
+	read_locations.add(location);
 }
 
 uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
@@ -175,6 +165,7 @@ void FuncNode::generate_predicate(FuncInst *func_inst)
  */
 void FuncNode::print_last_read(uint32_t tid)
 {
+/*
 	ASSERT(thrd_read_map.size() > tid);
 	read_map_t * read_map = thrd_read_map[tid];
 
@@ -186,4 +177,5 @@ void FuncNode::print_last_read(uint32_t tid)
 		uint64_t read_val = read_map->get(*it);
 		model_print("last read of thread %d at %p: 0x%x\n", tid, *it, read_val);
 	}
+*/
 }

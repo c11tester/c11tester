@@ -4,6 +4,7 @@
 #include "action.h"
 #include "funcinst.h"
 #include "hashtable.h"
+#include "hashset.h"
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
 typedef HashTable<void *, uint64_t, uintptr_t, 4, model_malloc, model_calloc, model_free> read_map_t;
@@ -53,7 +54,7 @@ private:
 
 	/* Store the values read by atomic read actions per memory location for each thread */
 	ModelVector<read_map_t *> thrd_read_map;
-	ModelList<void *> read_locations;
+	HashSet<void *, uintptr_t, 4, model_malloc, model_calloc, model_free> read_locations;
 };
 
 #endif /* __FUNCNODE_H__ */

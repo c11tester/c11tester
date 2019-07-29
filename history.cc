@@ -156,10 +156,13 @@ uint64_t ModelHistory::query_last_read(void * location, thread_id_t tid)
 
 void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
 {
-	if ( !write_history.contains(location) )
-		write_history.put(location, new write_set_t() );
-
 	write_set_t * write_set = write_history.get(location);
+
+	if (write_set == NULL) {
+		write_set = new write_set_t();
+		write_history.put(location, write_set);
+	}
+
 	write_set->add(write_val);
 }
 
