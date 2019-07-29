@@ -220,3 +220,13 @@ int pthread_cond_broadcast(pthread_cond_t *p_cond) {
 	v->notify_all();
 	return 0;
 }
+
+int pthread_cond_destroy(pthread_cond_t *p_cond) {
+	ModelExecution *execution = model->get_execution();
+
+	if (execution->getCondMap()->contains(p_cond)) {
+		cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
+		delete v;
+		execution->getCondMap()->remove(p_cond);
+	}
+}
