@@ -89,7 +89,7 @@ public:
 	HashTable<pthread_mutex_t *, cdsc::snapmutex *, uintptr_t, 4> * getMutexMap() {return &mutex_map;}
 	ModelAction * check_current_action(ModelAction *curr);
 
-	SnapVector<func_id_list_t *> * get_thrd_func_list() { return &thrd_func_list; }
+	SnapVector<func_id_list_t> * get_thrd_func_list() { return &thrd_func_list; }
 	SnapVector< SnapList<func_inst_list_t *> *> * get_thrd_func_inst_lists() { return &thrd_func_inst_lists; }
 
 	SNAPSHOTALLOC
@@ -203,7 +203,7 @@ private:
 	 *
 	 * This data structure is handled by ModelHistory
 	 */
-	SnapVector< func_id_list_t * > thrd_func_list;
+	SnapVector<func_id_list_t> thrd_func_list;
 
 	/* Keeps track of atomic actions that thread i has performed in some
 	 * function. Index of SnapVector is thread id. SnapList simulates

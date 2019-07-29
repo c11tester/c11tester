@@ -277,7 +277,6 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
 	return act;
 }
 
-
 /**
  * Processes a read model action.
  * @param curr is the read model action to process.
@@ -1632,7 +1631,7 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	ASSERT(curr);
 
 	/* Process this action in ModelHistory for records*/
-	model->get_history()->process_action( curr, curr_thrd->get_id() );
+	model->get_history()->process_action( curr, curr->get_tid() );
 
 	if (curr_thrd->is_blocked() || curr_thrd->is_complete())
 		scheduler->remove_thread(curr_thrd);

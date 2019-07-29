@@ -58,5 +58,11 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 
 bool FuncInst::is_read() const
 {
-	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS;
+	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS; /* type == ATOMIC_RMW ? */
 }
+
+bool FuncInst::is_write() const
+{
+        return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT || type == NONATOMIC_WRITE;
+}
+

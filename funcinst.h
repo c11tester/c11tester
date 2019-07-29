@@ -1,3 +1,6 @@
+#ifndef __FUNCINST_H__
+#define __FUNCINST_H__
+
 #include "action.h"
 #include "hashtable.h"
 
@@ -26,6 +29,7 @@ public:
 	func_inst_list_mt * get_succs() { return &successors; }
 
 	bool is_read() const;
+	bool is_write() const;
 
 	MEMALLOC
 private:
@@ -43,3 +47,6 @@ private:
 	func_inst_list_mt predecessors;
 	func_inst_list_mt successors;
 };
+
+#endif /* __FUNCINST_H__ */
+
