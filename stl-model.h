@@ -5,38 +5,227 @@
 #include "mymemory.h"
 
 template<typename _Tp>
-class ModelList : public std::list<_Tp, ModelAlloc<_Tp> >
-{
-public:
-	typedef std::list< _Tp, ModelAlloc<_Tp> > list;
-
-	ModelList() :
-		list()
-	{ }
-
-	ModelList(size_t n, const _Tp& val = _Tp()) :
-		list(n, val)
-	{ }
-
-	MEMALLOC
+class mllnode {
+ public:
+  _Tp getVal() {return val;}
+  mllnode<_Tp> * getNext() {return next;}
+  mllnode<_Tp> * getPrev() {return prev;}
+  MEMALLOC;
+  
+ private:
+  mllnode<_Tp> * next;
+  mllnode<_Tp> * prev;
+  _Tp val;
+  friend class ModelList;
 };
 
 template<typename _Tp>
-class SnapList : public std::list<_Tp, SnapshotAlloc<_Tp> >
+class ModelList
 {
-public:
-	typedef std::list<_Tp, SnapshotAlloc<_Tp> > list;
+public:  
+ ModelList() : head(NULL),
+    tail(NULL) {
+  }
 
-	SnapList() :
-		list()
-	{ }
+  void push_front(_Tp val) {
+    mllnode<_Tp> * tmp = new mllnode<_Tp>();
+    tmp->prev = NULL;
+    tmp->next = head;
+    tmp->val = val;
+    if (head == NULL)
+      tail = tmp;
+    else
+      head->prev = tmp;
+    head = tmp;
+  }
 
-	SnapList(size_t n, const _Tp& val = _Tp()) :
-		list(n, val)
-	{ }
+  void push_back(_Tp val) {
+    mllnode<_Tp> * tmp = new mllnode<_Tp>();
+    tmp->prev = tail;
+    tmp->next = NULL;
+    tmp->val = val;
+    if (tail == NULL)
+      head = tmp;
+    else tail->next = tmp;
+    tail = tmp;
+  }
 
-	SNAPSHOTALLOC
+  void insertAfter(mllnode<_Tp> * node, _Tp val) {
+    mllnode<_Tp> *tmp = new mllnode<_Tp>();
+    tmp->val = val;
+    tmp->prev = node;
+    tmp->next = node->next;
+    node->next = tmp;
+    if (tmp->next == NULL) {
+      tail = tmp;
+    } else {
+      tmp->next->prev = tmp;
+    }
+  }
+
+  void insertBefore(mllnode<_Tp> * node, _Tp val) {
+    mllnode<_Tp> *tmp = new mllnode<_Tp>();
+    tmp->val = val;
+    tmp->next = node;
+    tmp->prev = node->prev;
+    node->prev = tmp;
+    if (tmp->prev == NULL) {
+      head = tmp;
+    } else {
+      tmp->prev->next = tmp;
+    }
+  }
+  
+  void erase(mllnode<_Tp> * node) {
+    if (head == node) {
+      head = node->next;
+    } else {
+      node->prev->next = node->next;
+    }
+
+    if (tail == node) {
+      tail = node->prev;
+    } else {
+      tail->next->prev = node->prev;
+    }
+    
+    delete node;
+  }
+  
+  mllnode<_Tp> begin() {
+    return head;
+  }
+
+  mllnode<_Tp> end() {
+    return tail;
+  }
+  
+  _Tp front() {
+    return head->val;
+  }
+
+  _Tp back() {
+    return tail->val;
+  }
+  
+  
+  MEMALLOC;
+ private:
+  mllnode<_Tp> *head;
+  mllnode<_Tp> *tail;
 };
+
+template<typename _Tp>
+class sllnode {
+ public:
+  _Tp getVal() {return val;}
+  sllnode<_Tp> * getNext() {return next;}
+  sllnode<_Tp> * getPrev() {return prev;}
+  SNAPSHOTALLOC;
+  
+ private:
+  sllnode<_Tp> * next;
+  sllnode<_Tp> * prev;
+  _Tp val;
+  friend class SnapList;
+};
+
+template<typename _Tp>
+class SnapList
+{
+public:  
+ SnapList() : head(NULL),
+    tail(NULL) {
+  }
+
+  void push_front(_Tp val) {
+    sllnode<_Tp> * tmp = new sllnode<_Tp>();
+    tmp->prev = NULL;
+    tmp->next = head;
+    tmp->val = val;
+    if (head == NULL)
+      tail = tmp;
+    else
+      head->prev = tmp;
+    head = tmp;
+  }
+
+  void push_back(_Tp val) {
+    sllnode<_Tp> * tmp = new sllnode<_Tp>();
+    tmp->prev = tail;
+    tmp->next = NULL;
+    tmp->val = val;
+    if (tail == NULL)
+      head = tmp;
+    else tail->next = tmp;
+    tail = tmp;
+  }
+
+  void insertAfter(sllnode<_Tp> * node, _Tp val) {
+    sllnode<_Tp> *tmp = new sllnode<_Tp>();
+    tmp->val = val;
+    tmp->prev = node;
+    tmp->next = node->next;
+    node->next = tmp;
+    if (tmp->next == NULL) {
+      tail = tmp;
+    } else {
+      tmp->next->prev = tmp;
+    }
+  }
+
+  void insertBefore(sllnode<_Tp> * node, _Tp val) {
+    sllnode<_Tp> *tmp = new sllnode<_Tp>();
+    tmp->val = val;
+    tmp->next = node;
+    tmp->prev = node->prev;
+    node->prev = tmp;
+    if (tmp->prev == NULL) {
+      head = tmp;
+    } else {
+      tmp->prev->next = tmp;
+    }
+  }
+  
+  void erase(sllnode<_Tp> * node) {
+    if (head == node) {
+      head = node->next;
+    } else {
+      node->prev->next = node->next;
+    }
+
+    if (tail == node) {
+      tail = node->prev;
+    } else {
+      tail->next->prev = node->prev;
+    }
+    
+    delete node;
+  }
+  
+  sllnode<_Tp> begin() {
+    return head;
+  }
+
+  sllnode<_Tp> end() {
+    return tail;
+  }
+  
+  _Tp front() {
+    return head->val;
+  }
+
+  _Tp back() {
+    return tail->val;
+  }
+  
+  
+  SNAPSHOTALLOC;
+ private:
+  sllnode<_Tp> *head;
+  sllnode<_Tp> *tail;
+};
+
 
 #define VECTOR_DEFCAP 8
 

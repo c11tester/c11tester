@@ -1101,8 +1101,12 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		uninit_id = id_to_int(uninit->get_tid());
 		list->push_front(uninit);
 		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
-		if (uninit_id >= (int)vec->size())
-			vec->resize(uninit_id + 1);
+		if (uninit_id >= (int)vec->size()) {
+		  int oldsize = (int) vec->size();
+		  vec->resize(uninit_id + 1);
+		  for(int i=oldsize; i<uninit_id+1; i++)
+		    new (&vec[i]) action_list_t(); 
+		}
 		(*vec)[uninit_id].push_front(uninit);
 	}
 	list->push_back(act);
@@ -1114,8 +1118,12 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
-	if (tid >= (int)vec->size())
-		vec->resize(priv->next_thread_id);
+	if (tid >= (int)vec->size()) {
+	  uint oldsize =vec->size();
+	  vec->resize(priv->next_thread_id);
+	  for(uint i=oldsize; i<priv->next_thread_id; i++)
+	    new (&vec[i]) action_list_t(); 
+	}
 	(*vec)[tid].push_back(act);
 	if (uninit)
 		(*vec)[uninit_id].push_front(uninit);
@@ -1139,8 +1147,12 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		get_safe_ptr_action(&obj_map, mutex_loc)->push_back(act);
 
 		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, mutex_loc);
-		if (tid >= (int)vec->size())
-			vec->resize(priv->next_thread_id);
+		if (tid >= (int)vec->size()) {
+		  uint oldsize = vec->size();
+		  vec->resize(priv->next_thread_id);
+		  for(uint i=oldsize; i<priv->next_thread_id; i++)
+		    new (&vec[i]) action_list_t(); 
+		}
 		(*vec)[tid].push_back(act);
 	}
 }
@@ -1199,8 +1211,12 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
-	if (tid >= (int)vec->size())
-		vec->resize(priv->next_thread_id);
+	if (tid >= (int)vec->size()) {
+	  uint oldsize =vec->size();
+	  vec->resize(priv->next_thread_id);
+	  for(uint i=oldsize; i<priv->next_thread_id; i++)
+	    new (&vec[i]) action_list_t();
+	}
 	insertIntoActionList(&(*vec)[tid],act);
 
 	// Update thrd_last_action, the last action taken by each thrad
@@ -1212,8 +1228,12 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 void ModelExecution::add_write_to_lists(ModelAction *write) {
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, write->get_location());
 	int tid = id_to_int(write->get_tid());
-	if (tid >= (int)vec->size())
-		vec->resize(priv->next_thread_id);
+	if (tid >= (int)vec->size()) {
+	  uint oldsize =vec->size();
+	  vec->resize(priv->next_thread_id);
+	  for(uint i=oldsize; i<priv->next_thread_id; i++)
+	    new (&vec[i]) action_list_t();
+	}
 	(*vec)[tid].push_back(write);
 }
 
