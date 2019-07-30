@@ -32,7 +32,8 @@ public:
 
 	void add_to_write_history(void * location, uint64_t write_val);
 
-	void print();
+	void print_write();
+	void print_func_node();
 
 	MEMALLOC
 private:
@@ -44,7 +45,6 @@ private:
 	ModelVector<const char *> func_map_rev;
 
 	ModelVector<FuncNode *> func_nodes;
-	HashTable<void *, write_set_t *, uintptr_t, 4, model_malloc, model_calloc, model_free> write_history;
 };
 
 #endif /* __HISTORY_H__ */

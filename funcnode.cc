@@ -6,7 +6,8 @@ FuncNode::FuncNode() :
 	inst_list(),
 	entry_insts(),
 	thrd_read_map(),
-	read_locations()
+	write_history(),
+	write_locations()
 {}
 
 /* Check whether FuncInst with the same type, position, and location
@@ -125,7 +126,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	read_map->put(location, read_from_val);
 
 	/* Store the memory locations where atomic reads happen */
-	read_locations.add(location);
+	// read_locations.add(location);
 }
 
 uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
@@ -155,6 +156,19 @@ void FuncNode::clear_read_map(uint32_t tid)
 	thrd_read_map[tid]->reset();
 }
 
+void FuncNode::add_to_write_history(void * location, uint64_t write_val)
+{
+	write_set_t * write_set = write_history.get(location);
+
+	if (write_set == NULL) {
+		write_set = new write_set_t();
+		write_history.put(location, write_set);
+	}
+
+	write_set->add(write_val);
+	write_locations.add(location);
+}
+
 void FuncNode::generate_predicate(FuncInst *func_inst)
 {
 	
@@ -165,10 +179,9 @@ void FuncNode::generate_predicate(FuncInst *func_inst)
  */
 void FuncNode::print_last_read(uint32_t tid)
 {
-/*
 	ASSERT(thrd_read_map.size() > tid);
 	read_map_t * read_map = thrd_read_map[tid];
-
+/*
 	ModelList<void *>::iterator it;
 	for (it = read_locations.begin();it != read_locations.end();it++) {
 		if ( !read_map->contains(*it) )
@@ -178,4 +191,33 @@ void FuncNode::print_last_read(uint32_t tid)
 		model_print("last read of thread %d at %p: 0x%x\n", tid, *it, read_val);
 	}
 */
+}
+
+void FuncNode::print_write()
+{
+	HSIterator<void *, uintptr_t, 4, model_malloc, model_calloc, model_free> * iter;
+	HSIterator<uint64_t, uint64_t, 0, model_malloc, model_calloc, model_free> * write_iter;
+	iter = write_locations.iterator();
+
+	if (write_locations.getSize() > 10) {
+		while (iter->hasNext()) {
+			void * location = iter->next();
+			write_set_t * write_set = write_history.get(location);
+
+//			model_print("location: %p contains %d writes\n", location, write_set->getSize());
+			if (write_set->getSize() > 5) {
+				model_print("location %p has writes: ", location);
+				write_iter = write_set->iterator();
+
+				while (write_iter->hasNext()) {
+					uint64_t val = write_iter->next();
+					model_print("%lx ", val);
+				}
+				model_print("\n");
+			}
+		}
+	} else {
+		model_print("\n");
+	}
+	delete iter;
 }

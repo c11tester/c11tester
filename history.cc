@@ -13,8 +13,7 @@ ModelHistory::ModelHistory() :
 	func_counter(1),	/* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
-	func_nodes(),
-	write_history()
+	func_nodes()
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -120,7 +119,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		func_node->store_read(act, tid);
 
 	if (inst->is_write())
-		add_to_write_history(act->get_location(), act->get_write_value());
+		func_node->add_to_write_history(act->get_location(), act->get_write_value());
 
 	/* add to curr_inst_list */
 	func_inst_list_t * curr_inst_list = func_inst_lists->back();
@@ -154,22 +153,19 @@ uint64_t ModelHistory::query_last_read(void * location, thread_id_t tid)
 	return last_read_val;
 }
 
-void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
+void ModelHistory::print_write()
 {
-	write_set_t * write_set = write_history.get(location);
-
-	if (write_set == NULL) {
-		write_set = new write_set_t();
-		write_history.put(location, write_set);
+	for (uint32_t i = 1; i < func_nodes.size(); i++) {
+		FuncNode * func_node = func_nodes[i];
+		model_print("function id: %d, name: %s --- ", i, func_node->get_func_name());
+		func_node->print_write();
 	}
-
-	write_set->add(write_val);
 }
 
-void ModelHistory::print()
+void ModelHistory::print_func_node()
 {
 	/* function id starts with 1 */
-	for (uint32_t i = 1;i < func_nodes.size();i++) {
+	for (uint32_t i = 1; i < func_nodes.size(); i++) {
 		FuncNode * func_node = func_nodes[i];
 
 		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
@@ -180,7 +176,6 @@ void ModelHistory::print()
 			FuncInst *inst = *it;
 			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
 		}
-
 /*
                 func_inst_list_mt * inst_list = funcNode->get_inst_list();
 
@@ -190,6 +185,6 @@ void ModelHistory::print()
                         FuncInst *inst = *it;
                         model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
                 }
- */
+*/
 	}
 }
