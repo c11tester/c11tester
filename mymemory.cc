@@ -71,6 +71,31 @@ void *model_malloc(size_t size)
 #endif
 }
 
+/** Non-snapshotting malloc for our use. */
+void *model_realloc(void *ptr, size_t size)
+{
+#if USE_MPROTECT_SNAPSHOT
+	static void *(*reallocp)(void *ptr, size_t size) = NULL;
+	char *error;
+	void *newptr;
+
+	/* get address of libc malloc */
+	if (!reallocp) {
+		reallocp = (void * (*)(size_t))dlsym(RTLD_NEXT, "realloc");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+	newptr = reallocp(ptr, size);
+	return newptr;
+#else
+	if (!sStaticSpace)
+		sStaticSpace = create_shared_mspace();
+	return mspace_realloc(sStaticSpace, ptr, size);
+#endif
+}
+
 /** @brief Snapshotting malloc, for use by model-checker (not user progs) */
 void * snapshot_malloc(size_t size)
 {

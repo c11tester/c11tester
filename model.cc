@@ -353,6 +353,8 @@ static void runChecker() {
 
 void ModelChecker::startChecker() {
 	startExecution(get_system_context(), runChecker);
+	snapshot_stack_init();
+	snapshot_record(0);
 }
 
 bool ModelChecker::should_terminate_execution()

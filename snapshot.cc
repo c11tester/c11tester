@@ -415,8 +415,8 @@ static void fork_loop() {
 
 static void fork_startExecution(ucontext_t *context, VoidFuncPtr entryPoint) {
 	/* setup an "exiting" context */
-	char stack[128];
-	create_context(&exit_ctxt, stack, sizeof(stack), fork_exit);
+	int exit_stack_size = 256;
+	create_context(&exit_ctxt, snapshot_calloc(exit_stack_size, 1), exit_stack_size, fork_exit);
 
 	/* setup the system context */
 	create_context(context, fork_snap->mStackBase, STACK_SIZE_DEFAULT, entryPoint);
