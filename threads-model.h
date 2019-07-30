@@ -6,7 +6,6 @@
 #define __THREADS_MODEL_H__
 
 #include <stdint.h>
-
 #include "mymemory.h"
 #include "threads.h"
 #include "modeltypes.h"
@@ -210,5 +209,13 @@ static inline int id_to_int(thread_id_t id)
 {
 	return id;
 }
+
+int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr);
+int real_pthread_mutex_lock (pthread_mutex_t *__mutex);
+int real_pthread_mutex_unlock (pthread_mutex_t *__mutex);
+int real_pthread_create (pthread_t *__restrict __newthread, const pthread_attr_t *__restrict __attr, void *(*__start_routine)(void *), void *__restrict __arg);
+int real_pthread_join (pthread_t __th, void ** __thread_return);
+void real_pthread_exit (void * value_ptr) __attribute__((noreturn));
+void real_init_all();
 
 #endif	/* __THREADS_MODEL_H__ */

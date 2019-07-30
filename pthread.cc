@@ -57,6 +57,8 @@ void pthread_exit(void *value_ptr) {
 	Thread * th = thread_current();
 	th->set_pthread_return(value_ptr);
 	model->switch_to_master(new ModelAction(THREADONLY_FINISH, std::memory_order_seq_cst, th));
+	//Need to exit so we don't return to the program
+	real_pthread_exit(NULL);
 }
 
 int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {

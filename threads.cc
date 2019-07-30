@@ -92,7 +92,6 @@ void thread_startup()
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, curr_thread));
 }
 
-#ifdef TLS
 static int (*pthread_mutex_init_p)(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) = NULL;
 
 int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) {
@@ -121,6 +120,12 @@ static int (*pthread_join_p) (pthread_t __th, void ** __thread_return) = NULL;
 
 int real_pthread_join (pthread_t __th, void ** __thread_return) {
 	return pthread_join_p(__th, __thread_return);
+}
+
+static void (*pthread_exit_p)(void *) __attribute__((noreturn))= NULL;
+
+void real_pthread_exit (void * value_ptr) {
+	pthread_exit_p(value_ptr);
 }
 
 void real_init_all() {
@@ -160,8 +165,17 @@ void real_init_all() {
 			exit(EXIT_FAILURE);
 		}
 	}
+
+	if (!pthread_exit_p) {
+		pthread_exit_p = (void (*)(void *))dlsym(RTLD_NEXT, "pthread_exit");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
 }
 
+#ifdef TLS
 void finalize_helper_thread() {
 	Thread * curr_thread = thread_current();
 	real_pthread_mutex_lock(&curr_thread->mutex);

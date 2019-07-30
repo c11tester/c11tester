@@ -63,7 +63,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
-			 mo_graph(new CycleGraph()),
+	mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer()),
 	thrd_func_list(),
 	thrd_func_inst_lists(),
@@ -523,7 +523,7 @@ void ModelExecution::process_thread_action(ModelAction *curr)
 	case THREADONLY_FINISH:
 	case THREAD_FINISH: {
 		Thread *th = get_thread(curr);
-		if (curr == THREAD_FINISH &&
+		if (curr->get_type() == THREAD_FINISH &&
 				th == model->getInitThread()) {
 			th->complete();
 			setFinished();
