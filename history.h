@@ -45,6 +45,9 @@ private:
 	ModelVector<const char *> func_map_rev;
 
 	ModelVector<FuncNode *> func_nodes;
+
+	HashTable<void *, write_set_t *, uintptr_t, 4, model_malloc, model_calloc, model_free> write_history;
+	HashSet<void *, uintptr_t, 4, model_malloc, model_calloc, model_free> write_locations;
 };
 
 #endif /* __HISTORY_H__ */

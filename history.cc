@@ -13,7 +13,9 @@ ModelHistory::ModelHistory() :
 	func_counter(1),	/* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
-	func_nodes()
+	func_nodes(),
+	write_history(),
+	write_locations()
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -153,13 +155,21 @@ uint64_t ModelHistory::query_last_read(void * location, thread_id_t tid)
 	return last_read_val;
 }
 
+void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
+{
+	write_set_t * write_set = write_history.get(location);
+
+	if (write_set == NULL) {
+		write_set = new write_set_t();
+		write_history.put(location, write_set);
+	}
+
+	write_set->add(write_val);
+	write_locations.add(location);
+}
+
 void ModelHistory::print_write()
 {
-	for (uint32_t i = 1; i < func_nodes.size(); i++) {
-		FuncNode * func_node = func_nodes[i];
-		model_print("function id: %d, name: %s --- ", i, func_node->get_func_name());
-		func_node->print_write();
-	}
 }
 
 void ModelHistory::print_func_node()
