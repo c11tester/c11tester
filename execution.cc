@@ -390,8 +390,8 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	case ATOMIC_NOTIFY_ALL: {
 		action_list_t *waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
 		//activate all the waiting threads
-		for (action_list_t::iterator rit = waiters->begin();rit != waiters->end();rit++) {
-			scheduler->wake(get_thread(*rit));
+		for (sllnode<ModelAction *> * rit = waiters->begin();rit != NULL;rit=rit->getNext()) {
+		  scheduler->wake(get_thread(rit->getVal()));
 		}
 		waiters->clear();
 		break;

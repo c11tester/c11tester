@@ -3,6 +3,8 @@
 
 #include <list>
 #include "mymemory.h"
+typedef unsigned int uint;
+
 
 template<typename _Tp>
 class mllnode {
@@ -26,7 +28,7 @@ class ModelList
 {
 public:  
  ModelList() : head(NULL),
-    tail(NULL) {
+    tail(NULL), _size(0) {
   }
 
   void push_front(_Tp val) {
@@ -39,6 +41,7 @@ public:
     else
       head->prev = tmp;
     head = tmp;
+    _size++;
   }
 
   void push_back(_Tp val) {
@@ -50,8 +53,35 @@ public:
       head = tmp;
     else tail->next = tmp;
     tail = tmp;
+    _size++;
   }
 
+  void pop_front() {
+    mllnode<_Tp> *tmp = head;
+    head = head->next;
+    head->prev = NULL;
+    delete tmp;
+    _size--;
+  }
+
+  void pop_back() {
+    mllnode<_Tp> *tmp = tail;
+    tail = tail->next;
+    tail->next = NULL;
+    delete tmp;
+    _size--;
+  }
+
+  void clear() {
+    while(head != NULL) {
+      mllnode<_Tp> *tmp=head->next;
+      delete head;
+      head = tmp;
+    }
+    tail=NULL;
+    _size=0;
+  }
+  
   void insertAfter(mllnode<_Tp> * node, _Tp val) {
     mllnode<_Tp> *tmp = new mllnode<_Tp>();
     tmp->val = val;
@@ -63,6 +93,7 @@ public:
     } else {
       tmp->next->prev = tmp;
     }
+    _size++;
   }
 
   void insertBefore(mllnode<_Tp> * node, _Tp val) {
@@ -76,6 +107,7 @@ public:
     } else {
       tmp->prev->next = tmp;
     }
+    _size++;
   }
   
   mllnode<_Tp> * erase(mllnode<_Tp> * node) {
@@ -92,6 +124,7 @@ public:
     }
     mllnode<_Tp> *next = node->next;
     delete node;
+    _size--;
     return next;
   }
   
@@ -110,12 +143,16 @@ public:
   _Tp back() {
     return tail->val;
   }
-  
+
+  uint size() {
+    return _size;
+  }
   
   MEMALLOC;
  private:
   mllnode<_Tp> *head;
   mllnode<_Tp> *tail;
+  uint _size;
 };
 
 template<typename _Tp>
@@ -139,7 +176,7 @@ class SnapList
 {
 public:  
  SnapList() : head(NULL),
-    tail(NULL) {
+    tail(NULL), _size(0) {
   }
 
   void push_front(_Tp val) {
@@ -152,6 +189,7 @@ public:
     else
       head->prev = tmp;
     head = tmp;
+    _size++;
   }
 
   void push_back(_Tp val) {
@@ -163,8 +201,35 @@ public:
       head = tmp;
     else tail->next = tmp;
     tail = tmp;
+    _size++;
+  }
+  
+  void pop_front() {
+    sllnode<_Tp> *tmp = head;
+    head = head->next;
+    head->prev = NULL;
+    delete tmp;
+    _size--;
   }
 
+  void pop_back() {
+    sllnode<_Tp> *tmp = tail;
+    tail = tail->next;
+    tail->next = NULL;
+    delete tmp;
+    _size--;
+  }
+
+  void clear() {
+    while(head != NULL) {
+      sllnode<_Tp> *tmp=head->next;
+      delete head;
+      head = tmp;
+    }
+    tail=NULL;
+    _size=0;
+  }
+  
   void insertAfter(sllnode<_Tp> * node, _Tp val) {
     sllnode<_Tp> *tmp = new sllnode<_Tp>();
     tmp->val = val;
@@ -176,6 +241,7 @@ public:
     } else {
       tmp->next->prev = tmp;
     }
+    _size++;
   }
 
   void insertBefore(sllnode<_Tp> * node, _Tp val) {
@@ -189,6 +255,7 @@ public:
     } else {
       tmp->prev->next = tmp;
     }
+    _size++;
   }
   
   sllnode<_Tp> * erase(sllnode<_Tp> * node) {
@@ -206,6 +273,7 @@ public:
 
     sllnode<_Tp> *next = node->next;
     delete node;
+    _size--;
     return next;
   }
   
@@ -224,18 +292,20 @@ public:
   _Tp back() {
     return tail->val;
   }
-  
+  uint size() {
+    return _size;
+  }
   
   SNAPSHOTALLOC;
  private:
   sllnode<_Tp> *head;
   sllnode<_Tp> *tail;
+  uint _size;
 };
 
 
 #define VECTOR_DEFCAP 8
 
-typedef unsigned int uint;
 
 template<typename type>
 class ModelVector {
