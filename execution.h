@@ -40,9 +40,9 @@ public:
 
 	Thread * take_step(ModelAction *curr);
 
-	void print_summary() const;
+	void print_summary();
 #if SUPPORT_MOD_ORDER_DUMP
-	void dumpGraph(char *filename) const;
+	void dumpGraph(char *filename);
 #endif
 
 	void add_thread(Thread *t);

@@ -18,9 +18,10 @@ Thread * Fuzzer::selectThread(int * threadlist, int numthreads) {
 Thread * Fuzzer::selectNotify(action_list_t * waiters) {
 	int numwaiters = waiters->size();
 	int random_index = random() % numwaiters;
-	action_list_t::iterator it = waiters->begin();
-	advance(it, random_index);
-	Thread *thread = model->get_thread(*it);
+	sllnode<ModelAction*> * it = waiters->begin();
+	while(random_index--)
+	  it=it->getNext();
+	Thread *thread = model->get_thread(it->getVal());
 	waiters->erase(it);
 	return thread;
 }

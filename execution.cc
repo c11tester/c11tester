@@ -1158,38 +1158,36 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 }
 
 void insertIntoActionList(action_list_t *list, ModelAction *act) {
-	action_list_t::reverse_iterator rit = list->rbegin();
+  sllnode<ModelAction*> * rit = list->end();
 	modelclock_t next_seq = act->get_seq_number();
-	if (rit == list->rend() || (*rit)->get_seq_number() == next_seq)
-		list->push_back(act);
+	if (rit == NULL || (rit->getVal())->get_seq_number() == next_seq)
+	  list->push_back(act);
 	else {
-		for(;rit != list->rend();rit++) {
-			if ((*rit)->get_seq_number() == next_seq) {
-				action_list_t::iterator it = rit.base();
-				list->insert(it, act);
-				break;
-			}
-		}
+	  for(;rit != NULL;rit=rit->getPrev()) {
+	    if ((rit->getVal())->get_seq_number() == next_seq) {
+	      list->insertAfter(rit, act);
+	      break;
+	    }
+	  }
 	}
 }
 
 void insertIntoActionListAndSetCV(action_list_t *list, ModelAction *act) {
-	action_list_t::reverse_iterator rit = list->rbegin();
+  sllnode<ModelAction*> * rit = list->end();
 	modelclock_t next_seq = act->get_seq_number();
-	if (rit == list->rend()) {
+	if (rit == NULL) {
 		act->create_cv(NULL);
-	} else if ((*rit)->get_seq_number() == next_seq) {
-		act->create_cv((*rit));
-		list->push_back(act);
+	} else if (rit->getVal()->get_seq_number() == next_seq) {
+	  act->create_cv(rit->getVal());
+	  list->push_back(act);
 	} else {
-		for(;rit != list->rend();rit++) {
-			if ((*rit)->get_seq_number() == next_seq) {
-				act->create_cv((*rit));
-				action_list_t::iterator it = rit.base();
-				list->insert(it, act);
-				break;
-			}
-		}
+	  for(;rit != NULL;rit=rit->getPrev()) {
+	    if (rit->getVal()->get_seq_number() == next_seq) {
+	      act->create_cv(rit->getVal());
+	      list->insertAfter(rit, act);
+	      break;
+	    }
+	  }
 	}
 }
 
@@ -1295,20 +1293,22 @@ ModelAction * ModelExecution::get_last_seq_cst_fence(thread_id_t tid, const Mode
 	if (!list)
 		return NULL;
 
-	action_list_t::reverse_iterator rit = list->rbegin();
+	sllnode<ModelAction*>* rit = list->end();
 
 	if (before_fence) {
-		for (;rit != list->rend();rit++)
-			if (*rit == before_fence)
-				break;
-
-		ASSERT(*rit == before_fence);
-		rit++;
+	  for (;rit != NULL;rit=rit->getPrev())
+	    if (rit->getVal() == before_fence)
+	      break;
+	  
+	  ASSERT(rit->getVal() == before_fence);
+	  rit=rit->getPrev();
 	}
 
-	for (;rit != list->rend();rit++)
-		if ((*rit)->is_fence() && (tid == (*rit)->get_tid()) && (*rit)->is_seqcst())
-			return *rit;
+	for (;rit != NULL;rit=rit->getPrev()) {
+	  ModelAction *act = rit->getVal();
+	  if (act->is_fence() && (tid == act->get_tid()) && act->is_seqcst())
+			return act;
+	}
 	return NULL;
 }
 
@@ -1326,10 +1326,10 @@ ModelAction * ModelExecution::get_last_unlock(ModelAction *curr) const
 
 	action_list_t *list = obj_map.get(location);
 	/* Find: max({i in dom(S) | isUnlock(t_i) && samevar(t_i, t)}) */
-	action_list_t::reverse_iterator rit;
-	for (rit = list->rbegin();rit != list->rend();rit++)
-		if ((*rit)->is_unlock() || (*rit)->is_wait())
-			return *rit;
+	sllnode<ModelAction*>* rit;
+	for (rit = list->end();rit != NULL;rit=rit->getPrev())
+	  if (rit->getVal()->is_unlock() || rit->getVal()->is_wait())
+	    return rit->getVal();
 	return NULL;
 }
 
@@ -1392,9 +1392,9 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 	for (i = 0;i < thrd_lists->size();i++) {
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		sllnode<ModelAction *> * rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+		  ModelAction *act = rit->getVal();
 
 			if (act == curr)
 				continue;
@@ -1457,9 +1457,9 @@ ModelAction * ModelExecution::get_uninitialized_action(ModelAction *curr) const
 	return act;
 }
 
-static void print_list(const action_list_t *list)
+static void print_list(action_list_t *list)
 {
-	action_list_t::const_iterator it;
+  sllnode<ModelAction*> *it;
 
 	model_print("------------------------------------------------------------------------------------\n");
 	model_print("#    t    Action type     MO       Location         Value               Rf  CV\n");
@@ -1467,18 +1467,18 @@ static void print_list(const action_list_t *list)
 
 	unsigned int hash = 0;
 
-	for (it = list->begin();it != list->end();it++) {
-		const ModelAction *act = *it;
+	for (it = list->begin();it != NULL;it=it->getNext()) {
+	  const ModelAction *act = it->getVal();
 		if (act->get_seq_number() > 0)
 			act->print();
-		hash = hash^(hash<<3)^((*it)->hash());
+		hash = hash^(hash<<3)^(it->getVal()->hash());
 	}
 	model_print("HASH %u\n", hash);
 	model_print("------------------------------------------------------------------------------------\n");
 }
 
 #if SUPPORT_MOD_ORDER_DUMP
-void ModelExecution::dumpGraph(char *filename) const
+void ModelExecution::dumpGraph(char *filename)
 {
 	char buffer[200];
 	sprintf(buffer, "%s.dot", filename);
@@ -1487,8 +1487,8 @@ void ModelExecution::dumpGraph(char *filename) const
 	mo_graph->dumpNodes(file);
 	ModelAction **thread_array = (ModelAction **)model_calloc(1, sizeof(ModelAction *) * get_num_threads());
 
-	for (action_list_t::const_iterator it = action_trace.begin();it != action_trace.end();it++) {
-		ModelAction *act = *it;
+	for (sllnode<ModelAction*>* it = action_trace.begin();it != NULL;it=it->getNext()) {
+	  ModelAction *act = it->getVal();
 		if (act->is_read()) {
 			mo_graph->dot_print_node(file, act);
 			mo_graph->dot_print_edge(file,
@@ -1512,7 +1512,7 @@ void ModelExecution::dumpGraph(char *filename) const
 #endif
 
 /** @brief Prints an execution trace summary. */
-void ModelExecution::print_summary() const
+void ModelExecution::print_summary() 
 {
 #if SUPPORT_MOD_ORDER_DUMP
 	char buffername[100];
