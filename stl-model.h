@@ -147,6 +147,10 @@ public:
   uint size() {
     return _size;
   }
+
+  bool empty() {
+    return _size == 0;
+  }
   
   MEMALLOC;
  private:
@@ -294,6 +298,9 @@ public:
   }
   uint size() {
     return _size;
+  }
+  bool empty() {
+    return _size == 0;
   }
   
   SNAPSHOTALLOC;

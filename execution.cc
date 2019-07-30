@@ -440,10 +440,10 @@ bool ModelExecution::process_fence(ModelAction *curr)
 	bool updated = false;
 	if (curr->is_acquire()) {
 		action_list_t *list = &action_trace;
-		action_list_t::reverse_iterator rit;
+		sllnode<ModelAction *> * rit;
 		/* Find X : is_read(X) && X --sb-> curr */
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+		  ModelAction *act = rit->getVal();
 			if (act == curr)
 				continue;
 			if (act->get_tid() != curr->get_tid())
@@ -804,9 +804,9 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[tid];
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		sllnode<ModelAction *> * rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+		  ModelAction *act = rit->getVal();
 
 			/* Skip curr */
 			if (act == curr)
@@ -936,9 +936,9 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		sllnode<ModelAction*>* rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+		  ModelAction *act = rit->getVal();
 			if (act == curr) {
 				/*
 				 * 1) If RMW and it actually read from something, then we
@@ -1010,9 +1010,9 @@ bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *
 
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		sllnode<ModelAction *>* rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+		  ModelAction *act = rit->getVal();
 
 			/* Don't disallow due to act == reader */
 			if (!reader->happens_before(act) || reader == act)
