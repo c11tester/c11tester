@@ -10,12 +10,14 @@ class mllnode {
   _Tp getVal() {return val;}
   mllnode<_Tp> * getNext() {return next;}
   mllnode<_Tp> * getPrev() {return prev;}
+
   MEMALLOC;
   
  private:
   mllnode<_Tp> * next;
   mllnode<_Tp> * prev;
   _Tp val;
+  template<typename T>
   friend class ModelList;
 };
 
@@ -76,7 +78,7 @@ public:
     }
   }
   
-  void erase(mllnode<_Tp> * node) {
+  mllnode<_Tp> * erase(mllnode<_Tp> * node) {
     if (head == node) {
       head = node->next;
     } else {
@@ -88,15 +90,16 @@ public:
     } else {
       tail->next->prev = node->prev;
     }
-    
+    mllnode<_Tp> *next = node->next;
     delete node;
+    return next;
   }
   
-  mllnode<_Tp> begin() {
+  mllnode<_Tp> * begin() {
     return head;
   }
 
-  mllnode<_Tp> end() {
+  mllnode<_Tp> * end() {
     return tail;
   }
   
@@ -127,6 +130,7 @@ class sllnode {
   sllnode<_Tp> * next;
   sllnode<_Tp> * prev;
   _Tp val;
+  template<typename T>
   friend class SnapList;
 };
 
@@ -187,7 +191,7 @@ public:
     }
   }
   
-  void erase(sllnode<_Tp> * node) {
+  sllnode<_Tp> * erase(sllnode<_Tp> * node) {
     if (head == node) {
       head = node->next;
     } else {
@@ -199,15 +203,17 @@ public:
     } else {
       tail->next->prev = node->prev;
     }
-    
+
+    sllnode<_Tp> *next = node->next;
     delete node;
+    return next;
   }
   
-  sllnode<_Tp> begin() {
+  sllnode<_Tp> * begin() {
     return head;
   }
 
-  sllnode<_Tp> end() {
+  sllnode<_Tp> * end() {
     return tail;
   }
   

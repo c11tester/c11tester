@@ -138,13 +138,13 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 }
 
 void CycleGraph::addEdges(SnapList<ModelAction *> * edgeset, const ModelAction *to) {
-	for(SnapList<ModelAction*>::iterator it = edgeset->begin();it!=edgeset->end();) {
-		ModelAction *act = *it;
+	for(sllnode<ModelAction*> * it = edgeset->begin();it!=NULL;) {
+	  ModelAction *act = it->getVal();
 		CycleNode *node = getNode(act);
-		SnapList<ModelAction*>::iterator it2 = it;
-		it2++;
-		for(;it2!=edgeset->end(); ) {
-			ModelAction *act2 = *it2;
+		sllnode<ModelAction*> * it2 = it;
+		it2=it2->getNext();
+		for(;it2!=NULL; ) {
+		  ModelAction *act2 = it2->getVal();
 			CycleNode *node2 = getNode(act2);
 			if (checkReachable(node, node2)) {
 				it = edgeset->erase(it);
@@ -153,16 +153,16 @@ void CycleGraph::addEdges(SnapList<ModelAction *> * edgeset, const ModelAction *
 				it2 = edgeset->erase(it2);
 				goto endinnerloop;
 			}
-			it2++;
+			it2=it2->getNext();
 endinnerloop:
 			;
 		}
-		it++;
+		it=it->getNext();
 endouterloop:
 		;
 	}
-	for(SnapList<ModelAction*>::iterator it = edgeset->begin();it!=edgeset->end();it++) {
-		ModelAction *from = *it;
+	for(sllnode<ModelAction*> *it = edgeset->begin();it!=NULL;it=it->getNext()) {
+	  ModelAction *from = it->getVal();
 		addEdge(from, to, from->get_tid() == to->get_tid());
 	}
 }
