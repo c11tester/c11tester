@@ -121,7 +121,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		func_node->store_read(act, tid);
 
 	if (inst->is_write())
-		func_node->add_to_write_history(act->get_location(), act->get_write_value());
+		add_to_write_history(act->get_location(), act->get_write_value());
 
 	/* add to curr_inst_list */
 	func_inst_list_t * curr_inst_list = func_inst_lists->back();
