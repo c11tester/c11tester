@@ -29,7 +29,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	if ( thrd_func_list->size() <= id ) {
 		uint oldsize = thrd_func_list->size();
 		thrd_func_list->resize( id + 1 );
-		for(uint i=oldsize;i<id+1;i++) {
+		for(uint i = oldsize; i < id + 1; i++) {
 			new(&(*thrd_func_list)[i]) func_id_list_t();
 		}
 		thrd_func_inst_lists->resize( id + 1 );
@@ -94,6 +94,11 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 
 void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 {
+	action_type act_type = act->get_type();
+	if (act_type == THREAD_FINISH || act_type == THREAD_JOIN ||
+		act_type == PTHREAD_JOIN || act_type == THREADONLY_FINISH)
+		return;
+
 	/* return if thread i has not entered any function or has exited
 	   from all functions */
 	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();

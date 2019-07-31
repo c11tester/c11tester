@@ -124,17 +124,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	read_map->put(location, read_from_val);
 
 	/* Store the memory locations where atomic reads happen */
-	bool push_loc = true;
-	mllnode<void *> * it;
-	for (it = read_locations.begin();it != NULL;it=it->getNext()) {
-		if (location == it->getVal()) {
-			push_loc = false;
-			break;
-		}
-	}
-
-	if (push_loc)
-		read_locations.push_back(location);
+	// read_locations.add(location);
 }
 
 uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
