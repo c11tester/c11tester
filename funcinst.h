@@ -48,5 +48,5 @@ private:
 	func_inst_list_mt successors;
 };
 
-#endif /* __FUNCINST_H__ */
+#endif	/* __FUNCINST_H__ */
 

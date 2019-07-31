@@ -12,6 +12,26 @@
 
 /* global "model" object */
 #include "model.h"
+#include "execution.h"
+
+#ifdef TLS
+#include <dlfcn.h>
+uintptr_t get_tls_addr() {
+	uintptr_t addr;
+	asm ("mov %%fs:0, %0" : "=r" (addr));
+	return addr;
+}
+
+#include <asm/prctl.h>
+#include <sys/prctl.h>
+extern "C" {
+int arch_prctl(int code, unsigned long addr);
+}
+static void set_tls_addr(uintptr_t addr) {
+	arch_prctl(ARCH_SET_FS, addr);
+	asm ("mov %0, %%fs:0" : : "r" (addr) : "memory");
+}
+#endif
 
 /** Allocate a stack for a new thread. */
 static void * stack_allocate(size_t size)
@@ -38,6 +58,15 @@ Thread * thread_current(void)
 	return model->get_current_thread();
 }
 
+void main_thread_startup() {
+#ifdef TLS
+	Thread * curr_thread = thread_current();
+	/* Add dummy "start" action, just to create a first clock vector */
+	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
+#endif
+	thread_startup();
+}
+
 /**
  * Provides a startup wrapper for each thread, allowing some initial
  * model-checking data to be recorded. This method also gets around makecontext
@@ -46,9 +75,10 @@ Thread * thread_current(void)
 void thread_startup()
 {
 	Thread * curr_thread = thread_current();
-
+#ifndef TLS
 	/* Add dummy "start" action, just to create a first clock vector */
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
+#endif
 
 	/* Call the actual thread function */
 	if (curr_thread->start_routine != NULL) {
@@ -61,6 +91,156 @@ void thread_startup()
 	/* Finish thread properly */
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, curr_thread));
 }
+
+static int (*pthread_mutex_init_p)(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) = NULL;
+
+int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) {
+	return pthread_mutex_init_p(__mutex, __mutexattr);
+}
+
+static int (*pthread_mutex_lock_p) (pthread_mutex_t *__mutex) = NULL;
+
+int real_pthread_mutex_lock (pthread_mutex_t *__mutex) {
+	return pthread_mutex_lock_p(__mutex);
+}
+
+static int (*pthread_mutex_unlock_p) (pthread_mutex_t *__mutex) = NULL;
+
+int real_pthread_mutex_unlock (pthread_mutex_t *__mutex) {
+	return pthread_mutex_unlock_p(__mutex);
+}
+
+static int (*pthread_create_p) (pthread_t *__restrict, const pthread_attr_t *__restrict, void *(*)(void *), void * __restrict) = NULL;
+
+int real_pthread_create (pthread_t *__restrict __newthread, const pthread_attr_t *__restrict __attr, void *(*__start_routine)(void *), void *__restrict __arg) {
+	return pthread_create_p(__newthread, __attr, __start_routine, __arg);
+}
+
+static int (*pthread_join_p) (pthread_t __th, void ** __thread_return) = NULL;
+
+int real_pthread_join (pthread_t __th, void ** __thread_return) {
+	return pthread_join_p(__th, __thread_return);
+}
+
+static void (*pthread_exit_p)(void *) __attribute__((noreturn))= NULL;
+
+void real_pthread_exit (void * value_ptr) {
+	pthread_exit_p(value_ptr);
+}
+
+void real_init_all() {
+	char * error;
+	if (!pthread_mutex_init_p) {
+		pthread_mutex_init_p = (int (*)(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr))dlsym(RTLD_NEXT, "pthread_mutex_init");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (!pthread_mutex_lock_p) {
+		pthread_mutex_lock_p = (int (*)(pthread_mutex_t *__mutex))dlsym(RTLD_NEXT, "pthread_mutex_lock");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (!pthread_mutex_unlock_p) {
+		pthread_mutex_unlock_p = (int (*)(pthread_mutex_t *__mutex))dlsym(RTLD_NEXT, "pthread_mutex_unlock");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (!pthread_create_p) {
+		pthread_create_p = (int (*)(pthread_t *__restrict, const pthread_attr_t *__restrict, void *(*)(void *), void *__restrict))dlsym(RTLD_NEXT, "pthread_create");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (!pthread_join_p) {
+		pthread_join_p = (int (*)(pthread_t __th, void ** __thread_return))dlsym(RTLD_NEXT, "pthread_join");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (!pthread_exit_p) {
+		pthread_exit_p = (void (*)(void *))dlsym(RTLD_NEXT, "pthread_exit");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
+#ifdef TLS
+void finalize_helper_thread() {
+	Thread * curr_thread = thread_current();
+	real_pthread_mutex_lock(&curr_thread->mutex);
+	curr_thread->tls = (char *) get_tls_addr();
+	real_pthread_mutex_unlock(&curr_thread->mutex);
+	//Wait in the kernel until it is time for us to finish
+	real_pthread_mutex_lock(&curr_thread->mutex2);
+	real_pthread_mutex_unlock(&curr_thread->mutex2);
+	//return to helper thread function
+	setcontext(&curr_thread->context);
+}
+
+void * helper_thread(void * ptr) {
+	Thread * curr_thread = thread_current();
+
+	//build a context for this real thread so we can take it's context
+	int ret = getcontext(&curr_thread->helpercontext);
+	ASSERT(!ret);
+
+	/* Initialize new managed context */
+	void *helperstack = stack_allocate(STACK_SIZE);
+	curr_thread->helpercontext.uc_stack.ss_sp = helperstack;
+	curr_thread->helpercontext.uc_stack.ss_size = STACK_SIZE;
+	curr_thread->helpercontext.uc_stack.ss_flags = 0;
+	curr_thread->helpercontext.uc_link = model->get_system_context();
+	makecontext(&curr_thread->helpercontext, finalize_helper_thread, 0);
+
+	model_swapcontext(&curr_thread->context, &curr_thread->helpercontext);
+
+	//start the real thread
+	thread_startup();
+
+	//now the real thread has control again
+	stack_free(helperstack);
+
+	return NULL;
+}
+
+void setup_context() {
+	Thread * curr_thread = thread_current();
+
+	/* Add dummy "start" action, just to create a first clock vector */
+	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
+
+	real_init_all();
+
+	/* Initialize our lock */
+	real_pthread_mutex_init(&curr_thread->mutex, NULL);
+	real_pthread_mutex_init(&curr_thread->mutex2, NULL);
+	real_pthread_mutex_lock(&curr_thread->mutex2);
+
+	/* Create the real thread */
+	real_pthread_create(&curr_thread->thread, NULL, helper_thread, NULL);
+	bool notdone = true;
+	while(notdone) {
+		real_pthread_mutex_lock(&curr_thread->mutex);
+		if (curr_thread->tls != NULL)
+			notdone = false;
+		real_pthread_mutex_unlock(&curr_thread->mutex);
+	}
+
+	set_tls_addr((uintptr_t)curr_thread->tls);
+	setcontext(&curr_thread->context);
+}
+#endif
 
 /**
  * Create a thread context for a new thread so we can use
@@ -81,7 +261,14 @@ int Thread::create_context()
 	context.uc_stack.ss_size = STACK_SIZE;
 	context.uc_stack.ss_flags = 0;
 	context.uc_link = model->get_system_context();
+#ifdef TLS
+	if (model != NULL)
+		makecontext(&context, setup_context, 0);
+	else
+		makecontext(&context, main_thread_startup, 0);
+#else
 	makecontext(&context, thread_startup, 0);
+#endif
 
 	return 0;
 }
@@ -98,6 +285,9 @@ int Thread::create_context()
 int Thread::swap(Thread *t, ucontext_t *ctxt)
 {
 	t->set_state(THREAD_READY);
+#ifdef TLS
+	set_tls_addr((uintptr_t)model->getInitThread()->tls);
+#endif
 	return model_swapcontext(&t->context, ctxt);
 }
 
@@ -112,6 +302,10 @@ int Thread::swap(Thread *t, ucontext_t *ctxt)
 int Thread::swap(ucontext_t *ctxt, Thread *t)
 {
 	t->set_state(THREAD_RUNNING);
+#ifdef TLS
+	if (t->tls != NULL)
+		set_tls_addr((uintptr_t)t->tls);
+#endif
 	return model_swapcontext(ctxt, &t->context);
 }
 
@@ -124,6 +318,14 @@ void Thread::complete()
 	state = THREAD_COMPLETED;
 	if (stack)
 		stack_free(stack);
+#ifdef TLS
+	if (this != model->getInitThread()) {
+		modellock = 1;
+		real_pthread_mutex_unlock(&mutex2);
+		real_pthread_join(thread, NULL);
+		modellock = 0;
+	}
+#endif
 }
 
 /**
@@ -141,6 +343,9 @@ Thread::Thread(thread_id_t tid) :
 	start_routine(NULL),
 	arg(NULL),
 	stack(NULL),
+#ifdef TLS
+	tls(NULL),
+#endif
 	user_thread(NULL),
 	id(tid),
 	state(THREAD_READY),	/* Thread is always ready? */
@@ -163,6 +368,9 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void (*func)(void *), void *a, Thread
 	start_routine(func),
 	pstart_routine(NULL),
 	arg(a),
+#ifdef TLS
+	tls(NULL),
+#endif
 	user_thread(t),
 	id(tid),
 	state(THREAD_CREATED),
@@ -192,6 +400,9 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void *(*func)(void *), void *a, Threa
 	start_routine(NULL),
 	pstart_routine(func),
 	arg(a),
+#ifdef TLS
+	tls(NULL),
+#endif
 	user_thread(t),
 	id(tid),
 	state(THREAD_CREATED),

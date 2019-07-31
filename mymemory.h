@@ -50,6 +50,7 @@
 void *model_malloc(size_t size);
 void *model_calloc(size_t count, size_t size);
 void model_free(void *ptr);
+void * model_realloc(void *ptr, size_t size);
 
 void * snapshot_malloc(size_t size);
 void * snapshot_calloc(size_t count, size_t size);

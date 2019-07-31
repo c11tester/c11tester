@@ -61,9 +61,9 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	if (inst == NULL)
 		return;
 
-	func_inst_list_mt::iterator it;
-	for (it = entry_insts.begin();it != entry_insts.end();it++) {
-		if (inst == *it)
+	mllnode<FuncInst*>* it;
+	for (it = entry_insts.begin();it != NULL;it=it->getNext()) {
+		if (inst == it->getVal())
 			return;
 	}
 
@@ -78,28 +78,28 @@ void FuncNode::link_insts(func_inst_list_t * inst_list)
 	if (inst_list == NULL)
 		return;
 
-	func_inst_list_t::iterator it = inst_list->begin();
-	func_inst_list_t::iterator prev;
+	sllnode<FuncInst *>* it = inst_list->begin();
+	sllnode<FuncInst *>* prev;
 
 	if (inst_list->size() == 0)
 		return;
 
 	/* add the first instruction to the list of entry insts */
-	FuncInst * entry_inst = *it;
+	FuncInst * entry_inst = it->getVal();
 	add_entry_inst(entry_inst);
 
-	it++;
-	while (it != inst_list->end()) {
+	it=it->getNext();
+	while (it != NULL) {
 		prev = it;
-		prev--;
+		prev = it->getPrev();
 
-		FuncInst * prev_inst = *prev;
-		FuncInst * curr_inst = *it;
+		FuncInst * prev_inst = prev->getVal();
+		FuncInst * curr_inst = it->getVal();
 
 		prev_inst->add_succ(curr_inst);
 		curr_inst->add_pred(prev_inst);
 
-		it++;
+		it=it->getNext();
 	}
 }
 
@@ -116,7 +116,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	uint32_t old_size = thrd_read_map.size();
 	if (old_size <= tid) {
 		thrd_read_map.resize(tid + 1);
-		for (uint32_t i = old_size; i < tid + 1; i++)
+		for (uint32_t i = old_size;i < tid + 1;i++)
 			thrd_read_map[i] = new read_map_t();
 	}
 
@@ -124,7 +124,17 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	read_map->put(location, read_from_val);
 
 	/* Store the memory locations where atomic reads happen */
-	// read_locations.add(location);
+	bool push_loc = true;
+	mllnode<void *> * it;
+	for (it = read_locations.begin();it != NULL;it=it->getNext()) {
+		if (location == it->getVal()) {
+			push_loc = false;
+			break;
+		}
+	}
+
+	if (push_loc)
+		read_locations.push_back(location);
 }
 
 uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
@@ -156,7 +166,7 @@ void FuncNode::clear_read_map(uint32_t tid)
 
 void FuncNode::generate_predicate(FuncInst *func_inst)
 {
-	
+
 }
 
 /* @param tid thread id
@@ -167,13 +177,13 @@ void FuncNode::print_last_read(uint32_t tid)
 	ASSERT(thrd_read_map.size() > tid);
 	read_map_t * read_map = thrd_read_map[tid];
 /*
-	ModelList<void *>::iterator it;
-	for (it = read_locations.begin();it != read_locations.end();it++) {
-		if ( !read_map->contains(*it) )
+	mllnode<void *> * it;
+	for (it = read_locations.begin();it != NULL;it=it->getNext()) {
+		if ( !read_map->contains(it->getVal()) )
 			break;
 
-		uint64_t read_val = read_map->get(*it);
-		model_print("last read of thread %d at %p: 0x%x\n", tid, *it, read_val);
+		uint64_t read_val = read_map->get(it->getVal());
+		model_print("last read of thread %d at %p: 0x%x\n", tid, it->getVal(), read_val);
 	}
 */
 }

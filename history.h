@@ -50,4 +50,4 @@ private:
 	HashSet<void *, uintptr_t, 4, model_malloc, model_calloc, model_free> write_locations;
 };
 
-#endif /* __HISTORY_H__ */
+#endif	/* __HISTORY_H__ */

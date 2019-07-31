@@ -6,13 +6,13 @@
 #define __THREADS_MODEL_H__
 
 #include <stdint.h>
-
 #include "mymemory.h"
 #include "threads.h"
 #include "modeltypes.h"
 #include "stl-model.h"
 #include "context.h"
 #include "classlist.h"
+#include "pthread.h"
 
 struct thread_params {
 	thrd_start_t func;
@@ -99,6 +99,11 @@ public:
 	bool is_model_thread() const { return model_thread; }
 
 	friend void thread_startup();
+#ifdef TLS
+	friend void setup_context();
+	friend void * helper_thread(void *);
+	friend void finalize_helper_thread();
+#endif
 
 	/**
 	 * Intentionally NOT allocated with MODELALLOC or SNAPSHOTALLOC.
@@ -118,6 +123,9 @@ public:
 	void operator delete[](void *p, size_t size) {
 		Thread_free(p);
 	}
+#ifdef TLS
+	void setTLS(char *_tls) { tls = _tls;}
+#endif
 private:
 	int create_context();
 
@@ -142,6 +150,15 @@ private:
 	void *arg;
 	ucontext_t context;
 	void *stack;
+#ifdef TLS
+public:
+	char *tls;
+	ucontext_t helpercontext;
+	pthread_mutex_t mutex;
+	pthread_mutex_t mutex2;
+	pthread_t thread;
+private:
+#endif
 	thrd_t *user_thread;
 	thread_id_t id;
 	thread_state state;
@@ -160,8 +177,13 @@ private:
 	const bool model_thread;
 };
 
+#ifdef TLS
+uintptr_t get_tls_addr();
+#endif
+
 Thread * thread_current();
 void thread_startup();
+void main_thread_startup();
 
 static inline thread_id_t thrd_to_id(thrd_t t)
 {
@@ -187,5 +209,13 @@ static inline int id_to_int(thread_id_t id)
 {
 	return id;
 }
+
+int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr);
+int real_pthread_mutex_lock (pthread_mutex_t *__mutex);
+int real_pthread_mutex_unlock (pthread_mutex_t *__mutex);
+int real_pthread_create (pthread_t *__restrict __newthread, const pthread_attr_t *__restrict __attr, void *(*__start_routine)(void *), void *__restrict __arg);
+int real_pthread_join (pthread_t __th, void ** __thread_return);
+void real_pthread_exit (void * value_ptr) __attribute__((noreturn));
+void real_init_all();
 
 #endif	/* __THREADS_MODEL_H__ */

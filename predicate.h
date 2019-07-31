@@ -12,7 +12,7 @@ typedef enum predicate_token {
 } token_t;
 
 /* If token is EQUALITY, then the predicate asserts whether
- * this load should read the same value as the last value 
+ * this load should read the same value as the last value
  * read at memory location specified in predicate_expr.
  */
 struct pred_expr {

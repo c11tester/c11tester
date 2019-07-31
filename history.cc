@@ -27,7 +27,11 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		thrd_func_inst_lists = model->get_execution()->get_thrd_func_inst_lists();
 
 	if ( thrd_func_list->size() <= id ) {
+		uint oldsize = thrd_func_list->size();
 		thrd_func_list->resize( id + 1 );
+		for(uint i=oldsize;i<id+1;i++) {
+			new(&(*thrd_func_list)[i]) func_id_list_t();
+		}
 		thrd_func_inst_lists->resize( id + 1 );
 	}
 
@@ -57,7 +61,6 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 	uint32_t last_func_id = (*thrd_func_list)[id].back();
 
 	if (last_func_id == func_id) {
-		/* clear read map upon exiting functions */
 		FuncNode * func_node = func_nodes[func_id];
 		func_node->clear_read_map(tid);
 
@@ -80,7 +83,7 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 	if ( old_size < new_size )
 		func_nodes.resize(new_size);
 
-	for (uint32_t id = old_size; id < new_size; id++) {
+	for (uint32_t id = old_size;id < new_size;id++) {
 		const char * func_name = func_map_rev[id];
 		FuncNode * func_node = new FuncNode();
 		func_node->set_func_id(id);
@@ -117,8 +120,8 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (inst == NULL)
 		return;
 
-	if (inst->is_read())
-		func_node->store_read(act, tid);
+	//	if (inst->is_read())
+	//	func_node->store_read(act, tid);
 
 	if (inst->is_write())
 		add_to_write_history(act->get_location(), act->get_write_value());
@@ -181,9 +184,9 @@ void ModelHistory::print_func_node()
 		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
 		model_print("function %s has entry actions\n", func_node->get_func_name());
 
-		func_inst_list_mt::iterator it;
-		for (it = entry_insts->begin();it != entry_insts->end();it++) {
-			FuncInst *inst = *it;
+		mllnode<FuncInst*>* it;
+		for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
+			FuncInst *inst = it->getVal();
 			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
 		}
 /*

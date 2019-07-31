@@ -52,6 +52,7 @@ typedef enum action_type {
 	THREAD_YIELD,	// < A thread yield action
 	THREAD_JOIN,	// < A thread join action
 	THREAD_FINISH,	// < A thread completion action
+	THREADONLY_FINISH,	// < A thread completion action
 	PTHREAD_CREATE,	// < A pthread creation action
 	PTHREAD_JOIN,	// < A pthread join action
 	ATOMIC_UNINIT,	// < Represents an uninitialized atomic

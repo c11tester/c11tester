@@ -57,4 +57,4 @@ private:
 
 };
 
-#endif /* __FUNCNODE_H__ */
+#endif	/* __FUNCNODE_H__ */

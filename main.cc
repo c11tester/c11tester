@@ -199,10 +199,8 @@ int main(int argc, char **argv)
 	parse_options(params, main_argc, main_argv);
 
 
-	snapshot_stack_init();
 	install_trace_analyses(model->get_execution());
 
-	snapshot_record(0);
 	model->startMainThread();
 	DEBUG("Exiting\n");
 }

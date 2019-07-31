@@ -110,7 +110,11 @@ VOLATILELOAD(64)
 	void cds_volatile_store ## size (void * obj, uint ## size ## _t val, const char * position) { \
 		ensureModel();                                                      \
 		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, memory_order_relaxed, obj, (uint64_t) val)); \
-		*((volatile uint ## size ## _t *)obj) = val;		\
+		*((volatile uint ## size ## _t *)obj) = val;            \
+		thread_id_t tid = thread_current()->get_id();           \
+		for(int i=0;i < size / 8;i++) {                         \
+			recordWrite(tid, (void *)(((char *)obj)+i));          \
+		}                                                       \
 	}
 
 VOLATILESTORE(8)

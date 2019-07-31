@@ -49,7 +49,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	ASSERT(loc || type == ATOMIC_FENCE || type == NOOP);
 
 	Thread *t = thread ? thread : thread_current();
-	this->tid = t->get_id();
+	this->tid = t!= NULL ? t->get_id() : -1;
 }
 
 
@@ -645,6 +645,7 @@ const char * ModelAction::get_type_str() const
 	case THREAD_YIELD: return "thread yield";
 	case THREAD_JOIN: return "thread join";
 	case THREAD_FINISH: return "thread finish";
+	case THREADONLY_FINISH: return "pthread_exit finish";
 
 	case PTHREAD_CREATE: return "pthread create";
 	case PTHREAD_JOIN: return "pthread join";

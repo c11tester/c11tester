@@ -277,20 +277,14 @@ struct fork_snapshotter {
 	 */
 	volatile snapshot_id mIDToRollback;
 
-	/**
-	 * @brief The context for the shared (non-snapshot) stack
-	 *
-	 * This context is passed between the various processes which represent
-	 * various snapshot states. It should be used primarily for the
-	 * "client-side" code, not the main snapshot loop.
-	 */
-	ucontext_t shared_ctxt;
+
 
 	/** @brief Inter-process tracking of the next snapshot ID */
 	snapshot_id currSnapShotID;
 };
 
 static struct fork_snapshotter *fork_snap = NULL;
+ucontext_t shared_ctxt;
 
 /** @statics
  *   These variables are necessary because the stack is shared region and
@@ -375,13 +369,13 @@ static void fork_snapshot_init(unsigned int numbackingpages,
 	model_snapshot_space = create_mspace(numheappages * PAGESIZE, 1);
 }
 
-volatile int forklock = 0;
+volatile int modellock = 0;
 
 static void fork_loop() {
 	/* switch back here when takesnapshot is called */
 	snapshotid = fork_snap->currSnapShotID;
 	if (model->params.nofork) {
-		setcontext(&fork_snap->shared_ctxt);
+		setcontext(&shared_ctxt);
 		_Exit(EXIT_SUCCESS);
 	}
 
@@ -389,12 +383,12 @@ static void fork_loop() {
 		pid_t forkedID;
 		fork_snap->currSnapShotID = snapshotid + 1;
 
-		forklock = 1;
+		modellock = 1;
 		forkedID = fork();
-		forklock = 0;
+		modellock = 0;
 
 		if (0 == forkedID) {
-			setcontext(&fork_snap->shared_ctxt);
+			setcontext(&shared_ctxt);
 		} else {
 			DEBUG("parent PID: %d, child PID: %d, snapshot ID: %d\n",
 						getpid(), forkedID, snapshotid);
@@ -415,8 +409,8 @@ static void fork_loop() {
 
 static void fork_startExecution(ucontext_t *context, VoidFuncPtr entryPoint) {
 	/* setup an "exiting" context */
-	char stack[128];
-	create_context(&exit_ctxt, stack, sizeof(stack), fork_exit);
+	int exit_stack_size = 256;
+	create_context(&exit_ctxt, snapshot_calloc(exit_stack_size, 1), exit_stack_size, fork_exit);
 
 	/* setup the system context */
 	create_context(context, fork_snap->mStackBase, STACK_SIZE_DEFAULT, entryPoint);
@@ -425,7 +419,7 @@ static void fork_startExecution(ucontext_t *context, VoidFuncPtr entryPoint) {
 }
 
 static snapshot_id fork_take_snapshot() {
-	model_swapcontext(&fork_snap->shared_ctxt, &private_ctxt);
+	model_swapcontext(&shared_ctxt, &private_ctxt);
 	DEBUG("TAKESNAPSHOT RETURN\n");
 	return snapshotid;
 }
@@ -434,7 +428,7 @@ static void fork_roll_back(snapshot_id theID)
 {
 	DEBUG("Rollback\n");
 	fork_snap->mIDToRollback = theID;
-	model_swapcontext(&fork_snap->shared_ctxt, &exit_ctxt);
+	model_swapcontext(model->get_system_context(), &exit_ctxt);
 	fork_snap->mIDToRollback = -1;
 }
 

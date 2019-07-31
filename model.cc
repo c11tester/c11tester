@@ -41,6 +41,9 @@ ModelChecker::ModelChecker() :
 {
 	memset(&stats,0,sizeof(struct execution_stats));
 	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &user_main_wrapper, NULL, NULL);	// L: user_main_wrapper passes the user program
+#ifdef TLS
+	init_thread->setTLS((char *)get_tls_addr());
+#endif
 	execution->add_thread(init_thread);
 	scheduler->set_current_thread(init_thread);
 	execution->setParams(&params);
@@ -316,11 +319,11 @@ void ModelChecker::switch_from_master(Thread *thread)
  */
 uint64_t ModelChecker::switch_to_master(ModelAction *act)
 {
-	if (forklock) {
+	if (modellock) {
 		static bool fork_message_printed = false;
 
 		if (!fork_message_printed) {
-			model_print("Fork handler trying to call into model checker...\n");
+			model_print("Fork handler or dead thread trying to call into model checker...\n");
 			fork_message_printed = true;
 		}
 		delete act;
@@ -350,6 +353,8 @@ static void runChecker() {
 
 void ModelChecker::startChecker() {
 	startExecution(get_system_context(), runChecker);
+	snapshot_stack_init();
+	snapshot_record(0);
 }
 
 bool ModelChecker::should_terminate_execution()
@@ -359,6 +364,8 @@ bool ModelChecker::should_terminate_execution()
 		return true;
 	else if (execution->isfeasibleprefix() && execution->have_fatal_bug_reports()) {
 		execution->set_assert();
+		return true;
+	} else if (execution->isFinished()) {
 		return true;
 	}
 	return false;
@@ -382,7 +389,7 @@ void ModelChecker::do_restart()
 void ModelChecker::startMainThread() {
 	init_thread->set_state(THREAD_RUNNING);
 	scheduler->set_current_thread(init_thread);
-	thread_startup();
+	main_thread_startup();
 }
 
 static bool is_nonsc_write(const ModelAction *act) {
@@ -416,11 +423,10 @@ void ModelChecker::run()
 			 * thread which just took a step--plus the first step
 			 * for any newly-created thread
 			 */
-			ModelAction * pending;
 			for (unsigned int i = 0;i < get_num_threads();i++) {
 				thread_id_t tid = int_to_id(i);
 				Thread *thr = get_thread(tid);
-				if (!thr->is_model_thread() && !thr->is_complete() && ((!(pending=thr->get_pending())) || is_nonsc_write(pending)) ) {
+				if (!thr->is_model_thread() && !thr->is_complete() && (!thr->get_pending())) {
 					switch_from_master(thr);	// L: context swapped, and action type of thr changed.
 					if (thr->is_waiting_on(thr))
 						assert_bug("Deadlock detected (thread %u)", i);

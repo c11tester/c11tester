@@ -66,7 +66,8 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer()),
 	thrd_func_list(),
-	thrd_func_inst_lists()
+	thrd_func_inst_lists(),
+	isfinished(false)
 {
 	/* Initialize a model-checker thread, for special ModelActions */
 	model_thread = new Thread(get_next_id());
@@ -389,8 +390,8 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	case ATOMIC_NOTIFY_ALL: {
 		action_list_t *waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
 		//activate all the waiting threads
-		for (action_list_t::iterator rit = waiters->begin();rit != waiters->end();rit++) {
-			scheduler->wake(get_thread(*rit));
+		for (sllnode<ModelAction *> * rit = waiters->begin();rit != NULL;rit=rit->getNext()) {
+			scheduler->wake(get_thread(rit->getVal()));
 		}
 		waiters->clear();
 		break;
@@ -439,10 +440,10 @@ bool ModelExecution::process_fence(ModelAction *curr)
 	bool updated = false;
 	if (curr->is_acquire()) {
 		action_list_t *list = &action_trace;
-		action_list_t::reverse_iterator rit;
+		sllnode<ModelAction *> * rit;
 		/* Find X : is_read(X) && X --sb-> curr */
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+			ModelAction *act = rit->getVal();
 			if (act == curr)
 				continue;
 			if (act->get_tid() != curr->get_tid())
@@ -460,8 +461,8 @@ bool ModelExecution::process_fence(ModelAction *curr)
 				continue;
 
 			/* Establish hypothetical release sequences */
-			ClockVector *cv = get_hb_from_write(act);
-			if (curr->get_cv()->merge(cv))
+			ClockVector *cv = get_hb_from_write(act->get_reads_from());
+			if (cv != NULL && curr->get_cv()->merge(cv))
 				updated = true;
 		}
 	}
@@ -479,10 +480,8 @@ bool ModelExecution::process_fence(ModelAction *curr)
  * @param curr The current action
  * @return True if synchronization was updated or a thread completed
  */
-bool ModelExecution::process_thread_action(ModelAction *curr)
+void ModelExecution::process_thread_action(ModelAction *curr)
 {
-	bool updated = false;
-
 	switch (curr->get_type()) {
 	case THREAD_CREATE: {
 		thrd_t *thrd = (thrd_t *)curr->get_location();
@@ -512,19 +511,25 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		updated = true;	/* trigger rel-seq checks */
 		break;
 	}
 	case PTHREAD_JOIN: {
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		updated = true;	/* trigger rel-seq checks */
 		break;	// WL: to be add (modified)
 	}
 
+	case THREADONLY_FINISH:
 	case THREAD_FINISH: {
 		Thread *th = get_thread(curr);
+		if (curr->get_type() == THREAD_FINISH &&
+				th == model->getInitThread()) {
+			th->complete();
+			setFinished();
+			break;
+		}
+
 		/* Wake up any joining threads */
 		for (unsigned int i = 0;i < get_num_threads();i++) {
 			Thread *waiting = get_thread(int_to_id(i));
@@ -533,7 +538,6 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 				scheduler->wake(waiting);
 		}
 		th->complete();
-		updated = true;	/* trigger rel-seq checks */
 		break;
 	}
 	case THREAD_START: {
@@ -542,8 +546,6 @@ bool ModelExecution::process_thread_action(ModelAction *curr)
 	default:
 		break;
 	}
-
-	return updated;
 }
 
 /**
@@ -802,9 +804,9 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[tid];
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		sllnode<ModelAction *> * rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+			ModelAction *act = rit->getVal();
 
 			/* Skip curr */
 			if (act == curr)
@@ -851,7 +853,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 			if (act->happens_before(curr)) {
 				if (i==0) {
 					if (last_sc_fence_local == NULL ||
-							(*last_sc_fence_local < *prev_same_thread)) {
+							(*last_sc_fence_local < *act)) {
 						prev_same_thread = act;
 					}
 				}
@@ -909,13 +911,17 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 	unsigned int i;
 	ASSERT(curr->is_write());
 
+	SnapList<ModelAction *> edgeset;
+
 	if (curr->is_seqcst()) {
 		/* We have to at least see the last sequentially consistent write,
 		         so we are initialized. */
 		ModelAction *last_seq_cst = get_last_seq_cst_write(curr);
 		if (last_seq_cst != NULL) {
-			mo_graph->addEdge(last_seq_cst, curr);
+			edgeset.push_back(last_seq_cst);
 		}
+		//update map for next query
+		obj_last_sc_map.put(curr->get_location(), curr);
 	}
 
 	/* Last SC fence in the current thread */
@@ -930,10 +936,9 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
-		action_list_t::reverse_iterator rit;
-		bool force_edge = false;
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		sllnode<ModelAction*>* rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+			ModelAction *act = rit->getVal();
 			if (act == curr) {
 				/*
 				 * 1) If RMW and it actually read from something, then we
@@ -946,7 +951,6 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 				 * 3) If normal write, we need to look at earlier actions, so
 				 * continue processing list.
 				 */
-				force_edge = true;
 				if (curr->is_rmw()) {
 					if (curr->get_reads_from() != NULL)
 						break;
@@ -959,7 +963,7 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 			/* C++, Section 29.3 statement 7 */
 			if (last_sc_fence_thread_before && act->is_write() &&
 					*act < *last_sc_fence_thread_before) {
-				mo_graph->addEdge(act, curr, force_edge);
+				edgeset.push_back(act);
 				break;
 			}
 
@@ -975,15 +979,17 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 				 *   readfrom(act) --mo--> act
 				 */
 				if (act->is_write())
-					mo_graph->addEdge(act, curr, force_edge);
+					edgeset.push_back(act);
 				else if (act->is_read()) {
 					//if previous read accessed a null, just keep going
-					mo_graph->addEdge(act->get_reads_from(), curr, force_edge);
+					edgeset.push_back(act->get_reads_from());
 				}
 				break;
 			}
 		}
 	}
+	mo_graph->addEdges(&edgeset, curr);
+
 }
 
 /**
@@ -1004,9 +1010,9 @@ bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *
 
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		sllnode<ModelAction *>* rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+			ModelAction *act = rit->getVal();
 
 			/* Don't disallow due to act == reader */
 			if (!reader->happens_before(act) || reader == act)
@@ -1095,8 +1101,13 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		uninit_id = id_to_int(uninit->get_tid());
 		list->push_front(uninit);
 		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
-		if (uninit_id >= (int)vec->size())
+		if (uninit_id >= (int)vec->size()) {
+			int oldsize = (int) vec->size();
 			vec->resize(uninit_id + 1);
+			for(int i=oldsize;i<uninit_id+1;i++) {
+				new(&(*vec)[i]) action_list_t();
+			}
+		}
 		(*vec)[uninit_id].push_front(uninit);
 	}
 	list->push_back(act);
@@ -1108,8 +1119,12 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
-	if (tid >= (int)vec->size())
+	if (tid >= (int)vec->size()) {
+		uint oldsize =vec->size();
 		vec->resize(priv->next_thread_id);
+		for(uint i=oldsize;i<priv->next_thread_id;i++)
+			new (&(*vec)[i]) action_list_t();
+	}
 	(*vec)[tid].push_back(act);
 	if (uninit)
 		(*vec)[uninit_id].push_front(uninit);
@@ -1133,22 +1148,25 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		get_safe_ptr_action(&obj_map, mutex_loc)->push_back(act);
 
 		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, mutex_loc);
-		if (tid >= (int)vec->size())
+		if (tid >= (int)vec->size()) {
+			uint oldsize = vec->size();
 			vec->resize(priv->next_thread_id);
+			for(uint i=oldsize;i<priv->next_thread_id;i++)
+				new (&(*vec)[i]) action_list_t();
+		}
 		(*vec)[tid].push_back(act);
 	}
 }
 
 void insertIntoActionList(action_list_t *list, ModelAction *act) {
-	action_list_t::reverse_iterator rit = list->rbegin();
+	sllnode<ModelAction*> * rit = list->end();
 	modelclock_t next_seq = act->get_seq_number();
-	if (rit == list->rend() || (*rit)->get_seq_number() == next_seq)
+	if (rit == NULL || (rit->getVal()->get_seq_number() == next_seq))
 		list->push_back(act);
 	else {
-		for(;rit != list->rend();rit++) {
-			if ((*rit)->get_seq_number() == next_seq) {
-				action_list_t::iterator it = rit.base();
-				list->insert(it, act);
+		for(;rit != NULL;rit=rit->getPrev()) {
+			if (rit->getVal()->get_seq_number() == next_seq) {
+				list->insertAfter(rit, act);
 				break;
 			}
 		}
@@ -1156,19 +1174,18 @@ void insertIntoActionList(action_list_t *list, ModelAction *act) {
 }
 
 void insertIntoActionListAndSetCV(action_list_t *list, ModelAction *act) {
-	action_list_t::reverse_iterator rit = list->rbegin();
+	sllnode<ModelAction*> * rit = list->end();
 	modelclock_t next_seq = act->get_seq_number();
-	if (rit == list->rend()) {
+	if (rit == NULL) {
 		act->create_cv(NULL);
-	} else if ((*rit)->get_seq_number() == next_seq) {
-		act->create_cv((*rit));
+	} else if (rit->getVal()->get_seq_number() == next_seq) {
+		act->create_cv(rit->getVal());
 		list->push_back(act);
 	} else {
-		for(;rit != list->rend();rit++) {
-			if ((*rit)->get_seq_number() == next_seq) {
-				act->create_cv((*rit));
-				action_list_t::iterator it = rit.base();
-				list->insert(it, act);
+		for(;rit != NULL;rit=rit->getPrev()) {
+			if (rit->getVal()->get_seq_number() == next_seq) {
+				act->create_cv(rit->getVal());
+				list->insertAfter(rit, act);
 				break;
 			}
 		}
@@ -1193,8 +1210,12 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
-	if (tid >= (int)vec->size())
+	if (tid >= (int)vec->size()) {
+		uint oldsize =vec->size();
 		vec->resize(priv->next_thread_id);
+		for(uint i=oldsize;i<priv->next_thread_id;i++)
+			new (&(*vec)[i]) action_list_t();
+	}
 	insertIntoActionList(&(*vec)[tid],act);
 
 	// Update thrd_last_action, the last action taken by each thrad
@@ -1204,14 +1225,14 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 
 
 void ModelExecution::add_write_to_lists(ModelAction *write) {
-	// Update seq_cst map
-	if (write->is_seqcst())
-		obj_last_sc_map.put(write->get_location(), write);
-
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, write->get_location());
 	int tid = id_to_int(write->get_tid());
-	if (tid >= (int)vec->size())
+	if (tid >= (int)vec->size()) {
+		uint oldsize =vec->size();
 		vec->resize(priv->next_thread_id);
+		for(uint i=oldsize;i<priv->next_thread_id;i++)
+			new (&(*vec)[i]) action_list_t();
+	}
 	(*vec)[tid].push_back(write);
 }
 
@@ -1273,20 +1294,22 @@ ModelAction * ModelExecution::get_last_seq_cst_fence(thread_id_t tid, const Mode
 	if (!list)
 		return NULL;
 
-	action_list_t::reverse_iterator rit = list->rbegin();
+	sllnode<ModelAction*>* rit = list->end();
 
 	if (before_fence) {
-		for (;rit != list->rend();rit++)
-			if (*rit == before_fence)
+		for (;rit != NULL;rit=rit->getPrev())
+			if (rit->getVal() == before_fence)
 				break;
 
-		ASSERT(*rit == before_fence);
-		rit++;
+		ASSERT(rit->getVal() == before_fence);
+		rit=rit->getPrev();
 	}
 
-	for (;rit != list->rend();rit++)
-		if ((*rit)->is_fence() && (tid == (*rit)->get_tid()) && (*rit)->is_seqcst())
-			return *rit;
+	for (;rit != NULL;rit=rit->getPrev()) {
+		ModelAction *act = rit->getVal();
+		if (act->is_fence() && (tid == act->get_tid()) && act->is_seqcst())
+			return act;
+	}
 	return NULL;
 }
 
@@ -1304,10 +1327,10 @@ ModelAction * ModelExecution::get_last_unlock(ModelAction *curr) const
 
 	action_list_t *list = obj_map.get(location);
 	/* Find: max({i in dom(S) | isUnlock(t_i) && samevar(t_i, t)}) */
-	action_list_t::reverse_iterator rit;
-	for (rit = list->rbegin();rit != list->rend();rit++)
-		if ((*rit)->is_unlock() || (*rit)->is_wait())
-			return *rit;
+	sllnode<ModelAction*>* rit;
+	for (rit = list->end();rit != NULL;rit=rit->getPrev())
+		if (rit->getVal()->is_unlock() || rit->getVal()->is_wait())
+			return rit->getVal();
 	return NULL;
 }
 
@@ -1370,9 +1393,9 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 	for (i = 0;i < thrd_lists->size();i++) {
 		/* Iterate over actions in thread, starting from most recent */
 		action_list_t *list = &(*thrd_lists)[i];
-		action_list_t::reverse_iterator rit;
-		for (rit = list->rbegin();rit != list->rend();rit++) {
-			ModelAction *act = *rit;
+		sllnode<ModelAction *> * rit;
+		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+			ModelAction *act = rit->getVal();
 
 			if (act == curr)
 				continue;
@@ -1435,9 +1458,9 @@ ModelAction * ModelExecution::get_uninitialized_action(ModelAction *curr) const
 	return act;
 }
 
-static void print_list(const action_list_t *list)
+static void print_list(action_list_t *list)
 {
-	action_list_t::const_iterator it;
+	sllnode<ModelAction*> *it;
 
 	model_print("------------------------------------------------------------------------------------\n");
 	model_print("#    t    Action type     MO       Location         Value               Rf  CV\n");
@@ -1445,18 +1468,18 @@ static void print_list(const action_list_t *list)
 
 	unsigned int hash = 0;
 
-	for (it = list->begin();it != list->end();it++) {
-		const ModelAction *act = *it;
+	for (it = list->begin();it != NULL;it=it->getNext()) {
+		const ModelAction *act = it->getVal();
 		if (act->get_seq_number() > 0)
 			act->print();
-		hash = hash^(hash<<3)^((*it)->hash());
+		hash = hash^(hash<<3)^(it->getVal()->hash());
 	}
 	model_print("HASH %u\n", hash);
 	model_print("------------------------------------------------------------------------------------\n");
 }
 
 #if SUPPORT_MOD_ORDER_DUMP
-void ModelExecution::dumpGraph(char *filename) const
+void ModelExecution::dumpGraph(char *filename)
 {
 	char buffer[200];
 	sprintf(buffer, "%s.dot", filename);
@@ -1465,8 +1488,8 @@ void ModelExecution::dumpGraph(char *filename) const
 	mo_graph->dumpNodes(file);
 	ModelAction **thread_array = (ModelAction **)model_calloc(1, sizeof(ModelAction *) * get_num_threads());
 
-	for (action_list_t::const_iterator it = action_trace.begin();it != action_trace.end();it++) {
-		ModelAction *act = *it;
+	for (sllnode<ModelAction*>* it = action_trace.begin();it != NULL;it=it->getNext()) {
+		ModelAction *act = it->getVal();
 		if (act->is_read()) {
 			mo_graph->dot_print_node(file, act);
 			mo_graph->dot_print_edge(file,
@@ -1490,7 +1513,7 @@ void ModelExecution::dumpGraph(char *filename) const
 #endif
 
 /** @brief Prints an execution trace summary. */
-void ModelExecution::print_summary() const
+void ModelExecution::print_summary()
 {
 #if SUPPORT_MOD_ORDER_DUMP
 	char buffername[100];
@@ -1631,7 +1654,7 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	ASSERT(curr);
 
 	/* Process this action in ModelHistory for records*/
-	model->get_history()->process_action( curr, curr->get_tid() );
+	//	model->get_history()->process_action( curr, curr->get_tid() );
 
 	if (curr_thrd->is_blocked() || curr_thrd->is_complete())
 		scheduler->remove_thread(curr_thrd);

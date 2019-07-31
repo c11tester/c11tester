@@ -19,9 +19,9 @@ FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
  */
 bool FuncInst::add_pred(FuncInst * other)
 {
-	func_inst_list_mt::iterator it;
-	for (it = predecessors.begin();it != predecessors.end();it++) {
-		FuncInst * inst = *it;
+	mllnode<FuncInst*> * it;
+	for (it = predecessors.begin();it != NULL;it=it->getNext()) {
+		FuncInst * inst = it->getVal();
 		if (inst == other)
 			return false;
 	}
@@ -32,9 +32,9 @@ bool FuncInst::add_pred(FuncInst * other)
 
 bool FuncInst::add_succ(FuncInst * other)
 {
-	func_inst_list_mt::iterator it;
-	for (it = successors.begin();it != successors.end();it++) {
-		FuncInst * inst = *it;
+	mllnode<FuncInst*>* it;
+	for (it = successors.begin();it != NULL;it=it->getNext()) {
+		FuncInst * inst = it->getVal();
 		if ( inst == other )
 			return false;
 	}
@@ -47,9 +47,9 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 {
 	action_type type = act->get_type();
 
-	func_inst_list_mt::iterator it;
-	for (it = collisions.begin();it != collisions.end();it++) {
-		FuncInst * inst = *it;
+	mllnode<FuncInst*>* it;
+	for (it = collisions.begin();it != NULL;it=it->getNext()) {
+		FuncInst * inst = it->getVal();
 		if ( inst->get_type() == type )
 			return inst;
 	}
@@ -58,11 +58,11 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 
 bool FuncInst::is_read() const
 {
-	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS; /* type == ATOMIC_RMW ? */
+	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS;	/* type == ATOMIC_RMW ? */
 }
 
 bool FuncInst::is_write() const
 {
-        return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT || type == NONATOMIC_WRITE;
+	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT || type == NONATOMIC_WRITE;
 }
 
