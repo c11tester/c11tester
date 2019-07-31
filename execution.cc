@@ -1161,11 +1161,11 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 void insertIntoActionList(action_list_t *list, ModelAction *act) {
 	sllnode<ModelAction*> * rit = list->end();
 	modelclock_t next_seq = act->get_seq_number();
-	if (rit == NULL || (rit->getVal())->get_seq_number() == next_seq)
+	if (rit == NULL || (rit->getVal()->get_seq_number() == next_seq))
 		list->push_back(act);
 	else {
 		for(;rit != NULL;rit=rit->getPrev()) {
-			if ((rit->getVal())->get_seq_number() == next_seq) {
+			if (rit->getVal()->get_seq_number() == next_seq) {
 				list->insertAfter(rit, act);
 				break;
 			}
@@ -1654,7 +1654,7 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	ASSERT(curr);
 
 	/* Process this action in ModelHistory for records*/
-	model->get_history()->process_action( curr, curr->get_tid() );
+	//	model->get_history()->process_action( curr, curr->get_tid() );
 
 	if (curr_thrd->is_blocked() || curr_thrd->is_complete())
 		scheduler->remove_thread(curr_thrd);

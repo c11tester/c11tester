@@ -126,7 +126,7 @@ public:
 		if (tail == node) {
 			tail = node->prev;
 		} else {
-			tail->next->prev = node->prev;
+			node->next->prev = node->prev;
 		}
 		mllnode<_Tp> *next = node->next;
 		delete node;
@@ -284,7 +284,7 @@ public:
 		if (tail == node) {
 			tail = node->prev;
 		} else {
-			tail->next->prev = node->prev;
+			node->next->prev = node->prev;
 		}
 
 		sllnode<_Tp> *next = node->next;
@@ -346,7 +346,7 @@ public:
 	}
 
 	type back() const {
-		return array[size - 1];
+		return array[_size - 1];
 	}
 
 	void resize(uint psize) {
