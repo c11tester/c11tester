@@ -30,6 +30,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		uint oldsize = thrd_func_list->size();
 		thrd_func_list->resize( id + 1 );
 		for (uint i = oldsize; i < id + 1; i++) {
+			new(&(*thrd_func_list)[i]) func_id_list_t();
 			// push 0 as a dummy function id to a void seg fault
 			(*thrd_func_list)[i].push_back(0);
 		}
