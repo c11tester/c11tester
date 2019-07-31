@@ -8,306 +8,306 @@ typedef unsigned int uint;
 
 template<typename _Tp>
 class mllnode {
- public:
-  _Tp getVal() {return val;}
-  mllnode<_Tp> * getNext() {return next;}
-  mllnode<_Tp> * getPrev() {return prev;}
+public:
+	_Tp getVal() {return val;}
+	mllnode<_Tp> * getNext() {return next;}
+	mllnode<_Tp> * getPrev() {return prev;}
 
-  MEMALLOC;
-  
- private:
-  mllnode<_Tp> * next;
-  mllnode<_Tp> * prev;
-  _Tp val;
-  template<typename T>
-  friend class ModelList;
+	MEMALLOC;
+
+private:
+	mllnode<_Tp> * next;
+	mllnode<_Tp> * prev;
+	_Tp val;
+	template<typename T>
+	friend class ModelList;
 };
 
 template<typename _Tp>
 class ModelList
 {
-public:  
- ModelList() : head(NULL),
-    tail(NULL), _size(0) {
-  }
+public:
+	ModelList() : head(NULL),
+		tail(NULL), _size(0) {
+	}
 
-  void push_front(_Tp val) {
-    mllnode<_Tp> * tmp = new mllnode<_Tp>();
-    tmp->prev = NULL;
-    tmp->next = head;
-    tmp->val = val;
-    if (head == NULL)
-      tail = tmp;
-    else
-      head->prev = tmp;
-    head = tmp;
-    _size++;
-  }
+	void push_front(_Tp val) {
+		mllnode<_Tp> * tmp = new mllnode<_Tp>();
+		tmp->prev = NULL;
+		tmp->next = head;
+		tmp->val = val;
+		if (head == NULL)
+			tail = tmp;
+		else
+			head->prev = tmp;
+		head = tmp;
+		_size++;
+	}
 
-  void push_back(_Tp val) {
-    mllnode<_Tp> * tmp = new mllnode<_Tp>();
-    tmp->prev = tail;
-    tmp->next = NULL;
-    tmp->val = val;
-    if (tail == NULL)
-      head = tmp;
-    else tail->next = tmp;
-    tail = tmp;
-    _size++;
-  }
+	void push_back(_Tp val) {
+		mllnode<_Tp> * tmp = new mllnode<_Tp>();
+		tmp->prev = tail;
+		tmp->next = NULL;
+		tmp->val = val;
+		if (tail == NULL)
+			head = tmp;
+		else tail->next = tmp;
+		tail = tmp;
+		_size++;
+	}
 
-  void pop_front() {
-    mllnode<_Tp> *tmp = head;
-    head = head->next;
-    head->prev = NULL;
-    delete tmp;
-    _size--;
-  }
+	void pop_front() {
+		mllnode<_Tp> *tmp = head;
+		head = head->next;
+		head->prev = NULL;
+		delete tmp;
+		_size--;
+	}
 
-  void pop_back() {
-    mllnode<_Tp> *tmp = tail;
-    tail = tail->next;
-    tail->next = NULL;
-    delete tmp;
-    _size--;
-  }
+	void pop_back() {
+		mllnode<_Tp> *tmp = tail;
+		tail = tail->next;
+		tail->next = NULL;
+		delete tmp;
+		_size--;
+	}
 
-  void clear() {
-    while(head != NULL) {
-      mllnode<_Tp> *tmp=head->next;
-      delete head;
-      head = tmp;
-    }
-    tail=NULL;
-    _size=0;
-  }
-  
-  void insertAfter(mllnode<_Tp> * node, _Tp val) {
-    mllnode<_Tp> *tmp = new mllnode<_Tp>();
-    tmp->val = val;
-    tmp->prev = node;
-    tmp->next = node->next;
-    node->next = tmp;
-    if (tmp->next == NULL) {
-      tail = tmp;
-    } else {
-      tmp->next->prev = tmp;
-    }
-    _size++;
-  }
+	void clear() {
+		while(head != NULL) {
+			mllnode<_Tp> *tmp=head->next;
+			delete head;
+			head = tmp;
+		}
+		tail=NULL;
+		_size=0;
+	}
 
-  void insertBefore(mllnode<_Tp> * node, _Tp val) {
-    mllnode<_Tp> *tmp = new mllnode<_Tp>();
-    tmp->val = val;
-    tmp->next = node;
-    tmp->prev = node->prev;
-    node->prev = tmp;
-    if (tmp->prev == NULL) {
-      head = tmp;
-    } else {
-      tmp->prev->next = tmp;
-    }
-    _size++;
-  }
-  
-  mllnode<_Tp> * erase(mllnode<_Tp> * node) {
-    if (head == node) {
-      head = node->next;
-    } else {
-      node->prev->next = node->next;
-    }
+	void insertAfter(mllnode<_Tp> * node, _Tp val) {
+		mllnode<_Tp> *tmp = new mllnode<_Tp>();
+		tmp->val = val;
+		tmp->prev = node;
+		tmp->next = node->next;
+		node->next = tmp;
+		if (tmp->next == NULL) {
+			tail = tmp;
+		} else {
+			tmp->next->prev = tmp;
+		}
+		_size++;
+	}
 
-    if (tail == node) {
-      tail = node->prev;
-    } else {
-      tail->next->prev = node->prev;
-    }
-    mllnode<_Tp> *next = node->next;
-    delete node;
-    _size--;
-    return next;
-  }
-  
-  mllnode<_Tp> * begin() {
-    return head;
-  }
+	void insertBefore(mllnode<_Tp> * node, _Tp val) {
+		mllnode<_Tp> *tmp = new mllnode<_Tp>();
+		tmp->val = val;
+		tmp->next = node;
+		tmp->prev = node->prev;
+		node->prev = tmp;
+		if (tmp->prev == NULL) {
+			head = tmp;
+		} else {
+			tmp->prev->next = tmp;
+		}
+		_size++;
+	}
 
-  mllnode<_Tp> * end() {
-    return tail;
-  }
-  
-  _Tp front() {
-    return head->val;
-  }
+	mllnode<_Tp> * erase(mllnode<_Tp> * node) {
+		if (head == node) {
+			head = node->next;
+		} else {
+			node->prev->next = node->next;
+		}
 
-  _Tp back() {
-    return tail->val;
-  }
+		if (tail == node) {
+			tail = node->prev;
+		} else {
+			tail->next->prev = node->prev;
+		}
+		mllnode<_Tp> *next = node->next;
+		delete node;
+		_size--;
+		return next;
+	}
 
-  uint size() {
-    return _size;
-  }
+	mllnode<_Tp> * begin() {
+		return head;
+	}
 
-  bool empty() {
-    return _size == 0;
-  }
-  
-  MEMALLOC;
- private:
-  mllnode<_Tp> *head;
-  mllnode<_Tp> *tail;
-  uint _size;
+	mllnode<_Tp> * end() {
+		return tail;
+	}
+
+	_Tp front() {
+		return head->val;
+	}
+
+	_Tp back() {
+		return tail->val;
+	}
+
+	uint size() {
+		return _size;
+	}
+
+	bool empty() {
+		return _size == 0;
+	}
+
+	MEMALLOC;
+private:
+	mllnode<_Tp> *head;
+	mllnode<_Tp> *tail;
+	uint _size;
 };
 
 template<typename _Tp>
 class sllnode {
- public:
-  _Tp getVal() {return val;}
-  sllnode<_Tp> * getNext() {return next;}
-  sllnode<_Tp> * getPrev() {return prev;}
-  SNAPSHOTALLOC;
-  
- private:
-  sllnode<_Tp> * next;
-  sllnode<_Tp> * prev;
-  _Tp val;
-  template<typename T>
-  friend class SnapList;
+public:
+	_Tp getVal() {return val;}
+	sllnode<_Tp> * getNext() {return next;}
+	sllnode<_Tp> * getPrev() {return prev;}
+	SNAPSHOTALLOC;
+
+private:
+	sllnode<_Tp> * next;
+	sllnode<_Tp> * prev;
+	_Tp val;
+	template<typename T>
+	friend class SnapList;
 };
 
 template<typename _Tp>
 class SnapList
 {
-public:  
- SnapList() : head(NULL),
-    tail(NULL), _size(0) {
-  }
+public:
+	SnapList() : head(NULL),
+		tail(NULL), _size(0) {
+	}
 
-  void push_front(_Tp val) {
-    sllnode<_Tp> * tmp = new sllnode<_Tp>();
-    tmp->prev = NULL;
-    tmp->next = head;
-    tmp->val = val;
-    if (head == NULL)
-      tail = tmp;
-    else
-      head->prev = tmp;
-    head = tmp;
-    _size++;
-  }
+	void push_front(_Tp val) {
+		sllnode<_Tp> * tmp = new sllnode<_Tp>();
+		tmp->prev = NULL;
+		tmp->next = head;
+		tmp->val = val;
+		if (head == NULL)
+			tail = tmp;
+		else
+			head->prev = tmp;
+		head = tmp;
+		_size++;
+	}
 
-  void push_back(_Tp val) {
-    sllnode<_Tp> * tmp = new sllnode<_Tp>();
-    tmp->prev = tail;
-    tmp->next = NULL;
-    tmp->val = val;
-    if (tail == NULL)
-      head = tmp;
-    else tail->next = tmp;
-    tail = tmp;
-    _size++;
-  }
-  
-  void pop_front() {
-    sllnode<_Tp> *tmp = head;
-    head = head->next;
-    head->prev = NULL;
-    delete tmp;
-    _size--;
-  }
+	void push_back(_Tp val) {
+		sllnode<_Tp> * tmp = new sllnode<_Tp>();
+		tmp->prev = tail;
+		tmp->next = NULL;
+		tmp->val = val;
+		if (tail == NULL)
+			head = tmp;
+		else tail->next = tmp;
+		tail = tmp;
+		_size++;
+	}
 
-  void pop_back() {
-    sllnode<_Tp> *tmp = tail;
-    tail = tail->next;
-    tail->next = NULL;
-    delete tmp;
-    _size--;
-  }
+	void pop_front() {
+		sllnode<_Tp> *tmp = head;
+		head = head->next;
+		head->prev = NULL;
+		delete tmp;
+		_size--;
+	}
 
-  void clear() {
-    while(head != NULL) {
-      sllnode<_Tp> *tmp=head->next;
-      delete head;
-      head = tmp;
-    }
-    tail=NULL;
-    _size=0;
-  }
-  
-  void insertAfter(sllnode<_Tp> * node, _Tp val) {
-    sllnode<_Tp> *tmp = new sllnode<_Tp>();
-    tmp->val = val;
-    tmp->prev = node;
-    tmp->next = node->next;
-    node->next = tmp;
-    if (tmp->next == NULL) {
-      tail = tmp;
-    } else {
-      tmp->next->prev = tmp;
-    }
-    _size++;
-  }
+	void pop_back() {
+		sllnode<_Tp> *tmp = tail;
+		tail = tail->next;
+		tail->next = NULL;
+		delete tmp;
+		_size--;
+	}
 
-  void insertBefore(sllnode<_Tp> * node, _Tp val) {
-    sllnode<_Tp> *tmp = new sllnode<_Tp>();
-    tmp->val = val;
-    tmp->next = node;
-    tmp->prev = node->prev;
-    node->prev = tmp;
-    if (tmp->prev == NULL) {
-      head = tmp;
-    } else {
-      tmp->prev->next = tmp;
-    }
-    _size++;
-  }
-  
-  sllnode<_Tp> * erase(sllnode<_Tp> * node) {
-    if (head == node) {
-      head = node->next;
-    } else {
-      node->prev->next = node->next;
-    }
+	void clear() {
+		while(head != NULL) {
+			sllnode<_Tp> *tmp=head->next;
+			delete head;
+			head = tmp;
+		}
+		tail=NULL;
+		_size=0;
+	}
 
-    if (tail == node) {
-      tail = node->prev;
-    } else {
-      tail->next->prev = node->prev;
-    }
+	void insertAfter(sllnode<_Tp> * node, _Tp val) {
+		sllnode<_Tp> *tmp = new sllnode<_Tp>();
+		tmp->val = val;
+		tmp->prev = node;
+		tmp->next = node->next;
+		node->next = tmp;
+		if (tmp->next == NULL) {
+			tail = tmp;
+		} else {
+			tmp->next->prev = tmp;
+		}
+		_size++;
+	}
 
-    sllnode<_Tp> *next = node->next;
-    delete node;
-    _size--;
-    return next;
-  }
-  
-  sllnode<_Tp> * begin() {
-    return head;
-  }
+	void insertBefore(sllnode<_Tp> * node, _Tp val) {
+		sllnode<_Tp> *tmp = new sllnode<_Tp>();
+		tmp->val = val;
+		tmp->next = node;
+		tmp->prev = node->prev;
+		node->prev = tmp;
+		if (tmp->prev == NULL) {
+			head = tmp;
+		} else {
+			tmp->prev->next = tmp;
+		}
+		_size++;
+	}
 
-  sllnode<_Tp> * end() {
-    return tail;
-  }
-  
-  _Tp front() {
-    return head->val;
-  }
+	sllnode<_Tp> * erase(sllnode<_Tp> * node) {
+		if (head == node) {
+			head = node->next;
+		} else {
+			node->prev->next = node->next;
+		}
 
-  _Tp back() {
-    return tail->val;
-  }
-  uint size() {
-    return _size;
-  }
-  bool empty() {
-    return _size == 0;
-  }
-  
-  SNAPSHOTALLOC;
- private:
-  sllnode<_Tp> *head;
-  sllnode<_Tp> *tail;
-  uint _size;
+		if (tail == node) {
+			tail = node->prev;
+		} else {
+			tail->next->prev = node->prev;
+		}
+
+		sllnode<_Tp> *next = node->next;
+		delete node;
+		_size--;
+		return next;
+	}
+
+	sllnode<_Tp> * begin() {
+		return head;
+	}
+
+	sllnode<_Tp> * end() {
+		return tail;
+	}
+
+	_Tp front() {
+		return head->val;
+	}
+
+	_Tp back() {
+		return tail->val;
+	}
+	uint size() {
+		return _size;
+	}
+	bool empty() {
+		return _size == 0;
+	}
+
+	SNAPSHOTALLOC;
+private:
+	sllnode<_Tp> *head;
+	sllnode<_Tp> *tail;
+	uint _size;
 };
 
 

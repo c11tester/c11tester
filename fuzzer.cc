@@ -20,7 +20,7 @@ Thread * Fuzzer::selectNotify(action_list_t * waiters) {
 	int random_index = random() % numwaiters;
 	sllnode<ModelAction*> * it = waiters->begin();
 	while(random_index--)
-	  it=it->getNext();
+		it=it->getNext();
 	Thread *thread = model->get_thread(it->getVal());
 	waiters->erase(it);
 	return thread;

@@ -139,12 +139,12 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 
 void CycleGraph::addEdges(SnapList<ModelAction *> * edgeset, const ModelAction *to) {
 	for(sllnode<ModelAction*> * it = edgeset->begin();it!=NULL;) {
-	  ModelAction *act = it->getVal();
+		ModelAction *act = it->getVal();
 		CycleNode *node = getNode(act);
 		sllnode<ModelAction*> * it2 = it;
 		it2=it2->getNext();
 		for(;it2!=NULL; ) {
-		  ModelAction *act2 = it2->getVal();
+			ModelAction *act2 = it2->getVal();
 			CycleNode *node2 = getNode(act2);
 			if (checkReachable(node, node2)) {
 				it = edgeset->erase(it);
@@ -162,7 +162,7 @@ endouterloop:
 		;
 	}
 	for(sllnode<ModelAction*> *it = edgeset->begin();it!=NULL;it=it->getNext()) {
-	  ModelAction *from = it->getVal();
+		ModelAction *from = it->getVal();
 		addEdge(from, to, from->get_tid() == to->get_tid());
 	}
 }
