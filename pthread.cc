@@ -189,7 +189,7 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
 		pthread_mutex_init(p_mutex, NULL);
 
 	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
-	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
+//	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 
 	model->switch_to_master(new ModelAction(NOOP, std::memory_order_seq_cst, v));
 //	v->wait(*m);
@@ -229,4 +229,5 @@ int pthread_cond_destroy(pthread_cond_t *p_cond) {
 		delete v;
 		execution->getCondMap()->remove(p_cond);
 	}
+	return 0;
 }

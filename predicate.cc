@@ -1,26 +1,26 @@
 #include "predicate.h"
 
-inline bool operator==(const predicate_expr& expr_A, const predicate_expr& expr_B)
+Predicate::Predicate(FuncInst * func_inst) :
+	func_inst(func_inst)
+{}
+
+unsigned int pred_expr_hash(struct pred_expr * expr) {
+        return (unsigned int)((uintptr_t)hash);
+}
+
+bool pred_expr_equal(struct pred_expr * p1, struct pred_expr * p2)
 {
-	if (expr_A.token != expr_B.token)
+	if (p1->token != p2->token)
 		return false;
-
-	if (expr_A.token == EQUALITY && expr_A.location != expr_B.location)
+	if (p1->token == EQUALITY && p1->location != p2->location)
 		return false;
-
-	if (expr_A.value != expr_B.value)
+	if (p1->value != p2->value)
 		return false;
-
 	return true;
 }
 
-void Predicate::add_predicate(predicate_expr predicate)
+void Predicate::add_predicate(token_t token, void * location, bool value)
 {
-	ModelList<predicate_expr>::iterator it;
-	for (it = predicates.begin(); it != predicates.end(); it++) {
-		if (predicate == *it)
-			return;
-	}
-
-	predicates.push_back(predicate);
+	struct pred_expr = {token, location, value};
+	predicates.add(&predicate);
 }

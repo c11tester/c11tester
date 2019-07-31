@@ -1,4 +1,11 @@
+#ifndef __PREDICTAE_H__
+#define __PREDICATE_H__
+
 #include "funcinst.h"
+
+unsigned int pred_expr_hash (struct pred_expr *);
+bool pred_expr_equal(struct pred_expr *, struct pred_expr *);
+typedef HashSet<struct pred_expr *, uintptr_t, 0, model_malloc, model_calloc, model_free, pred_expr_hash, pred_expr_equal> PredicateSet;
 
 typedef enum predicate_token {
 	EQUALITY, NULLITY
@@ -8,24 +15,28 @@ typedef enum predicate_token {
  * this load should read the same value as the last value 
  * read at memory location specified in predicate_expr.
  */
-struct predicate_expr {
+struct pred_expr {
 	token_t token;
 	void * location;
 	bool value;
 };
 
+
 class Predicate {
 public:
-	Predicate();
+	Predicate(FuncInst * func_inst);
 	~Predicate();
 
 	FuncInst * get_func_inst() { return func_inst; }
-	ModelList<predicate_expr> * get_predicates() { return &predicates; }
-	void add_predicate(predicate_expr predicate);
+	PredicateSet * get_predicates() { return &predicates; }
+	void add_predicate(token_t token, void * location, bool value);
 
 	MEMALLOC
 private:
 	FuncInst * func_inst;
 	/* may have multiple precicates */
-	ModelList<predicate_expr> predicates;
+	PredicateSet predicates;
+	ModelVector<Predicate *> children;
 };
+
+#endif /* __PREDICATE_H__ */
