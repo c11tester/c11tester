@@ -29,9 +29,11 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	if ( thrd_func_list->size() <= id ) {
 		uint oldsize = thrd_func_list->size();
 		thrd_func_list->resize( id + 1 );
-		for(uint i = oldsize; i < id + 1; i++) {
-			new(&(*thrd_func_list)[i]) func_id_list_t();
+		for (uint i = oldsize; i < id + 1; i++) {
+			// push 0 as a dummy function id to a void seg fault
+			(*thrd_func_list)[i].push_back(0);
 		}
+
 		thrd_func_inst_lists->resize( id + 1 );
 	}
 
@@ -94,11 +96,6 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 
 void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 {
-	action_type act_type = act->get_type();
-	if (act_type == THREAD_FINISH || act_type == THREAD_JOIN ||
-		act_type == PTHREAD_JOIN || act_type == THREADONLY_FINISH)
-		return;
-
 	/* return if thread i has not entered any function or has exited
 	   from all functions */
 	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
@@ -113,7 +110,9 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	uint32_t func_id = (*thrd_func_list)[id].back();
 	SnapList<func_inst_list_t *> * func_inst_lists = thrd_func_inst_lists->at(id);
 
-	if ( func_nodes.size() <= func_id )
+	if (func_id == 0)
+		return;
+	else if ( func_nodes.size() <= func_id )
 		resize_func_nodes( func_id + 1 );
 
 	FuncNode * func_node = func_nodes[func_id];
@@ -125,8 +124,8 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (inst == NULL)
 		return;
 
-	//	if (inst->is_read())
-	//	func_node->store_read(act, tid);
+	if (inst->is_read())
+		func_node->store_read(act, tid);
 
 	if (inst->is_write())
 		add_to_write_history(act->get_location(), act->get_write_value());
