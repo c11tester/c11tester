@@ -60,9 +60,9 @@ public:
 		mllnode<_Tp> *tmp = head;
 		head = head->next;
 		if (head == NULL)
-		  tail = NULL;
+			tail = NULL;
 		else
-		  head->prev = NULL;
+			head->prev = NULL;
 		delete tmp;
 		_size--;
 	}
@@ -71,9 +71,9 @@ public:
 		mllnode<_Tp> *tmp = tail;
 		tail = tail->prev;
 		if (tail == NULL)
-		  head = NULL;
+			head = NULL;
 		else
-		  tail->next = NULL;
+			tail->next = NULL;
 		delete tmp;
 		_size--;
 	}
@@ -218,9 +218,9 @@ public:
 		sllnode<_Tp> *tmp = head;
 		head = head->next;
 		if (head == NULL)
-		  tail = NULL;
+			tail = NULL;
 		else
-		  head->prev = NULL;
+			head->prev = NULL;
 		delete tmp;
 		_size--;
 	}
@@ -229,9 +229,9 @@ public:
 		sllnode<_Tp> *tmp = tail;
 		tail = tail->prev;
 		if (tail == NULL)
-		  head = NULL;
+			head = NULL;
 		else
-		    tail->next = NULL;
+			tail->next = NULL;
 		delete tmp;
 		_size--;
 	}

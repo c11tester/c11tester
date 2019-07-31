@@ -1105,7 +1105,7 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 			int oldsize = (int) vec->size();
 			vec->resize(uninit_id + 1);
 			for(int i=oldsize;i<uninit_id+1;i++) {
-			  new(&(*vec)[i]) action_list_t();
+				new(&(*vec)[i]) action_list_t();
 			}
 		}
 		(*vec)[uninit_id].push_front(uninit);
@@ -1123,7 +1123,7 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		uint oldsize =vec->size();
 		vec->resize(priv->next_thread_id);
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
-		  new (&(*vec)[i]) action_list_t();
+			new (&(*vec)[i]) action_list_t();
 	}
 	(*vec)[tid].push_back(act);
 	if (uninit)
@@ -1152,7 +1152,7 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 			uint oldsize = vec->size();
 			vec->resize(priv->next_thread_id);
 			for(uint i=oldsize;i<priv->next_thread_id;i++)
-			  new (&(*vec)[i]) action_list_t();
+				new (&(*vec)[i]) action_list_t();
 		}
 		(*vec)[tid].push_back(act);
 	}
@@ -1214,7 +1214,7 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 		uint oldsize =vec->size();
 		vec->resize(priv->next_thread_id);
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
-		  new (&(*vec)[i]) action_list_t();
+			new (&(*vec)[i]) action_list_t();
 	}
 	insertIntoActionList(&(*vec)[tid],act);
 
@@ -1231,7 +1231,7 @@ void ModelExecution::add_write_to_lists(ModelAction *write) {
 		uint oldsize =vec->size();
 		vec->resize(priv->next_thread_id);
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
-		  new (&(*vec)[i]) action_list_t();
+			new (&(*vec)[i]) action_list_t();
 	}
 	(*vec)[tid].push_back(write);
 }
