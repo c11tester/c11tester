@@ -59,15 +59,21 @@ public:
 	void pop_front() {
 		mllnode<_Tp> *tmp = head;
 		head = head->next;
-		head->prev = NULL;
+		if (head == NULL)
+		  tail = NULL;
+		else
+		  head->prev = NULL;
 		delete tmp;
 		_size--;
 	}
 
 	void pop_back() {
 		mllnode<_Tp> *tmp = tail;
-		tail = tail->next;
-		tail->next = NULL;
+		tail = tail->prev;
+		if (tail == NULL)
+		  head = NULL;
+		else
+		  tail->next = NULL;
 		delete tmp;
 		_size--;
 	}
@@ -211,15 +217,21 @@ public:
 	void pop_front() {
 		sllnode<_Tp> *tmp = head;
 		head = head->next;
-		head->prev = NULL;
+		if (head == NULL)
+		  tail = NULL;
+		else
+		  head->prev = NULL;
 		delete tmp;
 		_size--;
 	}
 
 	void pop_back() {
 		sllnode<_Tp> *tmp = tail;
-		tail = tail->next;
-		tail->next = NULL;
+		tail = tail->prev;
+		if (tail == NULL)
+		  head = NULL;
+		else
+		    tail->next = NULL;
 		delete tmp;
 		_size--;
 	}
@@ -358,11 +370,11 @@ public:
 		array[_size++] = item;
 	}
 
-	type operator[](uint index) const {
+	type operator[](int index) const {
 		return array[index];
 	}
 
-	type & operator[](uint index) {
+	type & operator[](int index) {
 		return array[index];
 	}
 
@@ -463,11 +475,11 @@ public:
 		array[_size++] = item;
 	}
 
-	type & operator[](uint index) {
+	type operator[](int index) const {
 		return array[index];
 	}
 
-	type operator[](uint index) const {
+	type & operator[](int index) {
 		return array[index];
 	}
 

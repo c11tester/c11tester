@@ -26,7 +26,11 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		thrd_func_inst_lists = model->get_execution()->get_thrd_func_inst_lists();
 
 	if ( thrd_func_list->size() <= id ) {
-		thrd_func_list->resize( id + 1 );
+	  uint oldsize = thrd_func_list->size();
+	  thrd_func_list->resize( id + 1 );
+	  for(uint i=oldsize; i<id+1; i++) {
+	    new(&(*thrd_func_list)[i]) func_id_list_t();
+	  }
 		thrd_func_inst_lists->resize( id + 1 );
 	}
 
