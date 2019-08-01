@@ -79,6 +79,8 @@ static int fd_user_out;	/**< @brief File descriptor from which to read user prog
  *
  * This function should only be called once.
  */
+char filename[256];
+
 void redirect_output()
 {
 	/* Save stdout for later use */
@@ -87,25 +89,13 @@ void redirect_output()
 		perror("dup");
 		exit(EXIT_FAILURE);
 	}
-
-	/* Redirect program output to a pipe */
-	int pipefd[2];
-	if (pipe(pipefd) < 0) {
-		perror("pipe");
-		exit(EXIT_FAILURE);
-	}
-	if (dup2(pipefd[1], STDOUT_FILENO) < 0) {
+	snprintf_(filename, sizeof(filename), "C11FuzzerTmp%d", getpid());
+	fd_user_out = open(filename, O_CREAT | O_TRUNC| O_RDWR, S_IRWXU);
+	if (dup2(fd_user_out, STDOUT_FILENO) < 0) {
 		perror("dup2");
 		exit(EXIT_FAILURE);
 	}
-	close(pipefd[1]);
 
-	/* Save the "read" side of the pipe for use later */
-	if (fcntl(pipefd[0], F_SETFL, O_NONBLOCK) < 0) {
-		perror("fcntl");
-		exit(EXIT_FAILURE);
-	}
-	fd_user_out = pipefd[0];
 }
 
 /**
@@ -138,8 +128,8 @@ static ssize_t read_to_buf(int fd, char *buf, size_t maxlen)
 void clear_program_output()
 {
 	fflush(stdout);
-	char buf[200];
-	while (read_to_buf(fd_user_out, buf, sizeof(buf))) ;
+	close(fd_user_out);
+	unlink(filename);
 }
 
 /** @brief Print out any pending program output */
@@ -152,6 +142,7 @@ void print_program_output()
 	/* Gather all program output */
 	fflush(stdout);
 
+	lseek(fd_user_out, 0, SEEK_SET);
 	/* Read program output pipe and write to (real) stdout */
 	ssize_t ret;
 	while (1) {
@@ -167,6 +158,9 @@ void print_program_output()
 			ret -= res;
 		}
 	}
+
+	close(fd_user_out);
+	unlink(filename);
 
 	model_print("---- END PROGRAM OUTPUT   ----\n");
 }

@@ -189,8 +189,6 @@ int main(int argc, char **argv)
 				 "Distributed under the GPLv2\n"
 				 "Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
 
-	/* Configure output redirection for the model-checker */
-	redirect_output();
 
 	//Initialize snapshotting library and model checker object
 	if (!model) {
@@ -198,6 +196,9 @@ int main(int argc, char **argv)
 		model = new ModelChecker();
 		model->startChecker();
 	}
+
+	/* Configure output redirection for the model-checker */
+	redirect_output();
 
 	register_plugins();
 
