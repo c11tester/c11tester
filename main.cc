@@ -23,6 +23,7 @@ void param_defaults(struct model_params *params)
 	params->uninitvalue = 0;
 	params->maxexecutions = 10;
 	params->nofork = false;
+	params->threadsnocleanup = false;
 }
 
 static void print_usage(const char *program_name, struct model_params *params)
@@ -56,6 +57,9 @@ static void print_usage(const char *program_name, struct model_params *params)
 		"                            Default: %u\n"
 		"                            -o help for a list of options\n"
 		"-n                          No fork\n"
+#ifdef TLS
+		"-d                          Don't allow threads to cleanup\n"
+#endif
 		" --                         Program arguments follow.\n\n",
 		program_name,
 		params->verbose,
@@ -86,7 +90,7 @@ bool install_plugin(char * name) {
 
 static void parse_options(struct model_params *params, int argc, char **argv)
 {
-	const char *shortopts = "hnt:o:u:x:v::";
+	const char *shortopts = "hdnt:o:u:x:v::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"verbose", optional_argument, NULL, 'v'},
@@ -102,6 +106,9 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		switch (opt) {
 		case 'h':
 			print_usage(argv[0], params);
+			break;
+		case 'd':
+			params->threadsnocleanup = true;
 			break;
 		case 'n':
 			params->nofork = true;

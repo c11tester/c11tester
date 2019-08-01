@@ -392,20 +392,6 @@ void ModelChecker::startMainThread() {
 	main_thread_startup();
 }
 
-static bool is_nonsc_write(const ModelAction *act) {
-	if (act->get_type() == ATOMIC_WRITE) {
-		std::memory_order order = act->get_mo();
-		switch(order) {
-		case std::memory_order_relaxed:
-		case std::memory_order_release:
-			return true;
-		default:
-			return false;
-		}
-	}
-	return false;
-}
-
 /** @brief Run ModelChecker for the user program */
 void ModelChecker::run()
 {

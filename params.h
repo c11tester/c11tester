@@ -9,6 +9,7 @@ struct model_params {
 	unsigned int uninitvalue;
 	int maxexecutions;
 	bool nofork;
+	bool threadsnocleanup;
 
 	/** @brief Verbosity (0 = quiet; 1 = noisy; 2 = noisier) */
 	int verbose;

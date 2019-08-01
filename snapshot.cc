@@ -14,6 +14,9 @@
 #include "context.h"
 #include "model.h"
 
+
+#if USE_MPROTECT_SNAPSHOT
+
 /** PageAlignedAdressUpdate return a page aligned address for the
  * address being added as a side effect the numBytes are also changed.
  */
@@ -21,8 +24,6 @@ static void * PageAlignAddressUpward(void *addr)
 {
 	return (void *)((((uintptr_t)addr) + PAGESIZE - 1) & ~(PAGESIZE - 1));
 }
-
-#if USE_MPROTECT_SNAPSHOT
 
 /* Each SnapShotRecord lists the firstbackingpage that must be written to
  * revert to that snapshot */
