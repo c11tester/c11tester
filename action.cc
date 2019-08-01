@@ -54,6 +54,34 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 
 
 /**
+ * @brief Construct a new ModelAction for sleep actions
+ *
+ * @param type The type of action: THREAD_SLEEP
+ * @param order The memory order of this action. A "don't care" for non-ATOMIC
+ * actions (e.g., THREAD_* or MODEL_* actions).
+ * @param loc The location that this action acts upon
+ * @param value The time duration a thread is scheduled to sleep.
+ * @param _time The this sleep action is constructed
+ */
+ModelAction::ModelAction(action_type_t type, memory_order order, uint64_t value, uint64_t _time) :
+	location(NULL),
+	position(NULL),
+	time(_time),
+	last_fence_release(NULL),
+	uninitaction(NULL),
+	cv(NULL),
+	rf_cv(NULL),
+	value(value),
+	type(type),
+	order(order),
+	original_order(order),
+	seq_number(ACTION_INITIAL_CLOCK)
+{
+	Thread *t = thread_current();
+	this->tid = t!= NULL ? t->get_id() : -1;
+}
+
+/**
  * @brief Construct a new ModelAction
  *
  * @param type The type of action
@@ -210,6 +238,11 @@ bool ModelAction::is_mutex_op() const
 bool ModelAction::is_lock() const
 {
 	return type == ATOMIC_LOCK;
+}
+
+bool ModelAction::is_sleep() const
+{
+	return type == THREAD_SLEEP;
 }
 
 bool ModelAction::is_wait() const {
@@ -645,6 +678,7 @@ const char * ModelAction::get_type_str() const
 	case THREAD_YIELD: return "thread yield";
 	case THREAD_JOIN: return "thread join";
 	case THREAD_FINISH: return "thread finish";
+	case THREAD_SLEEP: return "thread sleep";
 	case THREADONLY_FINISH: return "pthread_exit finish";
 
 	case PTHREAD_CREATE: return "pthread create";

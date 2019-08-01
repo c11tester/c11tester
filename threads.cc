@@ -13,6 +13,7 @@
 /* global "model" object */
 #include "model.h"
 #include "execution.h"
+#include "schedule.h"
 
 #ifdef TLS
 #include <dlfcn.h>
@@ -319,10 +320,15 @@ void Thread::complete()
 	if (stack)
 		stack_free(stack);
 #ifdef TLS
-	if (this != model->getInitThread()) {
+	if (this != model->getInitThread() && !model->getParams()->threadsnocleanup) {
 		modellock = 1;
+		ASSERT(thread_current()==NULL);
+		Thread * curr_thread = model->getScheduler()->get_current_thread();
+		//Make any current_thread calls work in code to free
+		model->getScheduler()->set_current_thread(this);
 		real_pthread_mutex_unlock(&mutex2);
 		real_pthread_join(thread, NULL);
+		model->getScheduler()->set_current_thread(curr_thread);
 		modellock = 0;
 	}
 #endif

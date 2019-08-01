@@ -68,6 +68,7 @@ public:
 	void startMainThread();
 	void startChecker();
 	Thread * getInitThread() {return init_thread;}
+	Scheduler * getScheduler() {return scheduler;}
 	MEMALLOC
 private:
 	/** Flag indicates whether to restart the model checker. */
