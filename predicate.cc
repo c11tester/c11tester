@@ -5,7 +5,7 @@ Predicate::Predicate(FuncInst * func_inst) :
 {}
 
 unsigned int pred_expr_hash(struct pred_expr * expr) {
-        return (unsigned int)((uintptr_t)hash);
+        return (unsigned int)((uintptr_t)expr);
 }
 
 bool pred_expr_equal(struct pred_expr * p1, struct pred_expr * p2)
@@ -21,6 +21,6 @@ bool pred_expr_equal(struct pred_expr * p1, struct pred_expr * p2)
 
 void Predicate::add_predicate(token_t token, void * location, bool value)
 {
-	struct pred_expr = {token, location, value};
+	struct pred_expr predicate = {token, location, value};
 	predicates.add(&predicate);
 }

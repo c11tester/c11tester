@@ -2,6 +2,7 @@
 #define __PREDICATE_H__
 
 #include "funcinst.h"
+#include "hashset.h"
 
 unsigned int pred_expr_hash (struct pred_expr *);
 bool pred_expr_equal(struct pred_expr *, struct pred_expr *);
