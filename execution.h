@@ -90,7 +90,7 @@ public:
 	ModelAction * check_current_action(ModelAction *curr);
 
 	SnapVector<func_id_list_t> * get_thrd_func_list() { return &thrd_func_list; }
-	SnapVector< SnapList<func_inst_list_t *> *> * get_thrd_func_inst_lists() { return &thrd_func_inst_lists; }
+	SnapVector< SnapList<action_list_t *> *> * get_thrd_func_act_lists() { return &thrd_func_act_lists; }
 	bool isFinished() {return isfinished;}
 	void setFinished() {isfinished = true;}
 
@@ -213,7 +213,7 @@ private:
 	 *
 	 * This data structure is handled by ModelHistory
 	 */
-	SnapVector< SnapList< func_inst_list_t *> *> thrd_func_inst_lists;
+	SnapVector< SnapList<action_list_t *> *> thrd_func_act_lists;
 	bool isfinished;
 };
 

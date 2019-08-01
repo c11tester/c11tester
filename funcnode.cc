@@ -1,7 +1,7 @@
 #include "funcnode.h"
-#include "predicate.h"
 
 FuncNode::FuncNode() :
+	predicate_tree_initialized(false),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
@@ -13,7 +13,7 @@ FuncNode::FuncNode() :
  * if not, add it and return it.
  *
  * @return FuncInst with the same type, position, and location as act */
-FuncInst * FuncNode::get_or_add_action(ModelAction *act)
+FuncInst * FuncNode::get_or_add_inst(ModelAction *act)
 {
 	ASSERT(act);
 	const char * position = act->get_position();
@@ -62,7 +62,7 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 		return;
 
 	mllnode<FuncInst*>* it;
-	for (it = entry_insts.begin();it != NULL;it=it->getNext()) {
+	for (it = entry_insts.begin(); it != NULL; it = it->getNext()) {
 		if (inst == it->getVal())
 			return;
 	}
@@ -70,27 +70,36 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	entry_insts.push_back(inst);
 }
 
-/* @param inst_list a list of FuncInsts; this argument comes from ModelExecution
- * Link FuncInsts in a list - add one FuncInst to another's predecessors and successors
+/* @param act_list a list of ModelActions; this argument comes from ModelExecution
+ * convert act_inst to inst_list do linking - add one FuncInst to another's predecessors and successors
  */
-void FuncNode::link_insts(func_inst_list_t * inst_list)
+void FuncNode::update_inst_tree(action_list_t * act_list)
 {
-	if (inst_list == NULL)
+	if (act_list == NULL)
+		return;
+	else if (act_list->size() == 0)
 		return;
 
-	sllnode<FuncInst *>* it = inst_list->begin();
+	/* build inst_list from act_list for later processing */
+	func_inst_list_t inst_list;
+	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL; it = it->getNext()) {
+		ModelAction * act = it->getVal();
+		FuncInst * func_inst = get_or_add_inst(act);
+
+		if (func_inst != NULL)
+			inst_list.push_back(func_inst);
+	}
+
+	/* start linking */
+	sllnode<FuncInst *>* it = inst_list.begin();
 	sllnode<FuncInst *>* prev;
-
-	if (inst_list->size() == 0)
-		return;
 
 	/* add the first instruction to the list of entry insts */
 	FuncInst * entry_inst = it->getVal();
 	add_entry_inst(entry_inst);
 
-	it=it->getNext();
+	it = it->getNext();
 	while (it != NULL) {
-		prev = it;
 		prev = it->getPrev();
 
 		FuncInst * prev_inst = prev->getVal();
@@ -99,7 +108,7 @@ void FuncNode::link_insts(func_inst_list_t * inst_list)
 		prev_inst->add_succ(curr_inst);
 		curr_inst->add_pred(prev_inst);
 
-		it=it->getNext();
+		it = it->getNext();
 	}
 }
 
@@ -116,7 +125,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	uint32_t old_size = thrd_read_map.size();
 	if (old_size <= tid) {
 		thrd_read_map.resize(tid + 1);
-		for (uint32_t i = old_size;i < tid + 1;i++)
+		for (uint32_t i = old_size; i < tid + 1;i++)
 			thrd_read_map[i] = new read_map_t();
 	}
 
@@ -153,6 +162,50 @@ void FuncNode::clear_read_map(uint32_t tid)
 
 	thrd_read_map[tid]->reset();
 }
+
+void FuncNode::init_predicate_tree(func_inst_list_t * inst_list)
+{
+	if (inst_list == NULL || inst_list->size() == 0)
+		return;
+
+	if (predicate_tree_initialized)
+		return;
+
+	predicate_tree_initialized = true;
+
+	// maybe restrict the size of hashtable to save calloc time
+	HashTable<void *, FuncInst *, uintptr_t, 4> loc_inst_map;
+
+	sllnode<FuncInst *> *it = inst_list->begin();
+	sllnode<FuncInst *> *prev;
+
+	FuncInst * entry_inst = it->getVal();
+
+	/* entry instruction has no predicate expression */
+	Predicate * pred_entry = new Predicate(entry_inst);
+	loc_inst_map.put(entry_inst->get_location(), entry_inst);
+
+	it = it->getNext();
+	while (it != NULL) {
+		prev = it->getPrev();
+
+		FuncInst * curr_inst = it->getVal();
+		FuncInst * prev_inst = prev->getVal();
+
+		if ( loc_inst_map.contains(curr_inst->get_location()) ) {
+			Predicate * pred1 = new Predicate(curr_inst);
+			pred1->add_predicate(EQUALITY, curr_inst->get_location(), 0);
+
+			Predicate * pred2 = new Predicate(curr_inst);
+			pred2->add_predicate(EQUALITY, curr_inst->get_location(), 1);
+		}
+
+		loc_inst_map.put(curr_inst->get_location(), curr_inst);
+
+		it = it->getNext();
+	}
+}
+
 
 void FuncNode::generate_predicate(FuncInst *func_inst)
 {

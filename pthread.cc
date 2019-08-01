@@ -8,7 +8,6 @@
 
 #include "mutex.h"
 #include <condition_variable>
-#include <assert.h>
 
 /* global "model" object */
 #include "model.h"
@@ -33,7 +32,6 @@ int pthread_create(pthread_t *t, const pthread_attr_t * attr,
 }
 
 int pthread_join(pthread_t t, void **value_ptr) {
-//	Thread *th = model->get_pthread(t);
 	ModelExecution *execution = model->get_execution();
 	Thread *th = execution->get_pthread(t);
 
@@ -62,13 +60,12 @@ void pthread_exit(void *value_ptr) {
 }
 
 int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
-	cdsc::snapmutex *m = new cdsc::snapmutex();
-
 	if (!model) {
 		snapshot_system_init(10000, 1024, 1024, 40000);
 		model = new ModelChecker();
 		model->startChecker();
 	}
+	cdsc::snapmutex *m = new cdsc::snapmutex();
 
 	ModelExecution *execution = model->get_execution();
 	execution->getMutexMap()->put(p_mutex, m);
@@ -82,7 +79,6 @@ int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
 		model = new ModelChecker();
 		model->startChecker();
 	}
-
 
 	ModelExecution *execution = model->get_execution();
 

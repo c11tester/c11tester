@@ -66,7 +66,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	mo_graph(new CycleGraph()),
 	fuzzer(new Fuzzer()),
 	thrd_func_list(),
-	thrd_func_inst_lists(),
+	thrd_func_act_lists(),
 	isfinished(false)
 {
 	/* Initialize a model-checker thread, for special ModelActions */
@@ -1654,7 +1654,7 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	ASSERT(curr);
 
 	/* Process this action in ModelHistory for records*/
-	//	model->get_history()->process_action( curr, curr->get_tid() );
+	model->get_history()->process_action( curr, curr->get_tid() );
 
 	if (curr_thrd->is_blocked() || curr_thrd->is_complete())
 		scheduler->remove_thread(curr_thrd);

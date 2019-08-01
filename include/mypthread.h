@@ -20,5 +20,4 @@ extern "C" {
 int user_main(int, char**);
 }
 
-void check();
 #endif
