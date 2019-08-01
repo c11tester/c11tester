@@ -153,6 +153,11 @@ bool ModelExecution::should_wake_up(const ModelAction *curr, const Thread *threa
 		if (fence_release && *(get_last_action(thread->get_id())) < *fence_release)
 			return true;
 	}
+	if (asleep->is_sleep()) {
+		if (fuzzer->shouldWake(asleep))
+			return true;
+	}
+
 	return false;
 }
 
@@ -650,6 +655,9 @@ bool ModelExecution::check_action_enabled(ModelAction *curr) {
 		if (!blocking->is_complete()) {
 			return false;
 		}
+	} else if (curr->is_sleep()) {
+		if (!fuzzer->shouldSleep(curr))
+			return false;
 	}
 
 	return true;

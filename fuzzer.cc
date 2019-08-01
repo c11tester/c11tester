@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "threads-model.h"
 #include "model.h"
+#include "action.h"
 
 int Fuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set) {
 	int random_index = random() % rf_set->size();
@@ -24,4 +25,16 @@ Thread * Fuzzer::selectNotify(action_list_t * waiters) {
 	Thread *thread = model->get_thread(it->getVal());
 	waiters->erase(it);
 	return thread;
+}
+
+bool Fuzzer::shouldSleep(const ModelAction *sleep) {
+	return true;
+}
+
+bool Fuzzer::shouldWake(const ModelAction *sleep) {
+	struct timespec currtime;
+	clock_gettime(CLOCK_MONOTONIC, &currtime);
+	uint64_t lcurrtime = currtime.tv_sec * 1000000000 + currtime.tv_nsec;
+
+	return ((sleep->get_time()+sleep->get_value()) >= lcurrtime);
 }

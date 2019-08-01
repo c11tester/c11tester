@@ -13,6 +13,27 @@
 /* global "model" object */
 #include "model.h"
 #include "execution.h"
+extern "C" {
+int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
+}
+
+int nanosleep(const struct timespec *rqtp, struct timespec *rmtp) {
+	if (model) {
+		uint64_t time = rqtp->tv_sec * 1000000000 + rqtp->tv_nsec;
+		struct timespec currtime;
+		clock_gettime(CLOCK_MONOTONIC, &currtime);
+		uint64_t lcurrtime = currtime.tv_sec * 1000000000 + currtime.tv_nsec;
+		model->switch_to_master(new ModelAction(THREAD_SLEEP, std::memory_order_seq_cst, time, lcurrtime));
+		if (rmtp != NULL) {
+			clock_gettime(CLOCK_MONOTONIC, &currtime);
+			uint64_t lendtime = currtime.tv_sec * 1000000000 + currtime.tv_nsec;
+			uint64_t elapsed = lendtime - lcurrtime;
+			rmtp->tv_sec = elapsed / 1000000000;
+			rmtp->tv_nsec = elapsed - rmtp->tv_sec * 1000000000;
+		}
+	}
+	return 0;
+}
 
 int pthread_create(pthread_t *t, const pthread_attr_t * attr,
 									 pthread_start_t start_routine, void * arg) {
@@ -191,7 +212,7 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
 		pthread_mutex_init(p_mutex, NULL);
 
 	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
-	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
+	//	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 
 	model->switch_to_master(new ModelAction(NOOP, std::memory_order_seq_cst, v));
 //	v->wait(*m);

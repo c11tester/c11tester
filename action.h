@@ -55,6 +55,7 @@ typedef enum action_type {
 	THREADONLY_FINISH,	// < A thread completion action
 	PTHREAD_CREATE,	// < A pthread creation action
 	PTHREAD_JOIN,	// < A pthread join action
+	THREAD_SLEEP,	// < A sleep operation
 	ATOMIC_UNINIT,	// < Represents an uninitialized atomic
 	NONATOMIC_WRITE,	// < Represents a non-atomic store
 	ATOMIC_INIT,	// < Initialization of an atomic object (e.g., atomic_init())
@@ -90,6 +91,7 @@ public:
 	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value = VALUE_NONE, Thread *thread = NULL);
 	ModelAction(action_type_t type, memory_order order, void *loc, uint64_t value, int size);
 	ModelAction(action_type_t type, const char * position, memory_order order, void *loc, uint64_t value, int size);
+	ModelAction(action_type_t type, memory_order order, uint64_t value, uint64_t time);
 	ModelAction(action_type_t type, const char * position, memory_order order, void *loc, uint64_t value = VALUE_NONE, Thread *thread = NULL);
 	~ModelAction();
 	void print() const;
@@ -107,6 +109,7 @@ public:
 	uint64_t get_write_value() const;
 	uint64_t get_return_value() const;
 	ModelAction * get_reads_from() const { return reads_from; }
+	uint64_t get_time() const {return time;}
 	cdsc::mutex * get_mutex() const;
 
 	void set_read_from(ModelAction *act);
@@ -124,6 +127,7 @@ public:
 	bool is_thread_join() const;
 	bool is_mutex_op() const;
 	bool is_lock() const;
+	bool is_sleep() const;
 	bool is_trylock() const;
 	bool is_unlock() const;
 	bool is_wait() const;
@@ -200,6 +204,7 @@ private:
 		 */
 		ModelAction *reads_from;
 		int size;
+		uint64_t time;	//used for sleep
 	};
 
 	/** @brief The last fence release from the same thread */
