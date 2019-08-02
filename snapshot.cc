@@ -402,13 +402,8 @@ static void fork_loop() {
 				}
 			}
 
-			if (fork_snap->mIDToRollback != snapshotid) {
-				char filename[256];
-				snprintf_(filename, sizeof(filename), "C11FuzzerTmp%d", forkedID);
-				unlink(filename);
-
+			if (fork_snap->mIDToRollback != snapshotid)
 				_Exit(EXIT_SUCCESS);
-			}
 		}
 	}
 }

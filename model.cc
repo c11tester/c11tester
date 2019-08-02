@@ -475,4 +475,9 @@ void ModelChecker::run()
 	/* Have the trace analyses dump their output. */
 	for (unsigned int i = 0;i < trace_analyses.size();i++)
 		trace_analyses[i]->finish();
+
+	/* unlink tmp file created by last child process */
+	char filename[256];
+	snprintf_(filename, sizeof(filename), "C11FuzzerTmp%d", getpid());
+	unlink(filename);
 }
