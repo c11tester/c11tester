@@ -67,8 +67,9 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 		FuncNode * func_node = func_nodes[func_id];
 		func_node->clear_read_map(tid);
 
+		// model_print("hello function %s and thread %d\n", func_node->get_func_name(), tid);
 		action_list_t * curr_act_list = func_act_lists->back();
-		func_node->update_inst_tree(curr_act_list);
+		func_node->update_tree(curr_act_list);
 
 		(*thrd_func_list)[id].pop_back();
 		func_act_lists->pop_back();

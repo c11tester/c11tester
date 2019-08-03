@@ -17,6 +17,7 @@ public:
 	const char * get_position() const { return position; }
 	void * get_location() const { return location; }
 	action_type get_type() const { return type; }
+	memory_order get_mo() const { return order; }
 	FuncNode * get_func_node() const { return func_node; }
 
 	bool add_pred(FuncInst * other);
@@ -31,12 +32,15 @@ public:
 	bool is_read() const;
 	bool is_write() const;
 
+	void print();
+
 	MEMALLOC
 private:
 	//ModelAction * const action;
 	const char * position;
 	void * location;
 	action_type type;
+	memory_order order;
 	FuncNode * func_node;
 
 	/* collisions store a list of FuncInsts with the same position

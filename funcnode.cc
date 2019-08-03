@@ -5,7 +5,8 @@ FuncNode::FuncNode() :
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	thrd_read_map()
+	thrd_read_map(),
+	predicate_tree_entry()
 {}
 
 /* Check whether FuncInst with the same type, position, and location
@@ -18,10 +19,8 @@ FuncInst * FuncNode::get_or_add_inst(ModelAction *act)
 	ASSERT(act);
 	const char * position = act->get_position();
 
-	/* Actions THREAD_CREATE, THREAD_START, THREAD_YIELD, THREAD_JOIN,
-	 * THREAD_FINISH, PTHREAD_CREATE, PTHREAD_JOIN,
-	 * ATOMIC_LOCK, ATOMIC_TRYLOCK, and ATOMIC_UNLOCK are not tagged with their
-	 * source line numbers
+	/* THREAD* actions, ATOMIC_LOCK, ATOMIC_TRYLOCK, and ATOMIC_UNLOCK
+	 * actions are not tagged with their source line numbers
 	 */
 	if (position == NULL)
 		return NULL;
@@ -61,7 +60,7 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	if (inst == NULL)
 		return;
 
-	mllnode<FuncInst*>* it;
+	mllnode<FuncInst *> * it;
 	for (it = entry_insts.begin(); it != NULL; it = it->getNext()) {
 		if (inst == it->getVal())
 			return;
@@ -70,10 +69,11 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	entry_insts.push_back(inst);
 }
 
-/* @param act_list a list of ModelActions; this argument comes from ModelExecution
- * convert act_inst to inst_list do linking - add one FuncInst to another's predecessors and successors
+/**
+ * @brief Convert ModelAdtion list to FuncInst list 
+ * @param act_list A list of ModelActions
  */
-void FuncNode::update_inst_tree(action_list_t * act_list)
+void FuncNode::update_tree(action_list_t * act_list)
 {
 	if (act_list == NULL)
 		return;
@@ -82,16 +82,47 @@ void FuncNode::update_inst_tree(action_list_t * act_list)
 
 	/* build inst_list from act_list for later processing */
 	func_inst_list_t inst_list;
+	func_inst_list_t read_inst_list;
+	HashTable<FuncInst *, uint64_t, uintptr_t, 4> read_val_map;
+
 	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL; it = it->getNext()) {
 		ModelAction * act = it->getVal();
 		FuncInst * func_inst = get_or_add_inst(act);
 
-		if (func_inst != NULL)
-			inst_list.push_back(func_inst);
+		if (func_inst == NULL)
+			continue;
+
+		inst_list.push_back(func_inst);
+
+		if (!predicate_tree_initialized) {
+			model_print("position: %s ", act->get_position());
+			act->print();
+		}
+
+		if (func_inst->is_read()) {
+			read_inst_list.push_back(func_inst);
+			read_val_map.put(func_inst, act->get_reads_from_value());
+		}
 	}
 
+	update_inst_tree(&inst_list);
+	model_print("line break\n");
+	init_predicate_tree(&read_inst_list, &read_val_map);
+}
+
+/** 
+ * @brief Link FuncInsts in inst_list  - add one FuncInst to another's predecessors and successors
+ * @param inst_list A list of FuncInsts
+ */
+void FuncNode::update_inst_tree(func_inst_list_t * inst_list)
+{
+	if (inst_list == NULL)
+		return;
+	else if (inst_list->size() == 0)
+		return;
+
 	/* start linking */
-	sllnode<FuncInst *>* it = inst_list.begin();
+	sllnode<FuncInst *>* it = inst_list->begin();
 	sllnode<FuncInst *>* prev;
 
 	/* add the first instruction to the list of entry insts */
@@ -163,13 +194,16 @@ void FuncNode::clear_read_map(uint32_t tid)
 	thrd_read_map[tid]->reset();
 }
 
-void FuncNode::init_predicate_tree(func_inst_list_t * inst_list)
+void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map)
 {
 	if (inst_list == NULL || inst_list->size() == 0)
 		return;
 
-	if (predicate_tree_initialized)
+	if (predicate_tree_initialized) {
+		model_print("function %s\n", func_name);
+		print_predicate_tree();
 		return;
+	}
 
 	predicate_tree_initialized = true;
 
@@ -182,7 +216,8 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list)
 	FuncInst * entry_inst = it->getVal();
 
 	/* entry instruction has no predicate expression */
-	Predicate * pred_entry = new Predicate(entry_inst);
+	Predicate * curr_pred = new Predicate(entry_inst);
+	predicate_tree_entry.add(curr_pred);
 	loc_inst_map.put(entry_inst->get_location(), entry_inst);
 
 	it = it->getNext();
@@ -193,11 +228,25 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list)
 		FuncInst * prev_inst = prev->getVal();
 
 		if ( loc_inst_map.contains(curr_inst->get_location()) ) {
-			Predicate * pred1 = new Predicate(curr_inst);
-			pred1->add_predicate(EQUALITY, curr_inst->get_location(), 0);
+//			model_print("new predicate created at location: %p\n", curr_inst->get_location());
+			Predicate * new_pred1 = new Predicate(curr_inst);
+			new_pred1->add_predicate(EQUALITY, curr_inst->get_location(), true);
 
-			Predicate * pred2 = new Predicate(curr_inst);
-			pred2->add_predicate(EQUALITY, curr_inst->get_location(), 1);
+			Predicate * new_pred2 = new Predicate(curr_inst);
+			new_pred2->add_predicate(EQUALITY, curr_inst->get_location(), false);
+
+			curr_pred->add_child(new_pred1);
+			curr_pred->add_child(new_pred2);
+
+			uint64_t last_read = read_val_map->get(prev_inst);
+			if ( last_read == read_val_map->get(curr_inst) )
+				curr_pred = new_pred1;
+			else
+				curr_pred = new_pred2;
+		} else {
+			Predicate * new_pred = new Predicate(curr_inst);
+			curr_pred->add_child(new_pred);
+			curr_pred = new_pred;
 		}
 
 		loc_inst_map.put(curr_inst->get_location(), curr_inst);
@@ -207,19 +256,26 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list)
 }
 
 
-void FuncNode::generate_predicate(FuncInst *func_inst)
+void FuncNode::print_predicate_tree()
 {
+	HSIterator<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> * it;
+	it = predicate_tree_entry.iterator();
 
+	while (it->hasNext()) {
+		Predicate * p = it->next();
+		p->print_pred_subtree();
+	}
 }
 
 /* @param tid thread id
  * Print the values read by the last read actions for each memory location
  */
+/*
 void FuncNode::print_last_read(uint32_t tid)
 {
 	ASSERT(thrd_read_map.size() > tid);
 	read_map_t * read_map = thrd_read_map[tid];
-/*
+
 	mllnode<void *> * it;
 	for (it = read_locations.begin();it != NULL;it=it->getNext()) {
 		if ( !read_map->contains(it->getVal()) )
@@ -228,5 +284,5 @@ void FuncNode::print_last_read(uint32_t tid)
 		uint64_t read_val = read_map->get(it->getVal());
 		model_print("last read of thread %d at %p: 0x%x\n", tid, it->getVal(), read_val);
 	}
-*/
 }
+*/

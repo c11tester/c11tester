@@ -26,15 +26,17 @@ public:
 	func_inst_list_mt * get_inst_list() { return &inst_list; }
 	func_inst_list_mt * get_entry_insts() { return &entry_insts; }
 	void add_entry_inst(FuncInst * inst);
-	void update_inst_tree(action_list_t * act_list);
+
+	void update_tree(action_list_t * act_list);
+	void update_inst_tree(func_inst_list_t * inst_list);
 
 	void store_read(ModelAction * act, uint32_t tid);
 	uint64_t query_last_read(void * location, uint32_t tid);
 	void clear_read_map(uint32_t tid);
 
 	/* TODO: generate EQUALITY or NULLITY predicate based on write_history in history.cc */
-	void init_predicate_tree(func_inst_list_t * inst_list);
-	void generate_predicate(FuncInst * func_inst);
+	void init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map);
+	void print_predicate_tree();
 
 	void print_last_read(uint32_t tid);
 
@@ -58,7 +60,6 @@ private:
 	/* Store the values read by atomic read actions per memory location for each thread */
 	ModelVector<read_map_t *> thrd_read_map;
 
-	/* TODO: how to guarantee unique predicate? Or add an equal function */
 	HashSet<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> predicate_tree_entry;
 };
 

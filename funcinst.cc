@@ -8,6 +8,7 @@ FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
 	this->position = act->get_position();
 	this->location = act->get_location();
 	this->type = act->get_type();
+	this->order = act->get_mo();
 	this->func_node = func_node;
 }
 
@@ -47,10 +48,10 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 {
 	action_type type = act->get_type();
 
-	mllnode<FuncInst*>* it;
-	for (it = collisions.begin();it != NULL;it=it->getNext()) {
+	mllnode<FuncInst*> * it;
+	for (it = collisions.begin(); it != NULL; it = it->getNext()) {
 		FuncInst * inst = it->getVal();
-		if ( inst->get_type() == type )
+		if (inst->get_type() == type)
 			return inst;
 	}
 	return NULL;
@@ -58,7 +59,7 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 
 bool FuncInst::is_read() const
 {
-	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS;	/* type == ATOMIC_RMW ? */
+	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS || type == ATOMIC_RMW;
 }
 
 bool FuncInst::is_write() const
@@ -66,3 +67,7 @@ bool FuncInst::is_write() const
 	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT || type == NONATOMIC_WRITE;
 }
 
+void FuncInst::print()
+{
+	model_print("func inst - position: %s, location: %p, type: %d, order: %d\n", position, location, type, order);
+}
