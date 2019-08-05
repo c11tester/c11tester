@@ -69,5 +69,5 @@ bool FuncInst::is_write() const
 
 void FuncInst::print()
 {
-	model_print("func inst - position: %s, location: %p, type: %d, order: %d\n", position, location, type, order);
+	model_print("func inst - pos: %s, loc: %p, type: %d,\n", position, location, type);
 }

@@ -36,7 +36,7 @@ void Predicate::add_child(Predicate * child)
 
 void Predicate::print_predicate()
 {
-	//model_print("self: %p ", this);
+	model_print("\"%p\" [shape=box, label=\"%p\n", this, this);
 	func_inst->print();
 	PredSetIter * it = predicates.iterator();
 
@@ -45,8 +45,9 @@ void Predicate::print_predicate()
 
 	while (it->hasNext()) {
 		struct pred_expr * expr = it->next();
-		model_print("token: %d, location: %p, value: %d\n", expr->token, expr->location, expr->value);
+		model_print("predicate: token: %d, location: %p, value: %d\n", expr->token, expr->location, expr->value);
 	}
+	model_print("\"];\n");
 }
 
 void Predicate::print_pred_subtree()
@@ -54,7 +55,7 @@ void Predicate::print_pred_subtree()
 	print_predicate();
 	for (uint i = 0; i < children.size(); i++) {
 		Predicate * child = children[i];
-//		model_print("parent: %p - ", this);
 		child->print_pred_subtree();
+		model_print("\"%p\" -> \"%p\"\n", this, child);
 	}
 }

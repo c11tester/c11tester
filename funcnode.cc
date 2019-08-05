@@ -1,4 +1,6 @@
 #include "funcnode.h"
+#include <fcntl.h>
+#include "common.h"
 
 FuncNode::FuncNode() :
 	predicate_tree_initialized(false),
@@ -94,10 +96,11 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 		inst_list.push_back(func_inst);
 
-		if (!predicate_tree_initialized) {
+/*		if (!predicate_tree_initialized) {
 			model_print("position: %s ", act->get_position());
 			act->print();
 		}
+*/
 
 		if (func_inst->is_read()) {
 			read_inst_list.push_back(func_inst);
@@ -106,7 +109,6 @@ void FuncNode::update_tree(action_list_t * act_list)
 	}
 
 	update_inst_tree(&inst_list);
-	model_print("line break\n");
 	init_predicate_tree(&read_inst_list, &read_val_map);
 }
 
@@ -200,8 +202,6 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 		return;
 
 	if (predicate_tree_initialized) {
-		model_print("function %s\n", func_name);
-		print_predicate_tree();
 		return;
 	}
 
@@ -211,8 +211,6 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 	HashTable<void *, FuncInst *, uintptr_t, 4> loc_inst_map;
 
 	sllnode<FuncInst *> *it = inst_list->begin();
-	sllnode<FuncInst *> *prev;
-
 	FuncInst * entry_inst = it->getVal();
 
 	/* entry instruction has no predicate expression */
@@ -222,13 +220,8 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 
 	it = it->getNext();
 	while (it != NULL) {
-		prev = it->getPrev();
-
 		FuncInst * curr_inst = it->getVal();
-		FuncInst * prev_inst = prev->getVal();
-
 		if ( loc_inst_map.contains(curr_inst->get_location()) ) {
-//			model_print("new predicate created at location: %p\n", curr_inst->get_location());
 			Predicate * new_pred1 = new Predicate(curr_inst);
 			new_pred1->add_predicate(EQUALITY, curr_inst->get_location(), true);
 
@@ -238,7 +231,9 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 			curr_pred->add_child(new_pred1);
 			curr_pred->add_child(new_pred2);
 
-			uint64_t last_read = read_val_map->get(prev_inst);
+			FuncInst * last_inst = loc_inst_map.get(curr_inst->get_location());
+
+			uint64_t last_read = read_val_map->get(last_inst);
 			if ( last_read == read_val_map->get(curr_inst) )
 				curr_pred = new_pred1;
 			else
@@ -253,11 +248,15 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 
 		it = it->getNext();
 	}
+
+	model_print("function %s\n", func_name);
+	print_predicate_tree();
 }
 
 
 void FuncNode::print_predicate_tree()
 {
+	model_print("digraph function_%s {\n", func_name);
 	HSIterator<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> * it;
 	it = predicate_tree_entry.iterator();
 
@@ -265,6 +264,7 @@ void FuncNode::print_predicate_tree()
 		Predicate * p = it->next();
 		p->print_pred_subtree();
 	}
+	model_print("}\n");	// end of graph
 }
 
 /* @param tid thread id
