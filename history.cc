@@ -21,7 +21,7 @@ ModelHistory::ModelHistory() :
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 {
 	//model_print("thread %d entering func %d\n", tid, func_id);
-	uint32_t id = id_to_int(tid);
+	uint id = id_to_int(tid);
 	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
 	SnapVector< SnapList<action_list_t *> *> *
 		thrd_func_act_lists = model->get_execution()->get_thrd_func_act_lists();
@@ -30,20 +30,18 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		uint oldsize = thrd_func_list->size();
 		thrd_func_list->resize( id + 1 );
 		for (uint i = oldsize; i < id + 1; i++) {
-			new(&(*thrd_func_list)[i]) func_id_list_t();
+			new (&(*thrd_func_list)[i]) func_id_list_t();
 			// push 0 as a dummy function id to a void seg fault
 			(*thrd_func_list)[i].push_back(0);
 		}
 
 		thrd_func_act_lists->resize( id + 1 );
+		for (uint i = oldsize; i < id + 1; i++) {
+			(*thrd_func_act_lists)[i] = new SnapList<action_list_t *>();
+		}
 	}
 
-	SnapList<action_list_t *> * func_act_lists = thrd_func_act_lists->at(id);
-
-	if (func_act_lists == NULL) {
-		func_act_lists = new SnapList<action_list_t *>();
-		thrd_func_act_lists->at(id) = func_act_lists;
-	}
+	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 
 	(*thrd_func_list)[id].push_back(func_id);
 	func_act_lists->push_back( new action_list_t() );
@@ -60,7 +58,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 	SnapVector< SnapList<action_list_t *> *> *
 		thrd_func_act_lists = model->get_execution()->get_thrd_func_act_lists();
 
-	SnapList<action_list_t *> * func_act_lists = thrd_func_act_lists->at(id);
+	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 	uint32_t last_func_id = (*thrd_func_list)[id].back();
 
 	if (last_func_id == func_id) {
@@ -101,8 +99,6 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	/* return if thread i has not entered any function or has exited
 	   from all functions */
 	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
-	SnapVector< SnapList<action_list_t *> *> *
-		thrd_func_act_lists = model->get_execution()->get_thrd_func_act_lists();
 
 	uint32_t id = id_to_int(tid);
 	if ( thrd_func_list->size() <= id )
@@ -110,7 +106,6 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	/* get the function id that thread i is currently in */
 	uint32_t func_id = (*thrd_func_list)[id].back();
-	SnapList<action_list_t *> * func_act_lists = thrd_func_act_lists->at(id);
 
 	if (func_id == 0)
 		return;
@@ -129,11 +124,6 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	if (act->is_write())
 		add_to_write_history(act->get_location(), act->get_write_value());
-
-	/* add to curr_inst_list */
-	action_list_t * curr_act_list = func_act_lists->back();
-	ASSERT(curr_act_list != NULL);
-	curr_act_list->push_back(act);
 }
 
 /* return the FuncNode given its func_id  */

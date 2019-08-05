@@ -210,8 +210,6 @@ private:
 	/* Keeps track of atomic actions that thread i has performed in some
 	 * function. Index of SnapVector is thread id. SnapList simulates
 	 * the call stack.
-	 *
-	 * This data structure is handled by ModelHistory
 	 */
 	SnapVector< SnapList<action_list_t *> *> thrd_func_act_lists;
 	bool isfinished;
