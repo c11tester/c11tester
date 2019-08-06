@@ -1164,15 +1164,6 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		}
 		(*vec)[tid].push_back(act);
 	}
-
-	/* Update thrd_func_act_lists, list of actions in functions entered by each thread
-	 * To be used by FuncNode and only care about actions with a position */
-	if (act->get_position() != NULL) {
-		SnapList<action_list_t *> * func_act_lists = thrd_func_act_lists[tid];
-		action_list_t * curr_act_list = func_act_lists->back();
-		ASSERT(curr_act_list != NULL);
-		curr_act_list->push_back(act);
-	}
 }
 
 void insertIntoActionList(action_list_t *list, ModelAction *act) {

@@ -99,6 +99,8 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	/* return if thread i has not entered any function or has exited
 	   from all functions */
 	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
+	SnapVector< SnapList<action_list_t *> *> *
+		thrd_func_act_lists = model->get_execution()->get_thrd_func_act_lists();
 
 	uint32_t id = id_to_int(tid);
 	if ( thrd_func_list->size() <= id )
@@ -106,6 +108,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	/* get the function id that thread i is currently in */
 	uint32_t func_id = (*thrd_func_list)[id].back();
+	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 
 	if (func_id == 0)
 		return;
@@ -123,6 +126,20 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	if (act->is_write())
 		add_to_write_history(act->get_location(), act->get_write_value());
+
+	/* add to curr_inst_list */
+	action_list_t * curr_act_list = func_act_lists->back();
+	ASSERT(curr_act_list != NULL);
+
+	ModelAction * last_act;
+	if (curr_act_list->size() != 0)
+		last_act = curr_act_list->back();
+
+	/* do not add actions with the same sequence number twice */
+	if (last_act != NULL && last_act->get_seq_number() == act->get_seq_number())
+		return;
+
+	curr_act_list->push_back(act);
 }
 
 /* return the FuncNode given its func_id  */
