@@ -2,7 +2,7 @@
 
 Predicate::Predicate(FuncInst * func_inst) :
 	func_inst(func_inst),
-	predicates(),
+	pred_expressions(),
 	children()
 {}
 
@@ -25,7 +25,7 @@ bool pred_expr_equal(struct pred_expr * p1, struct pred_expr * p2)
 void Predicate::add_predicate(token_t token, void * location, bool value)
 {
 	struct pred_expr *ptr = new pred_expr(token, location, value);
-	predicates.add(ptr);
+	pred_expressions.add(ptr);
 }
 
 void Predicate::add_child(Predicate * child)
@@ -38,9 +38,9 @@ void Predicate::print_predicate()
 {
 	model_print("\"%p\" [shape=box, label=\"%p\n", this, this);
 	func_inst->print();
-	PredSetIter * it = predicates.iterator();
+	PredExprSetIter * it = pred_expressions.iterator();
 
-	if (predicates.getSize() == 0)
+	if (pred_expressions.getSize() == 0)
 		model_print("no predicate\n");
 
 	while (it->hasNext()) {

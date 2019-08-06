@@ -9,6 +9,7 @@
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
 typedef HashTable<void *, uint64_t, uintptr_t, 4, model_malloc, model_calloc, model_free> read_map_t;
+typedef HSIterator<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> PredSetIter;
 
 class FuncNode {
 public:

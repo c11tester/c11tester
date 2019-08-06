@@ -1,6 +1,5 @@
 #include "funcnode.h"
 #include <fcntl.h>
-#include "common.h"
 
 FuncNode::FuncNode() :
 	predicate_tree_initialized(false),
@@ -201,47 +200,82 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 	if (inst_list == NULL || inst_list->size() == 0)
 		return;
 
+/*
 	if (predicate_tree_initialized) {
 		return;
 	}
-
 	predicate_tree_initialized = true;
-
+*/
 	// maybe restrict the size of hashtable to save calloc time
-	HashTable<void *, FuncInst *, uintptr_t, 4> loc_inst_map;
+	HashTable<void *, FuncInst *, uintptr_t, 4> loc_inst_map(64);
 
 	sllnode<FuncInst *> *it = inst_list->begin();
 	FuncInst * entry_inst = it->getVal();
 
-	/* entry instruction has no predicate expression */
-	Predicate * curr_pred = new Predicate(entry_inst);
-	predicate_tree_entry.add(curr_pred);
+	/* get the unique Predicate pointer, assuming entry instructions have no predicate expression */
+	Predicate * curr_pred = NULL;
+	PredSetIter * pit = predicate_tree_entry.iterator();
+	while (pit->hasNext()) {
+		Predicate * p = pit->next();
+		p->get_func_inst()->print();
+		if (p->get_func_inst() == entry_inst) {
+			curr_pred = p;
+			break;
+		}
+	}
+	if (curr_pred == NULL) {
+		curr_pred = new Predicate(entry_inst);
+		predicate_tree_entry.add(curr_pred);
+	}
+
 	loc_inst_map.put(entry_inst->get_location(), entry_inst);
 
 	it = it->getNext();
 	while (it != NULL) {
 		FuncInst * curr_inst = it->getVal();
-		if ( loc_inst_map.contains(curr_inst->get_location()) ) {
-			Predicate * new_pred1 = new Predicate(curr_inst);
-			new_pred1->add_predicate(EQUALITY, curr_inst->get_location(), true);
+		bool child_found = false;
 
-			Predicate * new_pred2 = new Predicate(curr_inst);
-			new_pred2->add_predicate(EQUALITY, curr_inst->get_location(), false);
+		/* check if a child with the same func_inst and corresponding predicate exists */
+		ModelVector<Predicate *> * children = curr_pred->get_children();
+		for (uint i = 0; i < children->size(); i++) {
+			Predicate * child = (*children)[i];
+			if (child->get_func_inst() != curr_inst)
+				continue;
 
-			curr_pred->add_child(new_pred1);
-			curr_pred->add_child(new_pred2);
+			PredExprSet * pred_expressions = child->get_pred_expressions();
 
-			FuncInst * last_inst = loc_inst_map.get(curr_inst->get_location());
+			/* no predicate, follow the only child */
+			if (pred_expressions->getSize() == 0) {
+				model_print("no predicate exists: ");
+				curr_inst->print();
+				curr_pred = child;
+				child_found = true;
+				break;
+			}
+		}
 
-			uint64_t last_read = read_val_map->get(last_inst);
-			if ( last_read == read_val_map->get(curr_inst) )
-				curr_pred = new_pred1;
-			else
-				curr_pred = new_pred2;
-		} else {
-			Predicate * new_pred = new Predicate(curr_inst);
-			curr_pred->add_child(new_pred);
-			curr_pred = new_pred;
+		if (!child_found) {
+			if ( loc_inst_map.contains(curr_inst->get_location()) ) {
+				Predicate * new_pred1 = new Predicate(curr_inst);
+				new_pred1->add_predicate(EQUALITY, curr_inst->get_location(), true);
+
+				Predicate * new_pred2 = new Predicate(curr_inst);
+				new_pred2->add_predicate(EQUALITY, curr_inst->get_location(), false);
+
+				curr_pred->add_child(new_pred1);
+				curr_pred->add_child(new_pred2);
+
+				FuncInst * last_inst = loc_inst_map.get(curr_inst->get_location());
+				uint64_t last_read = read_val_map->get(last_inst);
+				if ( last_read == read_val_map->get(curr_inst) )
+					curr_pred = new_pred1;
+				else
+					curr_pred = new_pred2;
+			} else {
+				Predicate * new_pred = new Predicate(curr_inst);
+				curr_pred->add_child(new_pred);
+				curr_pred = new_pred;
+			}
 		}
 
 		loc_inst_map.put(curr_inst->get_location(), curr_inst);
@@ -249,16 +283,15 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 		it = it->getNext();
 	}
 
-	model_print("function %s\n", func_name);
-	print_predicate_tree();
+//	model_print("function %s\n", func_name);
+//	print_predicate_tree();
 }
 
 
 void FuncNode::print_predicate_tree()
 {
 	model_print("digraph function_%s {\n", func_name);
-	HSIterator<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> * it;
-	it = predicate_tree_entry.iterator();
+	PredSetIter * it = predicate_tree_entry.iterator();
 
 	while (it->hasNext()) {
 		Predicate * p = it->next();

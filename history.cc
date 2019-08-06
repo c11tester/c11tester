@@ -113,9 +113,8 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		resize_func_nodes( func_id + 1 );
 
 	FuncNode * func_node = func_nodes[func_id];
-	ASSERT (func_node != NULL);
 
-	/* do not care actions without a position */
+	/* do not care about actions without a position */
 	if (act->get_position() == NULL)
 		return;
 
@@ -129,7 +128,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 /* return the FuncNode given its func_id  */
 FuncNode * ModelHistory::get_func_node(uint32_t func_id)
 {
-	if (func_nodes.size() <= func_id)	// this node has not been added
+	if (func_nodes.size() <= func_id)	// this node has not been added to func_nodes
 		return NULL;
 
 	return func_nodes[func_id];

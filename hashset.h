@@ -18,9 +18,7 @@ struct LinkNode {
 	LinkNode<_Key> *next;
 };
 
-template<typename _Key, typename _KeyInt, int _Shift, void *
-				 (* _malloc)(size_t), void * (* _calloc)(size_t, size_t), void (*_free)(void *), unsigned int (*hash_function
-																																																			 )(_Key), bool (*equals)(_Key, _Key)>
+template<typename _Key, typename _KeyInt, int _Shift, void * (* _malloc)(size_t), void * (* _calloc)(size_t, size_t), void (*_free)(void *), unsigned int (*hash_function)(_Key), bool (*equals)(_Key, _Key)>
 class HashSet;
 
 template<typename _Key, typename _KeyInt, int _Shift, void * (* _malloc)(size_t), void * (* _calloc)(size_t, size_t), void (*_free)(void *), unsigned int (*hash_function)(_Key) = default_hash_function<_Key, _Shift, _KeyInt>, bool (*equals)(_Key, _Key) = default_equals<_Key> >
