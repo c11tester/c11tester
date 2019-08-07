@@ -21,7 +21,8 @@ public:
 	void set_func_id(uint32_t id) { func_id = id; }
 	void set_func_name(const char * name) { func_name = name; }
 
-	FuncInst * get_or_add_inst(ModelAction *act);
+	void add_inst(ModelAction *act);
+	FuncInst * get_inst(ModelAction *act);
 
 	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncInstMap() { return &func_inst_map; }
 	func_inst_list_mt * get_inst_list() { return &inst_list; }

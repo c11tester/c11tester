@@ -11,11 +11,51 @@ FuncNode::FuncNode() :
 {}
 
 /* Check whether FuncInst with the same type, position, and location
- * as act has been added to func_inst_map or not. If so, return it;
- * if not, add it and return it.
+ * as act has been added to func_inst_map or not. If not, add it.
+ *
+ * Note: currently, actions with the same position are filtered out by process_action,
+ * so the collision list of FuncInst is not used. May remove it later. 
+ */
+void FuncNode::add_inst(ModelAction *act)
+{
+	ASSERT(act);
+	const char * position = act->get_position();
+
+	/* THREAD* actions, ATOMIC_LOCK, ATOMIC_TRYLOCK, and ATOMIC_UNLOCK
+	 * actions are not tagged with their source line numbers
+	 */
+	if (position == NULL)
+		return;
+
+	if ( func_inst_map.contains(position) ) {
+		FuncInst * inst = func_inst_map.get(position);
+
+		if (inst->get_type() != act->get_type() ) {
+			// model_print("action with a different type occurs at line number %s\n", position);
+			FuncInst * func_inst = inst->search_in_collision(act);
+
+			if (func_inst != NULL)
+				return;
+
+			func_inst = new FuncInst(act, this);
+			inst->get_collisions()->push_back(func_inst);
+			inst_list.push_back(func_inst);	// delete?
+		}
+
+		return;
+	}
+
+	FuncInst * func_inst = new FuncInst(act, this);
+
+	func_inst_map.put(position, func_inst);
+	inst_list.push_back(func_inst);
+}
+
+/* Get the FuncInst with the same type, position, and location
+ * as act
  *
  * @return FuncInst with the same type, position, and location as act */
-FuncInst * FuncNode::get_or_add_inst(ModelAction *act)
+FuncInst * FuncNode::get_inst(ModelAction *act)
 {
 	ASSERT(act);
 	const char * position = act->get_position();
@@ -26,35 +66,23 @@ FuncInst * FuncNode::get_or_add_inst(ModelAction *act)
 	if (position == NULL)
 		return NULL;
 
-	if ( func_inst_map.contains(position) ) {
-		FuncInst * inst = func_inst_map.get(position);
+	FuncInst * inst = func_inst_map.get(position);
+	if (inst == NULL)
+		return NULL;
 
-		if (inst->get_type() != act->get_type() ) {
-			// model_print("action with a different type occurs at line number %s\n", position);
-			FuncInst * func_inst = inst->search_in_collision(act);
+	action_type inst_type = inst->get_type();
+	action_type act_type = act->get_type();
 
-			if (func_inst != NULL) {
-				// return the FuncInst found in the collision list
-				return func_inst;
-			}
-
-			func_inst = new FuncInst(act, this);
-			inst->get_collisions()->push_back(func_inst);
-			inst_list.push_back(func_inst);	// delete?
-
-			return func_inst;
-		}
-
+	// else if branch: an RMWRCAS action is converted to a RMW or READ action
+	if (inst_type == act_type)
 		return inst;
-	}
+	else if (inst_type == ATOMIC_RMWRCAS &&
+			(act_type == ATOMIC_RMW || act_type == ATOMIC_READ))
+		return inst;
 
-	FuncInst * func_inst = new FuncInst(act, this);
-
-	func_inst_map.put(position, func_inst);
-	inst_list.push_back(func_inst);
-
-	return func_inst;
+	return NULL;
 }
+
 
 void FuncNode::add_entry_inst(FuncInst * inst)
 {
@@ -88,18 +116,15 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL; it = it->getNext()) {
 		ModelAction * act = it->getVal();
-		FuncInst * func_inst = get_or_add_inst(act);
+		FuncInst * func_inst = get_inst(act);
 
 		if (func_inst == NULL)
 			continue;
 
 		inst_list.push_back(func_inst);
 
-/*		if (!predicate_tree_initialized) {
-			model_print("position: %s ", act->get_position());
-			act->print();
-		}
-*/
+//		model_print("position: %s ", act->get_position());
+//		act->print();
 
 		if (func_inst->is_read()) {
 			read_inst_list.push_back(func_inst);
@@ -200,12 +225,11 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 	if (inst_list == NULL || inst_list->size() == 0)
 		return;
 
-/*
 	if (predicate_tree_initialized) {
 		return;
 	}
 	predicate_tree_initialized = true;
-*/
+
 	// maybe restrict the size of hashtable to save calloc time
 	HashTable<void *, FuncInst *, uintptr_t, 4> loc_inst_map(64);
 
@@ -233,28 +257,55 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 	it = it->getNext();
 	while (it != NULL) {
 		FuncInst * curr_inst = it->getVal();
-		bool child_found = false;
+		bool branch_found = false;
 
-		/* check if a child with the same func_inst and corresponding predicate exists */
-		ModelVector<Predicate *> * children = curr_pred->get_children();
-		for (uint i = 0; i < children->size(); i++) {
-			Predicate * child = (*children)[i];
-			if (child->get_func_inst() != curr_inst)
+		/* check if a branch with the same func_inst and corresponding predicate exists */
+		ModelVector<Predicate *> * branches = curr_pred->get_children();
+		for (uint i = 0; i < branches->size(); i++) {
+			Predicate * branch = (*branches)[i];
+			if (branch->get_func_inst() != curr_inst)
 				continue;
 
-			PredExprSet * pred_expressions = child->get_pred_expressions();
+			PredExprSet * pred_expressions = branch->get_pred_expressions();
 
-			/* no predicate, follow the only child */
+			/* no predicate, follow the only branch */
 			if (pred_expressions->getSize() == 0) {
-				model_print("no predicate exists: ");
-				curr_inst->print();
-				curr_pred = child;
-				child_found = true;
+				model_print("no predicate exists: "); curr_inst->print();
+				curr_pred = branch;
+				branch_found = true;
 				break;
 			}
+
+			PredExprSetIter * pred_expr_it = pred_expressions->iterator();
+			while (pred_expr_it->hasNext()) {
+				pred_expr * pred_expression = pred_expr_it->next();
+				uint64_t last_read, curr_read;
+				FuncInst * last_inst;
+				bool equality;
+
+				switch(pred_expression->token) {
+					case EQUALITY:
+						last_inst = loc_inst_map.get(curr_inst->get_location());
+						last_read = read_val_map->get(last_inst);
+						curr_read = read_val_map->get(curr_inst);
+						equality = (last_read == curr_read);
+						if (equality == pred_expression->value) {
+							curr_pred = branch;
+							model_print("predicate: token: %d, location: %p, value: %d - ", pred_expression->token, pred_expression->location, pred_expression->value); curr_inst->print();
+							branch_found = true;
+						}
+						break;
+					case NULLITY:
+						break;
+					default:
+						model_print("unkown predicate token\n");
+						break;
+				}
+			}
+
 		}
 
-		if (!child_found) {
+		if (!branch_found) {
 			if ( loc_inst_map.contains(curr_inst->get_location()) ) {
 				Predicate * new_pred1 = new Predicate(curr_inst);
 				new_pred1->add_predicate(EQUALITY, curr_inst->get_location(), true);
@@ -283,8 +334,8 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 		it = it->getNext();
 	}
 
-//	model_print("function %s\n", func_name);
-//	print_predicate_tree();
+	model_print("function %s\n", func_name);
+	print_predicate_tree();
 }
 
 
