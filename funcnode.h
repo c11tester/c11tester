@@ -9,7 +9,6 @@
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
 typedef HashTable<void *, uint64_t, uintptr_t, 4, model_malloc, model_calloc, model_free> read_map_t;
-typedef HSIterator<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> PredSetIter;
 
 class FuncNode {
 public:
@@ -37,7 +36,8 @@ public:
 	void clear_read_map(uint32_t tid);
 
 	/* TODO: generate EQUALITY or NULLITY predicate based on write_history in history.cc */
-	void init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map);
+	void update_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map);
+	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map, HashTable<void *, FuncInst *, uintptr_t, 4>* loc_inst_map);
 	void print_predicate_tree();
 
 	void print_last_read(uint32_t tid);
@@ -62,7 +62,10 @@ private:
 	/* Store the values read by atomic read actions per memory location for each thread */
 	ModelVector<read_map_t *> thrd_read_map;
 
-	HashSet<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> predicate_tree_entry;
+	PredSet predicate_tree_entry;
+
+	/* A FuncInst may correspond to multiple Predicates, so collect them into a PredSet */
+	HashTable<FuncInst *, PredSet *, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_pred_map;
 };
 
 #endif /* __FUNCNODE_H__ */

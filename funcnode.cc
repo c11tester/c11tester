@@ -7,7 +7,8 @@ FuncNode::FuncNode() :
 	inst_list(),
 	entry_insts(),
 	thrd_read_map(),
-	predicate_tree_entry()
+	predicate_tree_entry(),
+	inst_pred_map()
 {}
 
 /* Check whether FuncInst with the same type, position, and location
@@ -133,7 +134,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 	}
 
 	update_inst_tree(&inst_list);
-	init_predicate_tree(&read_inst_list, &read_val_map);
+	update_predicate_tree(&read_inst_list, &read_val_map);
 }
 
 /** 
@@ -220,16 +221,16 @@ void FuncNode::clear_read_map(uint32_t tid)
 	thrd_read_map[tid]->reset();
 }
 
-void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map)
+void FuncNode::update_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map)
 {
 	if (inst_list == NULL || inst_list->size() == 0)
 		return;
-
+/*
 	if (predicate_tree_initialized) {
 		return;
 	}
 	predicate_tree_initialized = true;
-
+*/
 	// maybe restrict the size of hashtable to save calloc time
 	HashTable<void *, FuncInst *, uintptr_t, 4> loc_inst_map(64);
 
@@ -241,7 +242,6 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 	PredSetIter * pit = predicate_tree_entry.iterator();
 	while (pit->hasNext()) {
 		Predicate * p = pit->next();
-		p->get_func_inst()->print();
 		if (p->get_func_inst() == entry_inst) {
 			curr_pred = p;
 			break;
@@ -249,6 +249,7 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 	}
 	if (curr_pred == NULL) {
 		curr_pred = new Predicate(entry_inst);
+		curr_pred->set_entry_predicate();
 		predicate_tree_entry.add(curr_pred);
 	}
 
@@ -257,53 +258,7 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 	it = it->getNext();
 	while (it != NULL) {
 		FuncInst * curr_inst = it->getVal();
-		bool branch_found = false;
-
-		/* check if a branch with the same func_inst and corresponding predicate exists */
-		ModelVector<Predicate *> * branches = curr_pred->get_children();
-		for (uint i = 0; i < branches->size(); i++) {
-			Predicate * branch = (*branches)[i];
-			if (branch->get_func_inst() != curr_inst)
-				continue;
-
-			PredExprSet * pred_expressions = branch->get_pred_expressions();
-
-			/* no predicate, follow the only branch */
-			if (pred_expressions->getSize() == 0) {
-				model_print("no predicate exists: "); curr_inst->print();
-				curr_pred = branch;
-				branch_found = true;
-				break;
-			}
-
-			PredExprSetIter * pred_expr_it = pred_expressions->iterator();
-			while (pred_expr_it->hasNext()) {
-				pred_expr * pred_expression = pred_expr_it->next();
-				uint64_t last_read, curr_read;
-				FuncInst * last_inst;
-				bool equality;
-
-				switch(pred_expression->token) {
-					case EQUALITY:
-						last_inst = loc_inst_map.get(curr_inst->get_location());
-						last_read = read_val_map->get(last_inst);
-						curr_read = read_val_map->get(curr_inst);
-						equality = (last_read == curr_read);
-						if (equality == pred_expression->value) {
-							curr_pred = branch;
-							model_print("predicate: token: %d, location: %p, value: %d - ", pred_expression->token, pred_expression->location, pred_expression->value); curr_inst->print();
-							branch_found = true;
-						}
-						break;
-					case NULLITY:
-						break;
-					default:
-						model_print("unkown predicate token\n");
-						break;
-				}
-			}
-
-		}
+		bool branch_found = follow_branch(&curr_pred, curr_inst, read_val_map, &loc_inst_map);
 
 		if (!branch_found) {
 			if ( loc_inst_map.contains(curr_inst->get_location()) ) {
@@ -313,6 +268,7 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 				Predicate * new_pred2 = new Predicate(curr_inst);
 				new_pred2->add_predicate(EQUALITY, curr_inst->get_location(), false);
 
+				/* TODO: add to inst_pred_map */
 				curr_pred->add_child(new_pred1);
 				curr_pred->add_child(new_pred2);
 
@@ -334,10 +290,65 @@ void FuncNode::init_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncI
 		it = it->getNext();
 	}
 
-	model_print("function %s\n", func_name);
-	print_predicate_tree();
+//	model_print("function %s\n", func_name);
+//	print_predicate_tree();
 }
 
+/* Given curr_pred and next_inst, find the branch following curr_pred that contains next_inst and the correct predicate
+ * @return true if branch found, false otherwise.
+ */
+bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
+	HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map, HashTable<void *, FuncInst *, uintptr_t, 4> * loc_inst_map)
+{
+	/* check if a branch with func_inst and corresponding predicate exists */
+	bool branch_found = false;
+	ModelVector<Predicate *> * branches = (*curr_pred)->get_children();
+	for (uint i = 0; i < branches->size(); i++) {
+		Predicate * branch = (*branches)[i];
+		if (branch->get_func_inst() != next_inst)
+			continue;
+
+		PredExprSet * pred_expressions = branch->get_pred_expressions();
+
+		/* no predicate, follow the only branch */
+		if (pred_expressions->getSize() == 0) {
+//			model_print("no predicate exists: "); next_inst->print();
+			*curr_pred = branch;
+			branch_found = true;
+			break;
+		}
+
+		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
+		while (pred_expr_it->hasNext()) {
+			pred_expr * pred_expression = pred_expr_it->next();
+			uint64_t last_read, curr_read;
+			FuncInst * last_inst;
+			bool equality;
+
+			switch(pred_expression->token) {
+				case EQUALITY:
+					last_inst = loc_inst_map->get(next_inst->get_location());
+					last_read = read_val_map->get(last_inst);
+					curr_read = read_val_map->get(next_inst);
+					equality = (last_read == curr_read);
+					if (equality == pred_expression->value) {
+						*curr_pred = branch;
+//						model_print("predicate: token: %d, location: %p, value: %d - ", pred_expression->token, pred_expression->location, pred_expression->value); next_inst->print();
+						branch_found = true;
+					}
+					break;
+				case NULLITY:
+					break;
+				default:
+					model_print("unkown predicate token\n");
+					break;
+			}
+		}
+
+	}
+
+	return branch_found;
+}
 
 void FuncNode::print_predicate_tree()
 {

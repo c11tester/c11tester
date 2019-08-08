@@ -43,13 +43,17 @@ public:
 	void add_child(Predicate * child);
 	ModelVector<Predicate *> * get_children() { return &children; }
 
+	bool is_entry_predicate() { return entry_predicate; }
+	void set_entry_predicate() { entry_predicate = true; }
+
 	void print_predicate();
 	void print_pred_subtree();
 
 	MEMALLOC
 private:
 	FuncInst * func_inst;
-	/* may have multiple precicates */
+	bool entry_predicate;
+	/* may have multiple predicates */
 	PredExprSet pred_expressions;
 	ModelVector<Predicate *> children;
 };

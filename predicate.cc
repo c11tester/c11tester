@@ -2,6 +2,7 @@
 
 Predicate::Predicate(FuncInst * func_inst) :
 	func_inst(func_inst),
+	entry_predicate(false),
 	pred_expressions(),
 	children()
 {}
@@ -36,7 +37,7 @@ void Predicate::add_child(Predicate * child)
 
 void Predicate::print_predicate()
 {
-	model_print("\"%p\" [shape=box, label=\"%p\n", this, this);
+	model_print("\"%p\" [shape=box, label=\"\n", this);
 	func_inst->print();
 	PredExprSetIter * it = pred_expressions.iterator();
 
