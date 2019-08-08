@@ -34,14 +34,19 @@ struct pred_expr {
 
 class Predicate {
 public:
-	Predicate(FuncInst * func_inst);
+	Predicate(FuncInst * func_inst, bool is_entry = false);
 	~Predicate();
 
 	FuncInst * get_func_inst() { return func_inst; }
 	PredExprSet * get_pred_expressions() { return &pred_expressions; }
 	void add_predicate(token_t token, void * location, bool value);
 	void add_child(Predicate * child);
+	void add_parent(Predicate * parent);
+	void set_backedge(Predicate * back_pred) { backedge = back_pred; }
+
 	ModelVector<Predicate *> * get_children() { return &children; }
+	ModelVector<Predicate *> * get_parents() { return &parents; }
+	Predicate * get_backedge() { return backedge; }
 
 	bool is_entry_predicate() { return entry_predicate; }
 	void set_entry_predicate() { entry_predicate = true; }
@@ -56,6 +61,9 @@ private:
 	/* may have multiple predicates */
 	PredExprSet pred_expressions;
 	ModelVector<Predicate *> children;
+	ModelVector<Predicate *> parents;
+	/* assume almost one back edge exists */
+	Predicate * backedge;
 };
 
 #endif /* __PREDICATE_H__ */

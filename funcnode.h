@@ -47,6 +47,7 @@ private:
 	uint32_t func_id;
 	const char * func_name;
 	bool predicate_tree_initialized;
+	Predicate * predicate_tree_entry;	// a dummy node whose children are the real entries
 
 	/* Use source line number as the key of hashtable, to check if
 	 * atomic operation with this line number has been added or not
@@ -61,11 +62,7 @@ private:
 
 	/* Store the values read by atomic read actions per memory location for each thread */
 	ModelVector<read_map_t *> thrd_read_map;
-
-	PredSet predicate_tree_entry;
-
-	/* A FuncInst may correspond to multiple Predicates, so collect them into a PredSet */
-	HashTable<FuncInst *, PredSet *, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_pred_map;
+	HashTable<FuncInst *, Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> predicate_tree_backedges;
 };
 
 #endif /* __FUNCNODE_H__ */

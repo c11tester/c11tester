@@ -1,10 +1,11 @@
 #include "predicate.h"
 
-Predicate::Predicate(FuncInst * func_inst) :
+Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
 	func_inst(func_inst),
-	entry_predicate(false),
+	entry_predicate(is_entry),
 	pred_expressions(),
-	children()
+	children(),
+	parents()
 {}
 
 unsigned int pred_expr_hash(struct pred_expr * expr)
@@ -35,10 +36,22 @@ void Predicate::add_child(Predicate * child)
 	children.push_back(child);
 }
 
+void Predicate::add_parent(Predicate * parent)
+{
+	/* check duplication? */
+	parents.push_back(parent);
+}
+
 void Predicate::print_predicate()
 {
 	model_print("\"%p\" [shape=box, label=\"\n", this);
+	if (entry_predicate) {
+		model_print("entry node\"];\n");
+		return;
+	}
+
 	func_inst->print();
+
 	PredExprSetIter * it = pred_expressions.iterator();
 
 	if (pred_expressions.getSize() == 0)
@@ -59,4 +72,7 @@ void Predicate::print_pred_subtree()
 		child->print_pred_subtree();
 		model_print("\"%p\" -> \"%p\"\n", this, child);
 	}
+
+	if (backedge != NULL)
+		model_print("\"%p\" -> \"%p\"[style=dashed, color=grey]\n", this, backedge);
 }
