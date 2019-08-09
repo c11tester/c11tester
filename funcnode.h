@@ -36,7 +36,7 @@ public:
 	void clear_read_map(uint32_t tid);
 
 	/* TODO: generate EQUALITY or NULLITY predicate based on write_history in history.cc */
-	void update_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map);
+	void update_predicate_tree(action_list_t * act_list, HashTable<ModelAction *, FuncInst *, uintptr_t, 4> * act_inst_map);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map, HashTable<void *, FuncInst *, uintptr_t, 4>* loc_inst_map);
 	void print_predicate_tree();
 

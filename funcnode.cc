@@ -112,8 +112,8 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 	/* build inst_list from act_list for later processing */
 	func_inst_list_t inst_list;
-	func_inst_list_t read_inst_list;
-	HashTable<FuncInst *, uint64_t, uintptr_t, 4> read_val_map;
+	action_list_t read_act_list;
+	HashTable<ModelAction *, FuncInst *, uintptr_t, 4> act_inst_map(128);
 
 	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL; it = it->getNext()) {
 		ModelAction * act = it->getVal();
@@ -128,13 +128,13 @@ void FuncNode::update_tree(action_list_t * act_list)
 //		act->print();
 
 		if (func_inst->is_read()) {
-			read_inst_list.push_back(func_inst);
-			read_val_map.put(func_inst, act->get_reads_from_value());
+			read_act_list.push_back(act);
+			act_inst_map.put(act, func_inst);
 		}
 	}
 
 	update_inst_tree(&inst_list);
-	update_predicate_tree(&read_inst_list, &read_val_map);
+	update_predicate_tree(&read_act_list, &act_inst_map);
 }
 
 /** 
@@ -221,27 +221,32 @@ void FuncNode::clear_read_map(uint32_t tid)
 	thrd_read_map[tid]->reset();
 }
 
-void FuncNode::update_predicate_tree(func_inst_list_t * inst_list, HashTable<FuncInst *, uint64_t, uintptr_t, 4> * read_val_map)
+void FuncNode::update_predicate_tree(action_list_t * act_list, HashTable<ModelAction *, FuncInst *, uintptr_t, 4> * act_inst_map)
 {
-	if (inst_list == NULL || inst_list->size() == 0)
+	if (act_list == NULL || act_list->size() == 0)
 		return;
+
 /*
 	if (predicate_tree_initialized) {
 		return;
 	}
 	predicate_tree_initialized = true;
 */
-	HashTable<void *, FuncInst *, uintptr_t, 4> loc_inst_map(128);
 	/* map a FuncInst to the parent of its predicate */
 	HashTable<FuncInst *, Predicate *, uintptr_t, 0> inst_pred_map(128);
+	HashTable<FuncInst *, uint64_t, uintptr_t, 4> read_val_map(128);
+	HashTable<void *, FuncInst *, uintptr_t, 4> loc_inst_map(128);
 
-	sllnode<FuncInst *> *it = inst_list->begin();
+	sllnode<ModelAction *> *it = act_list->begin();
 	Predicate * curr_pred = predicate_tree_entry;
 
 	while (it != NULL) {
-		FuncInst * curr_inst = it->getVal();
+		ModelAction * curr_act = it->getVal();
+		FuncInst * curr_inst = act_inst_map->get(curr_act);
 		Predicate * old_pred = curr_pred;
-		bool branch_found = follow_branch(&curr_pred, curr_inst, read_val_map, &loc_inst_map);
+		read_val_map.put(curr_inst, curr_act->get_reads_from_value());
+
+		bool branch_found = follow_branch(&curr_pred, curr_inst, &read_val_map, &loc_inst_map);
 
 		// check back edges
 		if (!branch_found) {
@@ -276,8 +281,8 @@ void FuncNode::update_predicate_tree(func_inst_list_t * inst_list, HashTable<Fun
 				//new_pred2->add_parent(curr_pred);
 
 				FuncInst * last_inst = loc_inst_map.get(curr_inst->get_location());
-				uint64_t last_read = read_val_map->get(last_inst);
-				if ( last_read == read_val_map->get(curr_inst) )
+				uint64_t last_read = read_val_map.get(last_inst);
+				if ( last_read == read_val_map.get(curr_inst) )
 					curr_pred = new_pred1;
 				else
 					curr_pred = new_pred2;
@@ -325,7 +330,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 		while (pred_expr_it->hasNext()) {
 			pred_expr * pred_expression = pred_expr_it->next();
-			uint64_t last_read, curr_read;
+			uint64_t last_read, next_read;
 			FuncInst * last_inst;
 			bool equality;
 
@@ -333,8 +338,9 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 				case EQUALITY:
 					last_inst = loc_inst_map->get(next_inst->get_location());
 					last_read = read_val_map->get(last_inst);
-					curr_read = read_val_map->get(next_inst);
-					equality = (last_read == curr_read);
+					next_read = read_val_map->get(next_inst);
+					equality = (last_read == next_read);
+
 					if (equality == pred_expression->value) {
 						*curr_pred = branch;
 //						model_print("predicate: token: %d, location: %p, value: %d - ", pred_expression->token, pred_expression->location, pred_expression->value); next_inst->print();
