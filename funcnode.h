@@ -62,7 +62,6 @@ private:
 
 	/* Store the values read by atomic read actions per memory location for each thread */
 	ModelVector<read_map_t *> thrd_read_map;
-	HashTable<FuncInst *, Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> predicate_tree_backedges;
 };
 
 #endif /* __FUNCNODE_H__ */

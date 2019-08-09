@@ -58,10 +58,12 @@ public:
 private:
 	FuncInst * func_inst;
 	bool entry_predicate;
+
 	/* may have multiple predicates */
 	PredExprSet pred_expressions;
 	ModelVector<Predicate *> children;
 	ModelVector<Predicate *> parents;
+
 	/* assume almost one back edge exists */
 	Predicate * backedge;
 };

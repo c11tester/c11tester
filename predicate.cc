@@ -5,7 +5,8 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
 	entry_predicate(is_entry),
 	pred_expressions(),
 	children(),
-	parents()
+	parents(),
+	backedge(NULL)
 {}
 
 unsigned int pred_expr_hash(struct pred_expr * expr)

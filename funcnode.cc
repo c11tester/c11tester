@@ -7,8 +7,7 @@ FuncNode::FuncNode() :
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	thrd_read_map(),
-	predicate_tree_backedges()
+	thrd_read_map()
 {}
 
 /* Check whether FuncInst with the same type, position, and location
@@ -225,7 +224,6 @@ void FuncNode::update_predicate_tree(action_list_t * act_list, HashTable<ModelAc
 {
 	if (act_list == NULL || act_list->size() == 0)
 		return;
-
 /*
 	if (predicate_tree_initialized) {
 		return;
@@ -299,8 +297,8 @@ void FuncNode::update_predicate_tree(action_list_t * act_list, HashTable<ModelAc
 		it = it->getNext();
 	}
 
-	model_print("function %s\n", func_name);
-	print_predicate_tree();
+//	model_print("function %s\n", func_name);
+//	print_predicate_tree();
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that contains next_inst and the correct predicate
