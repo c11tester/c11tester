@@ -224,10 +224,6 @@ private:
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;
 
-	/** @brief The value this action read from (only used when reads_from is an
-	 *  uninitialized action)  */
-	uint64_t reads_from_value;
-
 	/** @brief Type of action (read, write, RMW, fence, thread create, etc.) */
 	action_type type;
 
