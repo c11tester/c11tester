@@ -40,6 +40,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
+	reads_from_value(VALUE_NONE),
 	type(type),
 	order(order),
 	original_order(order),
@@ -72,6 +73,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, uint64_t value,
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
+        reads_from_value(VALUE_NONE),
 	type(type),
 	order(order),
 	original_order(order),
@@ -103,6 +105,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
+        reads_from_value(VALUE_NONE),
 	type(type),
 	order(order),
 	original_order(order),
@@ -138,6 +141,7 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
+        reads_from_value(VALUE_NONE),
 	type(type),
 	order(order),
 	original_order(order),
@@ -174,6 +178,7 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	cv(NULL),
 	rf_cv(NULL),
 	value(value),
+        reads_from_value(VALUE_NONE),
 	type(type),
 	order(order),
 	original_order(order),
@@ -184,7 +189,6 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 
 	Thread *t = thread ? thread : thread_current();
 	this->tid = t->get_id();
-	// model_print("position: %s\n", position);
 }
 
 
@@ -572,8 +576,12 @@ void ModelAction::set_try_lock(bool obtainedlock)
 uint64_t ModelAction::get_reads_from_value() const
 {
 	ASSERT(is_read());
-	if (reads_from)
-		return reads_from->get_write_value();
+	if (reads_from) {
+		if (reads_from->is_uninitialized())
+			return reads_from_value;
+		else
+			return reads_from->get_write_value();
+	}
 
 	return VALUE_NONE;	// Only for new actions with no reads-from
 }
@@ -624,12 +632,12 @@ void ModelAction::set_read_from(ModelAction *act)
 	ASSERT(act);
 
 	reads_from = act;
-
 	if (act->is_uninitialized()) {	// WL
 		uint64_t val = *((uint64_t *) location);
 		ModelAction * act_uninitialized = (ModelAction *)act;
 		act_uninitialized->set_value(val);
 		reads_from = act_uninitialized;
+		reads_from_value = val;
 
 // disabled by WL, because LLVM IR is unable to detect atomic init
 /*		model->assert_bug("May read from uninitialized atomic:\n"
