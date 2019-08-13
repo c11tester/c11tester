@@ -94,10 +94,12 @@ uint64_t load_64(const void *addr)
 	return *((uint64_t *)addr);
 }
 
-// helper functions used by CdsPass
-// The CdsPass implementation does not replace normal load/stores with cds load/stores,
-// but inserts cds load/stores to check dataraces. Thus, the cds load/stores do not
-// return anything.
+/**
+ * Helper functions used by CDSPass
+ * The CDSPass implementation does not replace normal load/stores with cds load/stores,
+ * but inserts cds load/stores to check dataraces. Thus, the cds load/stores do not
+ * return anything.
+ */
 
 void cds_store8(void *addr)
 {

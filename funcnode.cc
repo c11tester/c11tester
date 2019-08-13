@@ -1,5 +1,4 @@
 #include "funcnode.h"
-#include <fcntl.h>
 
 FuncNode::FuncNode() :
 	predicate_tree_initialized(false),
@@ -114,7 +113,6 @@ void FuncNode::update_tree(action_list_t * act_list)
 	/* build inst_list from act_list for later processing */
 	func_inst_list_t inst_list;
 	action_list_t read_act_list;
-	HashTable<ModelAction *, FuncInst *, uintptr_t, 4> act_inst_map;
 
 	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL; it = it->getNext()) {
 		ModelAction * act = it->getVal();
@@ -128,14 +126,12 @@ void FuncNode::update_tree(action_list_t * act_list)
 //		model_print("position: %s ", act->get_position());
 //		act->print();
 
-		if (func_inst->is_read()) {
+		if (func_inst->is_read())
 			read_act_list.push_back(act);
-			act_inst_map.put(act, func_inst);
-		}
 	}
 
 	update_inst_tree(&inst_list);
-	update_predicate_tree(&read_act_list, &act_inst_map);
+	update_predicate_tree(&read_act_list);
 }
 
 /** 
@@ -198,13 +194,13 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
 {
 	if (thrd_read_map.size() <= tid)
-		return 0xdeadbeef;
+		return VALUE_NONE;
 
 	read_map_t * read_map = thrd_read_map[tid];
 
 	/* last read value not found */
 	if ( !read_map->contains(location) )
-		return 0xdeadbeef;
+		return VALUE_NONE;
 
 	uint64_t read_val = read_map->get(location);
 	return read_val;
@@ -222,7 +218,7 @@ void FuncNode::clear_read_map(uint32_t tid)
 	thrd_read_map[tid]->reset();
 }
 
-void FuncNode::update_predicate_tree(action_list_t * act_list, HashTable<ModelAction *, FuncInst *, uintptr_t, 4> * act_inst_map)
+void FuncNode::update_predicate_tree(action_list_t * act_list)
 {
 	if (act_list == NULL || act_list->size() == 0)
 		return;
@@ -241,7 +237,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list, HashTable<ModelAc
 
 	while (it != NULL) {
 		ModelAction * next_act = it->getVal();
-		FuncInst * next_inst = act_inst_map->get(next_act);
+		FuncInst * next_inst = get_inst(next_act);
 		Predicate * old_pred = curr_pred;
 
 		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &loc_act_map);
