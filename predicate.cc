@@ -5,7 +5,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
 	entry_predicate(is_entry),
 	pred_expressions(),
 	children(),
-	parents(),
+	parent(NULL),
 	backedge(NULL)
 {}
 
@@ -35,12 +35,6 @@ void Predicate::add_child(Predicate * child)
 {
 	/* check duplication? */
 	children.push_back(child);
-}
-
-void Predicate::add_parent(Predicate * parent)
-{
-	/* check duplication? */
-	parents.push_back(parent);
 }
 
 void Predicate::print_predicate()

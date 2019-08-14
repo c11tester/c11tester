@@ -1,7 +1,7 @@
 #include "funcinst.h"
 
 FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
-	collisions()
+	single_location(true)
 {
 	ASSERT(act);
 	ASSERT(func_node);
@@ -44,6 +44,7 @@ bool FuncInst::add_succ(FuncInst * other)
 	return true;
 }
 
+/*
 FuncInst * FuncInst::search_in_collision(ModelAction *act)
 {
 	action_type type = act->get_type();
@@ -56,6 +57,7 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 	}
 	return NULL;
 }
+*/
 
 bool FuncInst::is_read() const
 {
