@@ -225,6 +225,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 	/* map a FuncInst to the parent of its predicate */
 	HashTable<FuncInst *, Predicate *, uintptr_t, 0> inst_pred_map(128);
 	HashTable<void *, ModelAction *, uintptr_t, 0> loc_act_map(128);
+	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map(128);
 
 	sllnode<ModelAction *> *it = act_list->begin();
 	Predicate * curr_pred = predicate_tree_entry;
@@ -234,7 +235,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		FuncInst * next_inst = get_inst(next_act);
 		Predicate * old_pred = curr_pred;
 
-		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &loc_act_map);
+		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map);
 
 		// check back edges
 		if (!branch_found) {
@@ -257,18 +258,20 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 
 		if (!branch_found) {
 			if ( loc_act_map.contains(next_act->get_location()) ) {
+				ModelAction * last_act = loc_act_map.get(next_act->get_location());
+				FuncInst * last_inst = get_inst(last_act);
+
 				Predicate * new_pred1 = new Predicate(next_inst);
-				new_pred1->add_predicate(EQUALITY, next_act->get_location(), true);
+				new_pred1->add_predicate_expr(EQUALITY, last_inst, true);
 
 				Predicate * new_pred2 = new Predicate(next_inst);
-				new_pred2->add_predicate(EQUALITY, next_act->get_location(), false);
+				new_pred2->add_predicate_expr(EQUALITY, last_inst, false);
 
 				curr_pred->add_child(new_pred1);
 				curr_pred->add_child(new_pred2);
 				new_pred1->set_parent(curr_pred);
 				new_pred2->set_parent(curr_pred);
 
-				ModelAction * last_act = loc_act_map.get(next_act->get_location());
 				uint64_t last_read = last_act->get_reads_from_value();
 				uint64_t next_read = next_act->get_reads_from_value();
 
@@ -286,6 +289,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		}
 
 		loc_act_map.put(next_act->get_location(), next_act);
+		inst_act_map.put(next_inst, next_act);
 		it = it->getNext();
 	}
 }
@@ -307,11 +311,12 @@ void FuncNode::deep_update(Predicate * curr_pred)
 
 		if (!has_null_pred) {
 //			func_inst->print();
-			Predicate * parent = curr_pred->get_parent();
-			curr_pred->add_predicate(NULLITY, NULL, 0);
-
 			Predicate * another_branch = new Predicate(func_inst);
-			another_branch->add_predicate(NULLITY, NULL, 1);
+			another_branch->copy_predicate_expr(curr_pred);
+			another_branch->add_predicate_expr(NULLITY, NULL, 1);
+			curr_pred->add_predicate_expr(NULLITY, NULL, 0);
+
+			Predicate * parent = curr_pred->get_parent();
 			parent->add_child(another_branch);
 //			another_branch.add_children(i);
 		}
@@ -324,11 +329,12 @@ void FuncNode::deep_update(Predicate * curr_pred)
 	}
 }
 
-/* Given curr_pred and next_inst, find the branch following curr_pred that contains next_inst and the correct predicate
+/* Given curr_pred and next_inst, find the branch following curr_pred that
+ * contains next_inst and the correct predicate. 
  * @return true if branch found, false otherwise.
  */
 bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act,
-	HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map)
+	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> * inst_act_map)
 {
 	/* check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
@@ -351,12 +357,16 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 		while (pred_expr_it->hasNext()) {
 			pred_expr * pred_expression = pred_expr_it->next();
 			uint64_t last_read, next_read;
-			ModelAction * last_act;
 			bool equality;
 
 			switch(pred_expression->token) {
 				case EQUALITY:
-					last_act = loc_act_map->get(next_act->get_location());
+					FuncInst * to_be_compared;
+					ModelAction * last_act;
+
+					to_be_compared = pred_expression->func_inst;
+					last_act = inst_act_map->get(to_be_compared);
+
 					last_read = last_act->get_reads_from_value();
 					next_read = next_act->get_reads_from_value();
 

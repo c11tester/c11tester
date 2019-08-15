@@ -38,7 +38,7 @@ public:
 	/* TODO: generate EQUALITY or NULLITY predicate based on write_history in history.cc */
 	void update_predicate_tree(action_list_t * act_list);
 	void deep_update(Predicate * pred);
-	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<void *, ModelAction *, uintptr_t, 0>* loc_act_map);
+	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<FuncInst *, ModelAction *, uintptr_t, 0>* inst_act_map);
 	void print_predicate_tree();
 
 	void print_last_read(uint32_t tid);

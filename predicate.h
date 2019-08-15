@@ -18,14 +18,14 @@ typedef enum predicate_token {
  * read at memory location specified in predicate_expr.
  */
 struct pred_expr {
-	pred_expr(token_t token, void * location, bool value) :
+	pred_expr(token_t token, FuncInst * inst, bool value) :
 		token(token),
-		location(location),
+		func_inst(inst),
 		value(value)
 	{}
 
 	token_t token;
-	void * location;
+	FuncInst * func_inst;
 	bool value;
 
 	MEMALLOC
@@ -39,10 +39,12 @@ public:
 
 	FuncInst * get_func_inst() { return func_inst; }
 	PredExprSet * get_pred_expressions() { return &pred_expressions; }
-	void add_predicate(token_t token, void * location, bool value);
+
+	void add_predicate_expr(token_t token, FuncInst * func_inst, bool value);
 	void add_child(Predicate * child);
 	void set_parent(Predicate * parent_pred) { parent = parent_pred; }
 	void set_backedge(Predicate * back_pred) { backedge = back_pred; }
+	void copy_predicate_expr(Predicate * other);
 
 	ModelVector<Predicate *> * get_children() { return &children; }
 	Predicate * get_parent() { return parent; }

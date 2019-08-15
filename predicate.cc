@@ -18,16 +18,16 @@ bool pred_expr_equal(struct pred_expr * p1, struct pred_expr * p2)
 {
 	if (p1->token != p2->token)
 		return false;
-	if (p1->token == EQUALITY && p1->location != p2->location)
+	if (p1->token == EQUALITY && p1->func_inst != p2->func_inst)
 		return false;
 	if (p1->value != p2->value)
 		return false;
 	return true;
 }
 
-void Predicate::add_predicate(token_t token, void * location, bool value)
+void Predicate::add_predicate_expr(token_t token, FuncInst * func_inst, bool value)
 {
-	struct pred_expr *ptr = new pred_expr(token, location, value);
+	struct pred_expr *ptr = new pred_expr(token, func_inst, value);
 	pred_expressions.add(ptr);
 }
 
@@ -35,6 +35,18 @@ void Predicate::add_child(Predicate * child)
 {
 	/* check duplication? */
 	children.push_back(child);
+}
+
+void Predicate::copy_predicate_expr(Predicate * other)
+{
+	PredExprSet * other_pred_expressions = other->get_pred_expressions();
+	PredExprSetIter * it = other_pred_expressions->iterator();
+
+	while (it->hasNext()) {
+		struct pred_expr * ptr = it->next();
+		struct pred_expr * copy = new pred_expr(ptr->token, ptr->func_inst, ptr->value);
+		pred_expressions.add(copy);
+	}
 }
 
 void Predicate::print_predicate()
@@ -54,7 +66,18 @@ void Predicate::print_predicate()
 
 	while (it->hasNext()) {
 		struct pred_expr * expr = it->next();
-		model_print("predicate: token: %d, location: %p, value: %d\n", expr->token, expr->location, expr->value);
+		FuncInst * inst = expr->func_inst;
+		switch (expr->token) {
+			case EQUALITY:
+				model_print("predicate token: equality, position: %s, value: %d\n", inst->get_position(), expr->value);
+				break;
+			case NULLITY:
+				model_print("predicate token: nullity, value: %d\n", expr->value);
+				break;
+			default:
+				model_print("unknown predicate token\n");
+				break;
+		}
 	}
 	model_print("\"];\n");
 }
