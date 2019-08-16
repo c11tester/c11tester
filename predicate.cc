@@ -3,10 +3,10 @@
 Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
 	func_inst(func_inst),
 	entry_predicate(is_entry),
-	pred_expressions(),
+	pred_expressions(16),
 	children(),
 	parent(NULL),
-	backedge(NULL)
+	backedges(16)
 {}
 
 unsigned int pred_expr_hash(struct pred_expr * expr)
@@ -93,6 +93,9 @@ void Predicate::print_pred_subtree()
 		model_print("\"%p\" -> \"%p\"\n", this, child);
 	}
 
-	if (backedge != NULL)
+	PredSetIter * it = backedges.iterator();
+	while (it->hasNext()) {
+		Predicate * backedge = it->next();
 		model_print("\"%p\" -> \"%p\"[style=dashed, color=grey]\n", this, backedge);
+	}
 }

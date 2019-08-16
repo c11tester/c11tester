@@ -43,12 +43,12 @@ public:
 	void add_predicate_expr(token_t token, FuncInst * func_inst, bool value);
 	void add_child(Predicate * child);
 	void set_parent(Predicate * parent_pred) { parent = parent_pred; }
-	void set_backedge(Predicate * back_pred) { backedge = back_pred; }
+	void add_backedge(Predicate * back_pred) { backedges.add(back_pred); }
 	void copy_predicate_expr(Predicate * other);
 
 	ModelVector<Predicate *> * get_children() { return &children; }
 	Predicate * get_parent() { return parent; }
-	Predicate * get_backedge() { return backedge; }
+	PredSet * get_backedges() { return &backedges; }
 
 	bool is_entry_predicate() { return entry_predicate; }
 	void set_entry_predicate() { entry_predicate = true; }
@@ -61,15 +61,15 @@ private:
 	FuncInst * func_inst;
 	bool entry_predicate;
 
-	/* may have multiple predicates */
+	/* may have multiple predicate expressions */
 	PredExprSet pred_expressions;
 	ModelVector<Predicate *> children;
 
 	/* only a single parent may exist */
 	Predicate * parent;
 
-	/* assume almost one back edge exists */
-	Predicate * backedge;
+	/* may have multiple back edges, e.g. nested loops */
+	PredSet backedges;
 };
 
 #endif /* __PREDICATE_H__ */

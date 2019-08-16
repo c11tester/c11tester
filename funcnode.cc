@@ -120,7 +120,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 			read_act_list.push_back(act);
 	}
 
-	model_print("function %s\n", func_name);
+//	model_print("function %s\n", func_name);
 	update_inst_tree(&inst_list);
 	update_predicate_tree(&read_act_list);
 //	deep_update(predicate_tree_entry);
@@ -224,6 +224,11 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 */
 	/* map a FuncInst to the its predicate */
 	HashTable<FuncInst *, Predicate *, uintptr_t, 0> inst_pred_map(128);
+
+	// number FuncInsts to detect loops
+	HashTable<FuncInst *, uint32_t, uintptr_t, 0> inst_id_map(128);
+	uint32_t inst_counter = 0;
+
 	HashTable<void *, ModelAction *, uintptr_t, 0> loc_act_map(128);
 	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map(128);
 
@@ -236,7 +241,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 
 		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map, unset_predicates);
 
-		/* no predicate, follow the only branch */
+		// no predicate expressions, follow the only branch
 		if (!branch_found && unset_predicates->size() != 0) {
 			ASSERT(unset_predicates->size() == 1);
 			Predicate * one_branch = (*unset_predicates)[0];
@@ -246,25 +251,21 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 
 		delete unset_predicates;
 
-		// check back edges
-		if (!branch_found) {
-			bool backedge_found = false;
-			Predicate * back_pred = curr_pred->get_backedge();
-			if (back_pred != NULL) {
-				curr_pred = back_pred;
-				backedge_found = true;
-			} else if (inst_pred_map.contains(next_inst)) {
-				inst_pred_map.remove(curr_pred->get_func_inst());
+		// detect loops
+		if (!branch_found && inst_id_map.contains(next_inst)) {
+			FuncInst * curr_inst = curr_pred->get_func_inst();
+			uint32_t curr_id = inst_id_map.get(curr_inst);
+			uint32_t next_id = inst_id_map.get(next_inst);
+
+			if (curr_id >= next_id) {
 				Predicate * old_pred = inst_pred_map.get(next_inst);
-				back_pred = old_pred->get_parent();
+				Predicate * back_pred = old_pred->get_parent();
 
-				curr_pred->set_backedge(back_pred);
+				curr_pred->add_backedge(back_pred);
 				curr_pred = back_pred;
-				backedge_found = true;
-			}
 
-			if (backedge_found)
 				continue;
+			}
 		}
 
 		if (!branch_found) {
@@ -320,8 +321,9 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			}
 		}
 
-		if (!inst_pred_map.contains(next_inst))
-			inst_pred_map.put(next_inst, curr_pred);
+		inst_pred_map.put(next_inst, curr_pred);
+		if (!inst_id_map.contains(next_inst))
+			inst_id_map.put(next_inst, inst_counter++);
 
 		loc_act_map.put(next_act->get_location(), next_act);
 		inst_act_map.put(next_inst, next_act);
