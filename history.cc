@@ -65,9 +65,23 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 		FuncNode * func_node = func_nodes[func_id];
 		func_node->clear_read_map(tid);
 
-		// model_print("hello function %s and thread %d\n", func_node->get_func_name(), tid);
 		action_list_t * curr_act_list = func_act_lists->back();
-		func_node->update_tree(curr_act_list);
+		func_node->incr_exit_count();
+
+		/* defer the processing of curr_act_list until the function has exits a few times 
+		 * (currently 2 times) so that more information can be gathered to infer nullity predicates.
+		 */
+		if (func_node->get_exit_count() >= 2) {
+			ModelList<action_list_t *> * action_list_buffer = func_node->get_action_list_buffer();
+			while (action_list_buffer->size() > 0) {
+				action_list_t * act_list = action_list_buffer->back();
+				action_list_buffer->pop_back();
+				func_node->update_tree(act_list);
+			}
+
+			func_node->update_tree(curr_act_list);
+		} else
+			func_node->get_action_list_buffer()->push_front(curr_act_list);
 
 		(*thrd_func_list)[id].pop_back();
 		func_act_lists->pop_back();

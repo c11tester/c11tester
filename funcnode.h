@@ -39,8 +39,13 @@ public:
 	void update_predicate_tree(action_list_t * act_list);
 	void deep_update(Predicate * pred);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<FuncInst *, ModelAction *, uintptr_t, 0>* inst_act_map, SnapVector<Predicate *> * unset_predicates);
-	void print_predicate_tree();
 
+	void incr_exit_count() { exit_count++; }
+	uint32_t get_exit_count() { return exit_count; }
+
+	ModelList<action_list_t *> * get_action_list_buffer() { return &action_list_buffer; }
+
+	void print_predicate_tree();
 	void print_last_read(uint32_t tid);
 
 	MEMALLOC
@@ -49,6 +54,8 @@ private:
 	const char * func_name;
 	bool predicate_tree_initialized;
 	Predicate * predicate_tree_entry;	// a dummy node whose children are the real entries
+
+	uint32_t exit_count;
 
 	/* Use source line number as the key of hashtable, to check if
 	 * atomic operation with this line number has been added or not
@@ -63,6 +70,8 @@ private:
 
 	/* Store the values read by atomic read actions per memory location for each thread */
 	ModelVector<read_map_t *> thrd_read_map;
+
+	ModelList<action_list_t *> action_list_buffer;
 };
 
 #endif /* __FUNCNODE_H__ */

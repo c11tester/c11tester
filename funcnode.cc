@@ -3,6 +3,7 @@
 FuncNode::FuncNode() :
 	predicate_tree_initialized(false),
 	predicate_tree_entry(new Predicate(NULL, true)),
+	exit_count(0),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
@@ -239,25 +240,6 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		if (!branch_found && unset_predicates->size() != 0) {
 			ASSERT(unset_predicates->size() == 1);
 			Predicate * one_branch = (*unset_predicates)[0];
-
-			if (!next_inst->is_single_location()) {
-				Predicate * another_branch = new Predicate(next_inst);
-				// another_branch->copy_predicate_expr(one_branch);
-
-				uint64_t next_read = next_act->get_reads_from_value();
-				bool isnull = ((void*)next_read == NULL);
-				if (isnull) {
-					one_branch->add_predicate_expr(NULLITY, NULL, 1);
-					another_branch->add_predicate_expr(NULLITY, NULL, 0);
-				} else {
-					another_branch->add_predicate_expr(NULLITY, NULL, 1);
-					one_branch->add_predicate_expr(NULLITY, NULL, 0);
-				}
-
-				curr_pred->add_child(another_branch);
-				another_branch->set_parent(curr_pred);
-			}
-
 			curr_pred = one_branch;
 			branch_found = true;
 		}
@@ -308,6 +290,24 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 					curr_pred = new_pred1;
 				else
 					curr_pred = new_pred2;
+			} else if (!next_inst->is_single_location()) {
+				Predicate * new_pred1 = new Predicate(next_inst);
+				new_pred1->add_predicate_expr(NULLITY, NULL, true);
+
+				Predicate * new_pred2 = new Predicate(next_inst);
+				new_pred2->add_predicate_expr(NULLITY, NULL, false);
+
+				curr_pred->add_child(new_pred1);
+				curr_pred->add_child(new_pred2);
+				new_pred1->set_parent(curr_pred);
+				new_pred2->set_parent(curr_pred);
+
+				uint64_t next_read = next_act->get_reads_from_value();
+				bool isnull = ((void*)next_read == NULL);
+				if (isnull)
+					curr_pred = new_pred1;
+				else
+					curr_pred = new_pred2;
 			} else {
 				Predicate * new_pred = new Predicate(next_inst);
 				curr_pred->add_child(new_pred);
@@ -353,7 +353,6 @@ void FuncNode::deep_update(Predicate * curr_pred)
 
 			Predicate * parent = curr_pred->get_parent();
 			parent->add_child(another_branch);
-//			another_branch.add_children(i);
 		}
 	}
 
