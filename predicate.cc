@@ -62,12 +62,14 @@ void Predicate::print_predicate()
 	PredExprSetIter * it = pred_expressions.iterator();
 
 	if (pred_expressions.getSize() == 0)
-		model_print("no predicate\n");
+		model_print("predicate unset\n");
 
 	while (it->hasNext()) {
 		struct pred_expr * expr = it->next();
 		FuncInst * inst = expr->func_inst;
 		switch (expr->token) {
+			case NOPREDICATE:
+				break;
 			case EQUALITY:
 				model_print("predicate token: equality, position: %s, value: %d\n", inst->get_position(), expr->value);
 				break;

@@ -10,7 +10,7 @@ typedef HashSet<struct pred_expr *, uintptr_t, 0, model_malloc, model_calloc, mo
 typedef HSIterator<struct pred_expr *, uintptr_t, 0, model_malloc, model_calloc, model_free, pred_expr_hash, pred_expr_equal> PredExprSetIter;
 
 typedef enum predicate_token {
-	EQUALITY, NULLITY
+	NOPREDICATE, EQUALITY, NULLITY
 } token_t;
 
 /* If token is EQUALITY, then the predicate asserts whether

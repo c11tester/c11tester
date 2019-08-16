@@ -7,7 +7,9 @@ FuncNode::FuncNode() :
 	inst_list(),
 	entry_insts(),
 	thrd_read_map()
-{}
+{
+	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
+}
 
 /* Check whether FuncInst with the same type, position, and location
  * as act has been added to func_inst_map or not. If not, add it.
@@ -113,9 +115,6 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 		inst_list.push_back(func_inst);
 
-//		model_print("position: %s ", act->get_position());
-//		act->print();
-
 		if (func_inst->is_read())
 			read_act_list.push_back(act);
 	}
@@ -123,7 +122,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 	model_print("function %s\n", func_name);
 	update_inst_tree(&inst_list);
 	update_predicate_tree(&read_act_list);
-	deep_update(predicate_tree_entry);
+//	deep_update(predicate_tree_entry);
 
 	print_predicate_tree();
 }
@@ -222,39 +221,69 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 	}
 	predicate_tree_initialized = true;
 */
-	/* map a FuncInst to the parent of its predicate */
+	/* map a FuncInst to the its predicate */
 	HashTable<FuncInst *, Predicate *, uintptr_t, 0> inst_pred_map(128);
 	HashTable<void *, ModelAction *, uintptr_t, 0> loc_act_map(128);
 	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map(128);
 
 	sllnode<ModelAction *> *it = act_list->begin();
 	Predicate * curr_pred = predicate_tree_entry;
-
 	while (it != NULL) {
 		ModelAction * next_act = it->getVal();
 		FuncInst * next_inst = get_inst(next_act);
-		Predicate * old_pred = curr_pred;
+		SnapVector<Predicate *> * unset_predicates = new SnapVector<Predicate *>();
 
-		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map);
+		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map, unset_predicates);
+
+		/* no predicate, follow the only branch */
+		if (!branch_found && unset_predicates->size() != 0) {
+			ASSERT(unset_predicates->size() == 1);
+			Predicate * one_branch = (*unset_predicates)[0];
+
+			if (!next_inst->is_single_location()) {
+				Predicate * another_branch = new Predicate(next_inst);
+				// another_branch->copy_predicate_expr(one_branch);
+
+				uint64_t next_read = next_act->get_reads_from_value();
+				bool isnull = ((void*)next_read == NULL);
+				if (isnull) {
+					one_branch->add_predicate_expr(NULLITY, NULL, 1);
+					another_branch->add_predicate_expr(NULLITY, NULL, 0);
+				} else {
+					another_branch->add_predicate_expr(NULLITY, NULL, 1);
+					one_branch->add_predicate_expr(NULLITY, NULL, 0);
+				}
+
+				curr_pred->add_child(another_branch);
+				another_branch->set_parent(curr_pred);
+			}
+
+			curr_pred = one_branch;
+			branch_found = true;
+		}
+
+		delete unset_predicates;
 
 		// check back edges
 		if (!branch_found) {
+			bool backedge_found = false;
 			Predicate * back_pred = curr_pred->get_backedge();
 			if (back_pred != NULL) {
 				curr_pred = back_pred;
-				continue;
-			}
+				backedge_found = true;
+			} else if (inst_pred_map.contains(next_inst)) {
+				inst_pred_map.remove(curr_pred->get_func_inst());
+				Predicate * old_pred = inst_pred_map.get(next_inst);
+				back_pred = old_pred->get_parent();
 
-			if (inst_pred_map.contains(next_inst)) {
-				back_pred = inst_pred_map.get(next_inst);
 				curr_pred->set_backedge(back_pred);
 				curr_pred = back_pred;
-				continue;
+				backedge_found = true;
 			}
-		}
 
-		if (!inst_pred_map.contains(next_inst))
-			inst_pred_map.put(next_inst, old_pred);
+			if (backedge_found)
+				continue;
+		}
 
 		if (!branch_found) {
 			if ( loc_act_map.contains(next_act->get_location()) ) {
@@ -284,9 +313,15 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 				curr_pred->add_child(new_pred);
 				new_pred->set_parent(curr_pred);
 
+				if (curr_pred->is_entry_predicate())
+					new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
+
 				curr_pred = new_pred;
 			}
 		}
+
+		if (!inst_pred_map.contains(next_inst))
+			inst_pred_map.put(next_inst, curr_pred);
 
 		loc_act_map.put(next_act->get_location(), next_act);
 		inst_act_map.put(next_inst, next_act);
@@ -334,7 +369,8 @@ void FuncNode::deep_update(Predicate * curr_pred)
  * @return true if branch found, false otherwise.
  */
 bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act,
-	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> * inst_act_map)
+	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> * inst_act_map,
+	SnapVector<Predicate *> * unset_predicates)
 {
 	/* check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
@@ -344,22 +380,25 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 		if (branch->get_func_inst() != next_inst)
 			continue;
 
+		/* check against predicate expressions */
+		bool predicate_correct = true;
 		PredExprSet * pred_expressions = branch->get_pred_expressions();
+		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 
-		/* no predicate, follow the only branch */
 		if (pred_expressions->getSize() == 0) {
-			*curr_pred = branch;
-			branch_found = true;
-			break;
+			predicate_correct = false;
+			unset_predicates->push_back(branch);
 		}
 
-		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 		while (pred_expr_it->hasNext()) {
 			pred_expr * pred_expression = pred_expr_it->next();
 			uint64_t last_read, next_read;
 			bool equality;
 
 			switch(pred_expression->token) {
+				case NOPREDICATE:
+					predicate_correct = true;
+					break;
 				case EQUALITY:
 					FuncInst * to_be_compared;
 					ModelAction * last_act;
@@ -369,29 +408,29 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 
 					last_read = last_act->get_reads_from_value();
 					next_read = next_act->get_reads_from_value();
-
 					equality = (last_read == next_read);
-					if (equality == pred_expression->value) {
-						*curr_pred = branch;
-//						model_print("predicate: token: %d, location: %p, value: %d - ", pred_expression->token, pred_expression->location, pred_expression->value); next_inst->print();
-						branch_found = true;
-					}
+					if (equality != pred_expression->value)
+						predicate_correct = false;
+
 					break;
 				case NULLITY:
 					next_read = next_act->get_reads_from_value();
 					equality = ((void*)next_read == NULL);
-					//model_print("%s ", next_act->get_position()); next_act->print();
-					if (equality == pred_expression->value) {
-						*curr_pred = branch;
-						branch_found = true;
-					}
+					if (equality != pred_expression->value)
+						predicate_correct = false;
 					break;
 				default:
+					predicate_correct = false;
 					model_print("unkown predicate token\n");
 					break;
 			}
 		}
 
+		if (predicate_correct) {
+			*curr_pred = branch;
+			branch_found = true;
+			break;
+		}
 	}
 
 	return branch_found;
