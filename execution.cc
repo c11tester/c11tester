@@ -280,6 +280,7 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
 	add_normal_write_to_lists(act);
 	add_write_to_lists(act);
 	w_modification_order(act);
+	model->get_history()->process_action(act, act->get_tid());
 	return act;
 }
 
