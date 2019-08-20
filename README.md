@@ -1,16 +1,23 @@
-C11Tester: A Fuzzer for C11 and C++11 Atomics
+C11Tester: A Testing tool for C11 and C++11 Atomics
 =====================================================
 
-C11Tester is a fuzzer for C11/C++11 which randomly explores the
+C11Tester is a testing tool for C11/C++11 which randomly explores the
 behaviors of code under the C/C++ memory model.
 
 C11Tester is constructed as a dynamically-linked shared library which
 implements the C and C++ atomic types and portions of the other thread-support
 libraries of C/C++ (e.g., std::atomic, std::mutex, etc.).
 
-C11Tester should compile on Linux OSX.  Instrumenting programs
-requires using our LLVM pass.  It likely can be ported to other \*NIX
-flavors.
+C11Tester compiles on Linux.  Instrumenting programs requires using
+our LLVM pass.  It likely can be ported to other \*NIX flavors.
+
+Mailing List
+------------
+
+If you have questions, you can contact us at c11tester@googlegroups.com.
+
+You can sign up for the C11Tester mailing list at:
+<https://groups.google.com/forum/#!forum/c11tester>
 
 
 Getting Started
@@ -18,11 +25,15 @@ Getting Started
 
 If you haven't done so already, you may download C11Tester using git:
 
-      git clone git://demsky.eecs.uci.edu/c11fuzzer.git
+      git clone git://plrg.eecs.uci.edu/c11tester.git
 
 Get the benchmarks (not required; distributed separately):
 
-      git clone git://demsky.eecs.uci.edu/concurrency-benchmarks.git
+      git clone git://plrg.eecs.uci.edu/c11concurrency-benchmarks.git
+
+Get the LLVM frontend using git and follow its directions to build:
+
+      git clone git://plrg.eecs.uci.edu/c11llvm.git
 
 Compile the fuzzer:
 
@@ -40,6 +51,10 @@ Useful Options
 
   > Verbose: show all executions and not just buggy ones.
 
+`-x num`
+
+  > Specify the number number of executions to run.
+
 `-u num`
 
   > Value to provide to atomics loads from uninitialized memory locations. The
@@ -49,74 +64,25 @@ Useful Options
 Benchmarks
 -------------------
 
-Many simple tests are located in the `tests/` directory. You may also want to
-try the larger benchmarks (distributed separately), which can be placed under
-the `benchmarks/` directory. After building C11Tester, you can build and run
-the benchmarks as follows:
+Many simple tests are located in the `test/` directory.  These are
+manually instrumented and can just be run.
 
->     make benchmarks
->     cd benchmarks
->
->     # run barrier test with fairness/memory liveness
->     ./run.sh barrier/barrier -y -m 2
->
->     # Linux reader/write lock test with fairness/memory liveness
->     ./run.sh linuxrwlocks/linuxrwlocks -y -m 2
->
->     # run all benchmarks and provide timing results
->     ./bench.sh
+You may also want to try the larger benchmarks (distributed
+separately).  These require LLVM to instrument.
 
 
 Running your own code
 ---------------------
 
-You likely want to test your own code, not just our simple tests. To do so, you
-need to perform a few steps.
+You likely want to test your own code, not just our tests. You will
+likely need to use our LLVM pass to instrument your program.  You will
+have to modify your build environment to do this.
 
-First, because C11Tester executes your program dozens (if not hundreds or
-thousands) of times, you will have the most success if your code is written as a
-unit test and not as a full-blown program.
+Test programs should be compiled against our shared library
+(libmodel.so).  Then the shared library must be made available to the
+dynamic linker, using the `LD_LIBRARY_PATH` environment variable, for
+instance.
 
-Second, because C11Tester must be able to manage your program for you, your
-program should declare its main entry point as `user_main(int, char**)` rather
-than `main(int, char**)`.
-
-Third, test programs must use the standard C11/C++11 library headers (see below
-for supported APIs) and must compile against the versions provided in
-C11Tester's `include/` directory. Notably, we only support C11 thread syntax
-(`thrd_t`, etc. from `<thread.h>`).
-
-Test programs may also use our included happens-before race detector by
-including <librace.h> and utilizing the appropriate functions
-(`store_{8,16,32,64}()` and `load_{8,16,32,64}()`) for storing/loading data
-to/from non-atomic shared memory.
-
-C11Tester can also check boolean assertions in your test programs. Just
-include `<model-assert.h>` and use the `MODEL_ASSERT()` macro in your test program.
-C11Tester will report a bug in any possible execution in which the argument to
-`MODEL_ASSERT()` evaluates to false (that is, 0).
-
-Test programs should be compiled against our shared library (libmodel.so) using
-the headers in the `include/` directory. Then the shared library must be made
-available to the dynamic linker, using the `LD_LIBRARY_PATH` environment
-variable, for instance.
-
-
-### Supported C11/C++11 APIs ###
-
-To model-check multithreaded code properly, C11Tester needs to instrument any
-concurrency-related API calls made in your code. Currently, we support parts of
-the following thread-support libraries. The C versions can be used in either C
-or C++.
-
-* `<atomic>`, `<cstdatomic>`, `<stdatomic.h>`
-* `<condition_variable>`
-* `<mutex>`
-* `<threads.h>`
-
-Because we want to extend support to legacy (i.e., non-C++11) compilers, we do
-not support some new C++11 features that can't be implemented in C++03 (e.g.,
-C++ `<thread>`).
 
 Reading an execution trace
 --------------------------
@@ -212,82 +178,14 @@ C11Tester prints summary statistics at the end of each execution. These
 summaries are based off of a few different properties of an execution, which we
 will break down here:
 
-* An _infeasible_ execution is an execution which is not consistent with the
-  memory model. Such an execution can be considered overhead for the
-  model-checker, since it should never appear in practice.
-
 * A _buggy_ execution is an execution in which C11Tester has found a real
   bug: a data race, a deadlock, failure of a user-provided assertion, or an
   uninitialized load, for instance. C11Tester will only report bugs in feasible
   executions.
 
-* A _redundant_ execution is a feasible execution that is exploring the same
-  state space explored by a previous feasible execution. Such exploration is
-  another instance of overhead, so C11Tester terminates these executions as
-  soon as they are detected. C11Tester is mostly able to avoid such executions
-  but may encounter them if a fairness option is enabled.
-
-Now, we can examine the end-of-execution summary of one test program:
-
-    $ ./run.sh test/rmwprog.o
-    + test/rmwprog.o
-    ******* Model-checking complete: *******
-    Number of complete, bug-free executions: 6
-    Number of redundant executions: 0
-    Number of buggy executions: 0
-    Number of infeasible executions: 29
-    Total executions: 35
-
-* _Number of complete, bug-free executions:_ these are feasible, non-buggy, and
-  non-redundant executions. They each represent different, legal behaviors you
-  can expect to see in practice.
-
-* _Number of redundant executions:_ these are feasible but redundant executions
-  that were terminated as soon as C11Tester noticed the redundancy.
-
-* _Number of buggy executions:_ these are feasible, buggy executions. These are
-  the trouble spots where your program is triggering a bug or assertion.
-  Ideally, this number should be 0.
-
-* _Number of infeasible executions:_ these are infeasible executions,
-  representing some of the overhead of model-checking.
-
-* _Total executions:_ the total number of executions explored by C11Tester.
-  Should be the sum of the above categories, since they are mutually exclusive.
-
 
 Other Notes and Pitfalls
 ------------------------
-
-* Many programs require some form of fairness in order to terminate in a finite
-  amount of time. C11Tester supports the `-y num` and `-f num` flags for these
-  cases. The `-y` option (yield-based fairness) is preferable, but it requires
-  careful usage of yields (i.e., `thrd_yield()`) in the test program. For
-  programs without proper `thrd_yield()`, you may consider using `-f` instead.
-
-* Deadlock detection: C11Tester can detect deadlocks. For instance, try the
-  following test program.
-
-  >     ./run.sh test/deadlock.o
-
-  Deadlock detection currently detects when a thread is about to step into a
-  deadlock, without actually including the final step in the trace. But you can
-  examine the program to see the next step.
-
-* C11Tester has to speculatively explore many execution behaviors due to the
-  relaxed memory model, and many of these turn out to be infeasible (that is,
-  they cannot be legally produced by the memory model). C11Tester discards
-  these executions as soon as it identifies them (see the "Number of infeasible
-  executions" statistic); however, the speculation can occasionally cause
-  C11Tester to hit unexpected parts of the unit test program (causing a
-  division by 0, for instance). In such programs, you might consider running
-  C11Tester with the `-u num` option.
-
-* Related to the previous point, C11Tester may report more than one bug for a
-  particular candidate execution. This is because some bugs may not be
-  reportable until C11Tester has explored more of the program, and in the
-  time between initial discovery and final assessment of the bug, C11Tester may
-  discover another bug.
 
 * Data races may be reported as multiple bugs, one for each byte-address of the
   data race in question. See, for example, this run:
@@ -314,13 +212,16 @@ See Also
 
 The C11Tester project page:
 
->   <http://demsky.eecs.uci.edu/c11modelchecker.html>
+>   <http://demsky.eecs.uci.edu/c11tester.html>
 
 The C11Tester source and accompanying benchmarks on Gitweb:
 
->   <http://demsky.eecs.uci.edu/git/?p=model-checker.git>
+>   <http://plrg.eecs.uci.edu/git/?p=c11tester.git>
 >
->   <http://demsky.eecs.uci.edu/git/?p=model-checker-benchmarks.git>
+>   <http://plrg.eecs.uci.edu/git/?p=c11llvm.git>
+>
+>   <http://plrg.eecs.uci.edu/git/?p=c11concurrency-benchmarks.git>
+
 
 
 Contact
