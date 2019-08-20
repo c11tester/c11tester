@@ -2,7 +2,7 @@
 
 #include "threads.h"
 #include "librace.h"
-#include "stdatomic.h"
+#include "stdatomic2.h"
 #include <mutex.h>
 #include <condition_variable>
 

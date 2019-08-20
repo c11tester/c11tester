@@ -2,7 +2,7 @@
 
 #include "threads.h"
 #include "librace.h"
-#include "stdatomic.h"
+#include "stdatomic2.h"
 #include <mutex>
 std::mutex * m;
 int shareddata;
