@@ -11,6 +11,14 @@ libraries of C/C++ (e.g., std::atomic, std::mutex, etc.).
 C11Tester compiles on Linux.  Instrumenting programs requires using
 our LLVM pass.  It likely can be ported to other \*NIX flavors.
 
+Mailing List
+------------
+
+If you have questions, you can contact us at c11tester@googlegroups.com.
+
+You can sign up for the C11Tester mailing list at:
+<https://groups.google.com/forum/#!forum/c11tester>
+
 
 Getting Started
 ---------------
