@@ -7,7 +7,6 @@
 #include "hashset.h"
 #include "threads-model.h"
 
-typedef HashSet<uint64_t, uint64_t, 0, model_malloc, model_calloc, model_free> write_set_t;
 
 class ModelHistory {
 public:
@@ -31,6 +30,7 @@ public:
 	uint64_t query_last_read(void * location, thread_id_t tid);
 
 	void add_to_write_history(void * location, uint64_t write_val);
+	HashTable<void *, write_set_t *, uintptr_t, 4> * getWriteHistory() { return &write_history; }
 
 	void print_write();
 	void print_func_node();
@@ -46,8 +46,8 @@ private:
 
 	ModelVector<FuncNode *> func_nodes;
 
-	HashTable<void *, write_set_t *, uintptr_t, 4, model_malloc, model_calloc, model_free> write_history;
-	HashSet<void *, uintptr_t, 4, model_malloc, model_calloc, model_free> write_locations;
+	HashTable<void *, write_set_t *, uintptr_t, 4> write_history;
+	HashSet<void *, uintptr_t, 4> write_locations;
 };
 
 #endif	/* __HISTORY_H__ */
