@@ -32,6 +32,7 @@ public:
 	void add_to_write_history(void * location, uint64_t write_val);
 	HashTable<void *, write_set_t *, uintptr_t, 4> * getWriteHistory() { return &write_history; }
 
+	void set_new_exec_flag();
 	void print_write();
 	void print_func_node();
 

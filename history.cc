@@ -66,6 +66,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 		func_node->clear_read_map(tid);
 
 		action_list_t * curr_act_list = func_act_lists->back();
+
 		func_node->incr_exit_count();
 
 		/* defer the processing of curr_act_list until the function has exits a few times 
@@ -101,7 +102,7 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 
 	for (uint32_t id = old_size;id < new_size;id++) {
 		const char * func_name = func_map_rev[id];
-		FuncNode * func_node = new FuncNode();
+		FuncNode * func_node = new FuncNode(this);
 		func_node->set_func_id(id);
 		func_node->set_func_name(func_name);
 		func_nodes[id] = func_node;
@@ -124,6 +125,9 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	uint32_t func_id = (*thrd_func_list)[id].back();
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 
+	if (act->is_write())
+		add_to_write_history(act->get_location(), act->get_write_value());
+
 	if (func_id == 0)
 		return;
 	else if ( func_nodes.size() <= func_id )
@@ -132,16 +136,15 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	FuncNode * func_node = func_nodes[func_id];
 
 	/* do not care about actions without a position */
+
 	if (act->get_position() == NULL)
 		return;
 
 	if (act->is_read())
 		func_node->store_read(act, tid);
 
-	if (act->is_write())
-		add_to_write_history(act->get_location(), act->get_write_value());
-
 	/* add to curr_inst_list */
+
 	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
 	if (!second_part_of_rmw) {
 		action_list_t * curr_act_list = func_act_lists->back();
@@ -197,6 +200,14 @@ void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
 
 	write_set->add(write_val);
 	write_locations.add(location);
+}
+
+void ModelHistory::set_new_exec_flag()
+{
+	for (uint i = 1; i < func_nodes.size(); i++) {
+		FuncNode * func_node = func_nodes[i];
+		func_node->set_new_exec_flag();
+	}
 }
 
 void ModelHistory::print_write()

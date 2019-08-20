@@ -6,19 +6,21 @@
 #include "hashtable.h"
 #include "hashset.h"
 #include "predicate.h"
+#include "history.h"
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
-typedef HashTable<void *, uint64_t, uintptr_t, 4, model_malloc, model_calloc, model_free> read_map_t;
+typedef HashTable<void *, uint64_t, uintptr_t, 4> read_map_t;
 
 class FuncNode {
 public:
-	FuncNode();
+	FuncNode(ModelHistory * history);
 	~FuncNode();
 
 	uint32_t get_func_id() { return func_id; }
 	const char * get_func_name() { return func_name; }
 	void set_func_id(uint32_t id) { func_id = id; }
 	void set_func_name(const char * name) { func_name = name; }
+	void set_new_exec_flag();
 
 	void add_inst(ModelAction *act);
 	FuncInst * get_inst(ModelAction *act);
@@ -52,6 +54,7 @@ public:
 private:
 	uint32_t func_id;
 	const char * func_name;
+	ModelHistory * history;
 	bool predicate_tree_initialized;
 	Predicate * predicate_tree_entry;	// a dummy node whose children are the real entries
 

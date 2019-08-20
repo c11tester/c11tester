@@ -264,6 +264,7 @@ bool ModelChecker::next_execution()
 // test code
 	execution_number ++;
 	reset_to_initial_state();
+	history->set_new_exec_flag();
 	return false;
 }
 

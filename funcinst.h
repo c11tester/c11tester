@@ -14,7 +14,11 @@ public:
 	~FuncInst();
 
 	const char * get_position() const { return position; }
+
 	void * get_location() const { return location; }
+	void set_location(void * loc) { location = loc; }
+	void reset_location() { location = NULL; }
+
 	action_type get_type() const { return type; }
 	memory_order get_mo() const { return order; }
 	FuncNode * get_func_node() const { return func_node; }

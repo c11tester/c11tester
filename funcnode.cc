@@ -1,15 +1,28 @@
 #include "funcnode.h"
 
-FuncNode::FuncNode() :
+FuncNode::FuncNode(ModelHistory * history) :
+	history(history),
 	predicate_tree_initialized(false),
 	predicate_tree_entry(new Predicate(NULL, true)),
 	exit_count(0),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	thrd_read_map()
+	thrd_read_map(),
+	action_list_buffer()
 {
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
+}
+
+void FuncNode::set_new_exec_flag()
+{
+	for (uint i = 0; i < thrd_read_map.size(); i++)
+		thrd_read_map[i] = new read_map_t();
+
+	for (mllnode<FuncInst *> * it = inst_list.begin(); it != NULL; it = it->getNext()) {
+		FuncInst * inst = it->getVal();
+		inst->reset_location();
+	}
 }
 
 /* Check whether FuncInst with the same type, position, and location
@@ -33,6 +46,11 @@ void FuncNode::add_inst(ModelAction *act)
 		FuncInst * inst = func_inst_map.get(position);
 
 		ASSERT(inst->get_type() == act->get_type());
+
+		// locations are set to NULL when new executions start
+		if (inst->get_location() == NULL)
+			inst->set_location(act->get_location());
+
 		if (inst->get_location() != act->get_location())
 			inst->not_single_location();
 
@@ -98,9 +116,7 @@ void FuncNode::add_entry_inst(FuncInst * inst)
  */
 void FuncNode::update_tree(action_list_t * act_list)
 {
-	if (act_list == NULL)
-		return;
-	else if (act_list->size() == 0)
+	if (act_list == NULL || act_list->size() == 0)
 		return;
 
 	/* build inst_list from act_list for later processing */
@@ -125,7 +141,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 	update_predicate_tree(&read_act_list);
 //	deep_update(predicate_tree_entry);
 
-	print_predicate_tree();
+//	print_predicate_tree();
 }
 
 /** 
@@ -171,6 +187,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 	uint64_t read_from_val = act->get_reads_from_value();
 
 	/* resize and initialize */
+
 	uint32_t old_size = thrd_read_map.size();
 	if (old_size <= tid) {
 		thrd_read_map.resize(tid + 1);
