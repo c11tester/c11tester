@@ -40,7 +40,7 @@ ModelChecker::ModelChecker() :
 	inspect_plugin(NULL)
 {
 	memset(&stats,0,sizeof(struct execution_stats));
-	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &user_main_wrapper, NULL, NULL);	// L: user_main_wrapper passes the user program
+	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &user_main_wrapper, NULL, NULL);
 #ifdef TLS
 	init_thread->setTLS((char *)get_tls_addr());
 #endif

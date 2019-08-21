@@ -14,8 +14,8 @@ ModelHistory::ModelHistory() :
 	func_map(),
 	func_map_rev(),
 	func_nodes(),
-	write_history(),
-	write_locations()
+	write_history(),	// snapshot data structure
+	loc_func_nodes_map()	// shapshot data structure
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -63,15 +63,14 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 
 	if (last_func_id == func_id) {
 		FuncNode * func_node = func_nodes[func_id];
-		func_node->clear_read_map(tid);
+		//func_node->clear_read_map(tid);
 
 		action_list_t * curr_act_list = func_act_lists->back();
-
-		func_node->incr_exit_count();
 
 		/* defer the processing of curr_act_list until the function has exits a few times 
 		 * (currently 2 times) so that more information can be gathered to infer nullity predicates.
 		 */
+		func_node->incr_exit_count();
 		if (func_node->get_exit_count() >= 2) {
 			ModelList<action_list_t *> * action_list_buffer = func_node->get_action_list_buffer();
 			while (action_list_buffer->size() > 0) {
@@ -125,32 +124,30 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	uint32_t func_id = (*thrd_func_list)[id].back();
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 
-	if (act->is_write())
+	if (act->is_write()) {
 		add_to_write_history(act->get_location(), act->get_write_value());
+		
+	}
 
-	if (func_id == 0)
+	/* the following does not care about actions without a position */
+	if (func_id == 0 || act->get_position() == NULL)
 		return;
-	else if ( func_nodes.size() <= func_id )
+
+	if ( func_nodes.size() <= func_id )
 		resize_func_nodes( func_id + 1 );
 
 	FuncNode * func_node = func_nodes[func_id];
 
-	/* do not care about actions without a position */
-
-	if (act->get_position() == NULL)
-		return;
-
-	if (act->is_read())
-		func_node->store_read(act, tid);
+//	if (act->is_read())
+//		func_node->store_read(act, tid);
 
 	/* add to curr_inst_list */
-
 	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
 	if (!second_part_of_rmw) {
 		action_list_t * curr_act_list = func_act_lists->back();
 		ASSERT(curr_act_list != NULL);
 
-		ModelAction * last_act;
+		ModelAction * last_act = NULL;
 		if (curr_act_list->size() != 0)
 			last_act = curr_act_list->back();
 
@@ -172,6 +169,7 @@ FuncNode * ModelHistory::get_func_node(uint32_t func_id)
 	return func_nodes[func_id];
 }
 
+/*
 uint64_t ModelHistory::query_last_read(void * location, thread_id_t tid)
 {
 	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
@@ -188,18 +186,29 @@ uint64_t ModelHistory::query_last_read(void * location, thread_id_t tid)
 
 	return last_read_val;
 }
+*/
 
 void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
 {
-	write_set_t * write_set = write_history.get(location);
+	value_set_t * write_set = write_history.get(location);
 
 	if (write_set == NULL) {
-		write_set = new write_set_t();
+		write_set = new value_set_t();
 		write_history.put(location, write_set);
 	}
 
 	write_set->add(write_val);
-	write_locations.add(location);
+}
+
+void ModelHistory::add_to_loc_func_nodes_map(void * location, FuncNode * node)
+{
+	SnapList<FuncNode *> * func_node_list = loc_func_nodes_map.get(location);
+	if (func_node_list == NULL) {
+		func_node_list = new SnapList<FuncNode *>();
+		loc_func_nodes_map.put(location, func_node_list);
+	}
+
+	func_node_list->push_back(node);
 }
 
 void ModelHistory::set_new_exec_flag()

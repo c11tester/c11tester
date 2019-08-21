@@ -3,26 +3,33 @@
 FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
 	predicate_tree_initialized(false),
-	predicate_tree_entry(new Predicate(NULL, true)),
 	exit_count(0),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	thrd_read_map(),
+//	thrd_read_map(),
 	action_list_buffer()
 {
+	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
+
+	// memory will be reclaimed after each execution
+	read_locations = new loc_set_t();
+	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 }
 
 void FuncNode::set_new_exec_flag()
 {
-	for (uint i = 0; i < thrd_read_map.size(); i++)
-		thrd_read_map[i] = new read_map_t();
+//	for (uint i = 0; i < thrd_read_map.size(); i++)
+//		thrd_read_map[i] = new read_map_t();
 
 	for (mllnode<FuncInst *> * it = inst_list.begin(); it != NULL; it = it->getNext()) {
 		FuncInst * inst = it->getVal();
 		inst->reset_location();
 	}
+
+	read_locations = new loc_set_t();
+	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 }
 
 /* Check whether FuncInst with the same type, position, and location
@@ -119,6 +126,8 @@ void FuncNode::update_tree(action_list_t * act_list)
 	if (act_list == NULL || act_list->size() == 0)
 		return;
 
+	HashTable<void *, value_set_t *, uintptr_t, 4> * write_history = history->getWriteHistory();
+
 	/* build inst_list from act_list for later processing */
 	func_inst_list_t inst_list;
 	action_list_t read_act_list;
@@ -132,8 +141,21 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 		inst_list.push_back(func_inst);
 
-		if (func_inst->is_read())
+		if (func_inst->is_read()) {
 			read_act_list.push_back(act);
+
+			/* the first time an action reads from some location, import all the values that have
+			 * been written to this location from ModelHistory and notify ModelHistory that this
+			 * FuncNode may read from this location. 
+			 */
+			void * loc = act->get_location();
+			if (!read_locations->contains(loc)) {
+				read_locations->add(loc);
+				value_set_t * write_values = write_history->get(loc);
+				add_to_val_loc_map(write_values, loc);
+				history->add_to_loc_func_nodes_map(loc, this);
+			}
+		}
 	}
 
 //	model_print("function %s\n", func_name);
@@ -181,13 +203,13 @@ void FuncNode::update_inst_tree(func_inst_list_t * inst_list)
  * Store the values read by atomic read actions into thrd_read_map */
 void FuncNode::store_read(ModelAction * act, uint32_t tid)
 {
+/*
 	ASSERT(act);
 
 	void * location = act->get_location();
 	uint64_t read_from_val = act->get_reads_from_value();
 
-	/* resize and initialize */
-
+	// resize and initialize
 	uint32_t old_size = thrd_read_map.size();
 	if (old_size <= tid) {
 		thrd_read_map.resize(tid + 1);
@@ -197,24 +219,24 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 
 	read_map_t * read_map = thrd_read_map[tid];
 	read_map->put(location, read_from_val);
-
-	/* Store the memory locations where atomic reads happen */
-	// read_locations.add(location);
+*/
 }
 
 uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
 {
+/*
 	if (thrd_read_map.size() <= tid)
 		return VALUE_NONE;
 
 	read_map_t * read_map = thrd_read_map[tid];
 
-	/* last read value not found */
+	// last read value not found
 	if ( !read_map->contains(location) )
 		return VALUE_NONE;
 
 	uint64_t read_val = read_map->get(location);
 	return read_val;
+*/
 }
 
 /* @param tid thread id
@@ -223,10 +245,12 @@ uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
  */
 void FuncNode::clear_read_map(uint32_t tid)
 {
+/*
 	if (thrd_read_map.size() <= tid)
 		return;
 
 	thrd_read_map[tid]->reset();
+*/
 }
 
 void FuncNode::update_predicate_tree(action_list_t * act_list)
@@ -453,6 +477,38 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 
 	return branch_found;
 }
+
+void FuncNode::add_to_val_loc_map(uint64_t val, void * loc)
+{
+	loc_set_t * locations = val_loc_map->get(val);
+
+	if (locations == NULL) {
+		locations = new loc_set_t();
+		val_loc_map->put(val, locations);
+	}
+
+	locations->add(loc);
+
+/*
+	model_print("val %llx: ", val);
+	loc_set_iter * it = locations->iterator();
+	while (it->hasNext()) {
+		void * location = it->next();
+		model_print("%p ", location);
+	}
+	model_print("\n");
+*/
+}
+
+void FuncNode::add_to_val_loc_map(value_set_t * values, void * loc)
+{
+	value_set_iter * it = values->iterator();
+	while (it->hasNext()) {
+		uint64_t val = it->next();
+		add_to_val_loc_map(val, loc);
+	}
+}
+
 
 void FuncNode::print_predicate_tree()
 {

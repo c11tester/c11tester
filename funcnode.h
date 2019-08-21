@@ -47,6 +47,9 @@ public:
 
 	ModelList<action_list_t *> * get_action_list_buffer() { return &action_list_buffer; }
 
+	void add_to_val_loc_map(uint64_t val, void * loc);
+	void add_to_val_loc_map(value_set_t * values, void * loc);
+
 	void print_predicate_tree();
 	void print_last_read(uint32_t tid);
 
@@ -72,9 +75,13 @@ private:
 	func_inst_list_mt entry_insts;
 
 	/* Store the values read by atomic read actions per memory location for each thread */
-	ModelVector<read_map_t *> thrd_read_map;
+	//ModelVector<read_map_t *> thrd_read_map;
 
+	/* store action_lists when calls to update_tree are deferred */
 	ModelList<action_list_t *> action_list_buffer;
+
+	loc_set_t * read_locations;
+	HashTable<uint64_t, loc_set_t *, uint64_t, 0> * val_loc_map;
 };
 
 #endif /* __FUNCNODE_H__ */
