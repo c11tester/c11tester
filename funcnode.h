@@ -49,8 +49,10 @@ public:
 
 	void add_to_val_loc_map(uint64_t val, void * loc);
 	void add_to_val_loc_map(value_set_t * values, void * loc);
+	void update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations);
 
 	void print_predicate_tree();
+	void print_val_loc_map();
 	void print_last_read(uint32_t tid);
 
 	MEMALLOC
@@ -68,20 +70,27 @@ private:
 	 */
 	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> func_inst_map;
 
-	/* list of all atomic actions in this function */
+	/* List of all atomic actions in this function */
 	func_inst_list_mt inst_list;
 
-	/* possible entry atomic actions in this function */
+	/* Possible entry atomic actions in this function */
 	func_inst_list_mt entry_insts;
 
 	/* Store the values read by atomic read actions per memory location for each thread */
 	//ModelVector<read_map_t *> thrd_read_map;
 
-	/* store action_lists when calls to update_tree are deferred */
+	/* Store action_lists when calls to update_tree are deferred */
 	ModelList<action_list_t *> action_list_buffer;
+
+	/* read_locations: set of locations read by this FuncNode
+	 * val_loc_map: keep track of locations that have the same values written to;
+	 * loc_may_equal_map: deduced from val_loc_map;
+	 */
 
 	loc_set_t * read_locations;
 	HashTable<uint64_t, loc_set_t *, uint64_t, 0> * val_loc_map;
+	HashTable<void *, loc_set_t *, uintptr_t, 0> * loc_may_equal_map;
+	value_set_t * values_may_read_from;
 };
 
 #endif /* __FUNCNODE_H__ */

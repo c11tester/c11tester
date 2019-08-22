@@ -16,8 +16,11 @@ FuncNode::FuncNode(ModelHistory * history) :
 	// memory will be reclaimed after each execution
 	read_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
+	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
+	values_may_read_from = new value_set_t();
 }
 
+/* Reallocate some snapshotted memories when new executions start */
 void FuncNode::set_new_exec_flag()
 {
 //	for (uint i = 0; i < thrd_read_map.size(); i++)
@@ -30,6 +33,8 @@ void FuncNode::set_new_exec_flag()
 
 	read_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
+	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
+	values_may_read_from = new value_set_t();
 }
 
 /* Check whether FuncInst with the same type, position, and location
@@ -158,7 +163,9 @@ void FuncNode::update_tree(action_list_t * act_list)
 		}
 	}
 
-//	model_print("function %s\n", func_name);
+	model_print("function %s\n", func_name);
+	print_val_loc_map();
+
 	update_inst_tree(&inst_list);
 	update_predicate_tree(&read_act_list);
 //	deep_update(predicate_tree_entry);
@@ -487,17 +494,9 @@ void FuncNode::add_to_val_loc_map(uint64_t val, void * loc)
 		val_loc_map->put(val, locations);
 	}
 
+	update_loc_may_equal_map(loc, locations);
 	locations->add(loc);
-
-/*
-	model_print("val %llx: ", val);
-	loc_set_iter * it = locations->iterator();
-	while (it->hasNext()) {
-		void * location = it->next();
-		model_print("%p ", location);
-	}
-	model_print("\n");
-*/
+	values_may_read_from->add(val);
 }
 
 void FuncNode::add_to_val_loc_map(value_set_t * values, void * loc)
@@ -509,12 +508,53 @@ void FuncNode::add_to_val_loc_map(value_set_t * values, void * loc)
 	}
 }
 
+void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations)
+{
+	loc_set_t * neighbors = loc_may_equal_map->get(new_loc);
+
+	if (neighbors == NULL) {
+		neighbors = new loc_set_t();
+		loc_may_equal_map->put(new_loc, neighbors);
+	}
+
+	loc_set_iter * loc_it = old_locations->iterator();
+	while (loc_it->hasNext()) {
+		// new_loc: { old_locations, ... }
+		void * member = loc_it->next();
+		neighbors->add(member);
+
+		// for each i in old_locations, i : { new_loc, ... }
+		loc_set_t * _neighbors = loc_may_equal_map->get(member);
+		if (_neighbors == NULL) {
+			_neighbors = new loc_set_t();
+			loc_may_equal_map->put(member, _neighbors);
+		}
+		_neighbors->add(new_loc);
+	}
+}
 
 void FuncNode::print_predicate_tree()
 {
 	model_print("digraph function_%s {\n", func_name);
 	predicate_tree_entry->print_pred_subtree();
 	model_print("}\n");	// end of graph
+}
+
+void FuncNode::print_val_loc_map()
+{
+	value_set_iter * val_it = values_may_read_from->iterator();
+	while (val_it->hasNext()) {
+		uint64_t value = val_it->next();
+		model_print("val %llx: ", value);
+
+		loc_set_t * locations = val_loc_map->get(value);
+		loc_set_iter * loc_it = locations->iterator();
+		while (loc_it->hasNext()) {
+			void * location = loc_it->next();
+			model_print("%p ", location);
+		}
+		model_print("\n");
+	}
 }
 
 /* @param tid thread id
