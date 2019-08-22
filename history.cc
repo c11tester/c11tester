@@ -125,8 +125,20 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 
 	if (act->is_write()) {
-		add_to_write_history(act->get_location(), act->get_write_value());
-		
+		void * location = act->get_location();
+		uint64_t value = act->get_write_value();
+		add_to_write_history(location, value);
+
+		/* update FuncNodes */
+		SnapList<FuncNode *> * func_nodes = loc_func_nodes_map.get(location);
+		sllnode<FuncNode *> * it = NULL;
+		if (func_nodes != NULL)
+			it = func_nodes->begin();
+
+		for (; it != NULL; it = it->getNext()) {
+			FuncNode * func_node = it->getVal();
+			func_node->add_to_val_loc_map(value, location);
+		}
 	}
 
 	/* the following does not care about actions without a position */
