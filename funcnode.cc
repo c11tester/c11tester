@@ -164,13 +164,13 @@ void FuncNode::update_tree(action_list_t * act_list)
 	}
 
 	model_print("function %s\n", func_name);
-	print_val_loc_map();
+//	print_val_loc_map();
 
 	update_inst_tree(&inst_list);
 	update_predicate_tree(&read_act_list);
 //	deep_update(predicate_tree_entry);
 
-//	print_predicate_tree();
+	print_predicate_tree();
 }
 
 /** 
@@ -358,14 +358,54 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 				else
 					curr_pred = new_pred2;
 			} else {
-				Predicate * new_pred = new Predicate(next_inst);
-				curr_pred->add_child(new_pred);
-				new_pred->set_parent(curr_pred);
+				bool test = false;
+				void * loc = next_act->get_location();
+				loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
+				if (loc_may_equal != NULL) {
+					loc_set_iter * loc_it = loc_may_equal->iterator();
+					while (loc_it->hasNext()) {
+						void * neighbor = loc_it->next();
+						if (loc_act_map.contains(neighbor)) {
+							model_print("loc %p may eqaul to loc %p\n", loc, neighbor);
+							ModelAction * last_act = loc_act_map.get(neighbor);
 
-				if (curr_pred->is_entry_predicate())
-					new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
+							FuncInst * last_inst = get_inst(last_act);
 
-				curr_pred = new_pred;
+							Predicate * new_pred1 = new Predicate(next_inst);
+							new_pred1->add_predicate_expr(EQUALITY, last_inst, true);
+
+							Predicate * new_pred2 = new Predicate(next_inst);
+							new_pred2->add_predicate_expr(EQUALITY, last_inst, false);
+
+							curr_pred->add_child(new_pred1);
+							curr_pred->add_child(new_pred2);
+							new_pred1->set_parent(curr_pred);
+							new_pred2->set_parent(curr_pred);
+
+							uint64_t last_read = last_act->get_reads_from_value();
+							uint64_t next_read = next_act->get_reads_from_value();
+
+							if ( last_read == next_read )
+								curr_pred = new_pred1;
+							else
+								curr_pred = new_pred2;
+
+							test = true;
+							break;
+						}
+					}
+				} 
+
+				if (!test) {
+					Predicate * new_pred = new Predicate(next_inst);
+					curr_pred->add_child(new_pred);
+					new_pred->set_parent(curr_pred);
+
+					if (curr_pred->is_entry_predicate())
+						new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
+
+					curr_pred = new_pred;
+				}
 			}
 		}
 
