@@ -9,6 +9,17 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
 	backedges(16)
 {}
 
+Predicate::~Predicate()
+{
+//	if (func_inst)
+//		delete func_inst;
+
+	// parent should not be deleted
+	pred_expressions.reset();
+	backedges.reset();
+	children.clear();
+}
+
 unsigned int pred_expr_hash(struct pred_expr * expr)
 {
         return (unsigned int)((uintptr_t)expr);

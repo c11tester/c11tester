@@ -317,95 +317,27 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		}
 
 		if (!branch_found) {
-			if ( loc_act_map.contains(next_act->get_location()) ) {
-				ModelAction * last_act = loc_act_map.get(next_act->get_location());
-				FuncInst * last_inst = get_inst(last_act);
-
-				Predicate * new_pred1 = new Predicate(next_inst);
-				new_pred1->add_predicate_expr(EQUALITY, last_inst, true);
-
-				Predicate * new_pred2 = new Predicate(next_inst);
-				new_pred2->add_predicate_expr(EQUALITY, last_inst, false);
-
-				curr_pred->add_child(new_pred1);
-				curr_pred->add_child(new_pred2);
-				new_pred1->set_parent(curr_pred);
-				new_pred2->set_parent(curr_pred);
-
-				uint64_t last_read = last_act->get_reads_from_value();
-				uint64_t next_read = next_act->get_reads_from_value();
-
-				if ( last_read == next_read )
-					curr_pred = new_pred1;
-				else
-					curr_pred = new_pred2;
-			} else if (!next_inst->is_single_location()) {
-				Predicate * new_pred1 = new Predicate(next_inst);
-				new_pred1->add_predicate_expr(NULLITY, NULL, true);
-
-				Predicate * new_pred2 = new Predicate(next_inst);
-				new_pred2->add_predicate_expr(NULLITY, NULL, false);
-
-				curr_pred->add_child(new_pred1);
-				curr_pred->add_child(new_pred2);
-				new_pred1->set_parent(curr_pred);
-				new_pred2->set_parent(curr_pred);
-
-				uint64_t next_read = next_act->get_reads_from_value();
-				bool isnull = ((void*)next_read == NULL);
-				if (isnull)
-					curr_pred = new_pred1;
-				else
-					curr_pred = new_pred2;
-			} else {
-				bool test = false;
-				void * loc = next_act->get_location();
-				loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
-				if (loc_may_equal != NULL) {
-					loc_set_iter * loc_it = loc_may_equal->iterator();
-					while (loc_it->hasNext()) {
-						void * neighbor = loc_it->next();
-						if (loc_act_map.contains(neighbor)) {
-							model_print("loc %p may eqaul to loc %p\n", loc, neighbor);
-							ModelAction * last_act = loc_act_map.get(neighbor);
-
-							FuncInst * last_inst = get_inst(last_act);
-
-							Predicate * new_pred1 = new Predicate(next_inst);
-							new_pred1->add_predicate_expr(EQUALITY, last_inst, true);
-
-							Predicate * new_pred2 = new Predicate(next_inst);
-							new_pred2->add_predicate_expr(EQUALITY, last_inst, false);
-
-							curr_pred->add_child(new_pred1);
-							curr_pred->add_child(new_pred2);
-							new_pred1->set_parent(curr_pred);
-							new_pred2->set_parent(curr_pred);
-
-							uint64_t last_read = last_act->get_reads_from_value();
-							uint64_t next_read = next_act->get_reads_from_value();
-
-							if ( last_read == next_read )
-								curr_pred = new_pred1;
-							else
-								curr_pred = new_pred2;
-
-							test = true;
-							break;
-						}
+			bool may_equal = false;
+			void * loc = next_act->get_location();
+			loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
+			if (loc_may_equal != NULL) {
+				loc_set_iter * loc_it = loc_may_equal->iterator();
+				while (loc_it->hasNext()) {
+					void * neighbor = loc_it->next();
+					if (loc_act_map.contains(neighbor)) {
+						model_print("loc %p may eqaul to loc %p\n", loc, neighbor);
+						gen_predicate_and_follow(&curr_pred, next_inst, next_act, &loc_act_map, EQUALITY, neighbor);
+						may_equal = true;
+						break;
 					}
-				} 
-
-				if (!test) {
-					Predicate * new_pred = new Predicate(next_inst);
-					curr_pred->add_child(new_pred);
-					new_pred->set_parent(curr_pred);
-
-					if (curr_pred->is_entry_predicate())
-						new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
-
-					curr_pred = new_pred;
 				}
+			} 
+
+			if (!may_equal) {
+				if (!next_inst->is_single_location())
+					gen_predicate_and_follow(&curr_pred, next_inst, next_act, &loc_act_map, NULLITY, NULL);
+				else
+					gen_predicate_and_follow(&curr_pred, next_inst, next_act, &loc_act_map, UNSET, NULL);
 			}
 		}
 
@@ -523,6 +455,65 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 	}
 
 	return branch_found;
+}
+
+void FuncNode::gen_predicate_and_follow(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act,
+		HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map, token_t token, void * loc)
+{
+	Predicate * new_pred1 = new Predicate(next_inst);
+	Predicate * new_pred2 = new Predicate(next_inst);
+	new_pred1->set_parent(*curr_pred);
+	new_pred2->set_parent(*curr_pred);
+
+	uint64_t next_read = next_act->get_reads_from_value();
+
+	switch (token) {
+		case UNSET:
+			if ( (*curr_pred)->is_entry_predicate() )
+				new_pred1->add_predicate_expr(NOPREDICATE, NULL, true);
+
+			(*curr_pred)->add_child(new_pred1);
+			*curr_pred = new_pred1;
+			delete new_pred2;
+
+			break;
+		case EQUALITY:
+			ModelAction * last_act;
+			FuncInst * last_inst;
+			uint64_t last_read;
+
+			last_act = loc_act_map->get(loc);
+			last_inst = get_inst(last_act);
+			last_read = last_act->get_reads_from_value();
+
+			new_pred1->add_predicate_expr(EQUALITY, last_inst, true);
+			new_pred2->add_predicate_expr(EQUALITY, last_inst, false);
+			(*curr_pred)->add_child(new_pred1);
+			(*curr_pred)->add_child(new_pred2);
+
+			if ( last_read == next_read )
+				*curr_pred = new_pred1;
+			else
+				*curr_pred = new_pred2;
+			break;
+		case NULLITY:
+			new_pred1->add_predicate_expr(NULLITY, NULL, true);
+			new_pred2->add_predicate_expr(NULLITY, NULL, false);
+			(*curr_pred)->add_child(new_pred1);
+			(*curr_pred)->add_child(new_pred2);
+
+			if ( (void*)next_read == NULL )
+				*curr_pred = new_pred1;
+			else
+				*curr_pred = new_pred2;
+			break;
+		default:
+			model_print("unknown predicate token\n");
+			delete new_pred1;
+			delete new_pred2;
+
+			break;
+	}
 }
 
 void FuncNode::add_to_val_loc_map(uint64_t val, void * loc)
