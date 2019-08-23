@@ -11,10 +11,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
 
 Predicate::~Predicate()
 {
-//	if (func_inst)
-//		delete func_inst;
-
-	// parent should not be deleted
+	// parent and func_inst should not be deleted
 	pred_expressions.reset();
 	backedges.reset();
 	children.clear();

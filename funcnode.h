@@ -41,7 +41,8 @@ public:
 	void update_predicate_tree(action_list_t * act_list);
 	void deep_update(Predicate * pred);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<FuncInst *, ModelAction *, uintptr_t, 0>* inst_act_map, SnapVector<Predicate *> * unset_predicates);
-	void gen_predicate_and_follow(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map, token_t token, void * loc);
+	void generate_predicate(Predicate ** curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
+
 
 	void incr_exit_count() { exit_count++; }
 	uint32_t get_exit_count() { return exit_count; }

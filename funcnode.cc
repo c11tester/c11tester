@@ -264,12 +264,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 {
 	if (act_list == NULL || act_list->size() == 0)
 		return;
-/*
-	if (predicate_tree_initialized) {
-		return;
-	}
-	predicate_tree_initialized = true;
-*/
+
 	/* map a FuncInst to the its predicate */
 	HashTable<FuncInst *, Predicate *, uintptr_t, 0> inst_pred_map(128);
 
@@ -316,28 +311,51 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			}
 		}
 
+		// generate new branches
 		if (!branch_found) {
-			bool may_equal = false;
+			SnapVector<struct half_pred_expr *> half_pred_expressions;
 			void * loc = next_act->get_location();
-			loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
-			if (loc_may_equal != NULL) {
-				loc_set_iter * loc_it = loc_may_equal->iterator();
-				while (loc_it->hasNext()) {
-					void * neighbor = loc_it->next();
-					if (loc_act_map.contains(neighbor)) {
-						model_print("loc %p may eqaul to loc %p\n", loc, neighbor);
-						gen_predicate_and_follow(&curr_pred, next_inst, next_act, &loc_act_map, EQUALITY, neighbor);
-						may_equal = true;
-						break;
-					}
-				}
-			} 
 
-			if (!may_equal) {
-				if (!next_inst->is_single_location())
-					gen_predicate_and_follow(&curr_pred, next_inst, next_act, &loc_act_map, NULLITY, NULL);
-				else
-					gen_predicate_and_follow(&curr_pred, next_inst, next_act, &loc_act_map, UNSET, NULL);
+			if ( loc_act_map.contains(loc) ) {
+				ModelAction * last_act = loc_act_map.get(loc);
+				FuncInst * last_inst = get_inst(last_act);
+				struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
+				half_pred_expressions.push_back(expression);
+			} else if ( next_inst->is_single_location() ){
+				loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
+
+				if (loc_may_equal != NULL) {
+					loc_set_iter * loc_it = loc_may_equal->iterator();
+					while (loc_it->hasNext()) {
+						void * neighbor = loc_it->next();
+						if (loc_act_map.contains(neighbor)) {
+							ModelAction * last_act = loc_act_map.get(neighbor);
+							FuncInst * last_inst = get_inst(last_act);
+							struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
+							half_pred_expressions.push_back(expression);
+						}
+					}
+				} 
+			} else {
+				// next_inst is not single location
+				struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
+				half_pred_expressions.push_back(expression);
+			}
+
+			if (half_pred_expressions.size() == 0) {
+				// no predicate needs to be generated
+				Predicate * new_pred = new Predicate(next_inst);
+				curr_pred->add_child(new_pred);
+				new_pred->set_parent(curr_pred);
+
+				if (curr_pred->is_entry_predicate())
+					new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
+
+				curr_pred = new_pred;
+			} else {
+				generate_predicate(&curr_pred, next_inst, &half_pred_expressions);
+				bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map, NULL);
+				ASSERT(branch_found);
 			}
 		}
 
@@ -457,64 +475,43 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 	return branch_found;
 }
 
-void FuncNode::gen_predicate_and_follow(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act,
-		HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map, token_t token, void * loc)
+/* Able to generate complex predicates when there are multiple predciate expressions */
+void FuncNode::generate_predicate(Predicate ** curr_pred, FuncInst * next_inst,
+	SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
-	Predicate * new_pred1 = new Predicate(next_inst);
-	Predicate * new_pred2 = new Predicate(next_inst);
-	new_pred1->set_parent(*curr_pred);
-	new_pred2->set_parent(*curr_pred);
+	ASSERT(half_pred_expressions->size() != 0);
+	SnapVector<Predicate *> predicates;
 
-	uint64_t next_read = next_act->get_reads_from_value();
+	struct half_pred_expr * half_expr = (*half_pred_expressions)[0];
+	predicates.push_back(new Predicate(next_inst));
+	predicates.push_back(new Predicate(next_inst));
 
-	switch (token) {
-		case UNSET:
-			if ( (*curr_pred)->is_entry_predicate() )
-				new_pred1->add_predicate_expr(NOPREDICATE, NULL, true);
+	predicates[0]->add_predicate_expr(half_expr->token, half_expr->func_inst, true);
+	predicates[1]->add_predicate_expr(half_expr->token, half_expr->func_inst, false);
 
-			(*curr_pred)->add_child(new_pred1);
-			*curr_pred = new_pred1;
-			delete new_pred2;
+	for (uint i = 1; i < half_pred_expressions->size(); i++) {
+		half_expr = (*half_pred_expressions)[i];
 
-			break;
-		case EQUALITY:
-			ModelAction * last_act;
-			FuncInst * last_inst;
-			uint64_t last_read;
+		uint old_size = predicates.size();
+		for (uint j = 0; j < old_size; j++) {
+			Predicate * pred = predicates[j];
+			Predicate * new_pred = new Predicate(next_inst);
+			new_pred->copy_predicate_expr(pred);
 
-			last_act = loc_act_map->get(loc);
-			last_inst = get_inst(last_act);
-			last_read = last_act->get_reads_from_value();
+			pred->add_predicate_expr(half_expr->token, half_expr->func_inst, true);
+			new_pred->add_predicate_expr(half_expr->token, half_expr->func_inst, false);
 
-			new_pred1->add_predicate_expr(EQUALITY, last_inst, true);
-			new_pred2->add_predicate_expr(EQUALITY, last_inst, false);
-			(*curr_pred)->add_child(new_pred1);
-			(*curr_pred)->add_child(new_pred2);
+			predicates.push_back(new_pred);
+		}
+	}
 
-			if ( last_read == next_read )
-				*curr_pred = new_pred1;
-			else
-				*curr_pred = new_pred2;
-			break;
-		case NULLITY:
-			new_pred1->add_predicate_expr(NULLITY, NULL, true);
-			new_pred2->add_predicate_expr(NULLITY, NULL, false);
-			(*curr_pred)->add_child(new_pred1);
-			(*curr_pred)->add_child(new_pred2);
-
-			if ( (void*)next_read == NULL )
-				*curr_pred = new_pred1;
-			else
-				*curr_pred = new_pred2;
-			break;
-		default:
-			model_print("unknown predicate token\n");
-			delete new_pred1;
-			delete new_pred2;
-
-			break;
+	for (uint i = 0; i < predicates.size(); i++) {
+		Predicate * pred= predicates[i];
+		(*curr_pred)->add_child(pred);
+		pred->set_parent(*curr_pred);
 	}
 }
+
 
 void FuncNode::add_to_val_loc_map(uint64_t val, void * loc)
 {
