@@ -168,7 +168,6 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 	update_inst_tree(&inst_list);
 	update_predicate_tree(&read_act_list);
-//	deep_update(predicate_tree_entry);
 
 	print_predicate_tree();
 }
@@ -366,40 +365,6 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		loc_act_map.put(next_act->get_location(), next_act);
 		inst_act_map.put(next_inst, next_act);
 		it = it->getNext();
-	}
-}
-
-void FuncNode::deep_update(Predicate * curr_pred)
-{
-	FuncInst * func_inst = curr_pred->get_func_inst();
-	if (func_inst != NULL && !func_inst->is_single_location()) {
-		bool has_null_pred = false;
-		PredExprSet * pred_expressions = curr_pred->get_pred_expressions();
-		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
-		while (pred_expr_it->hasNext()) {
-			pred_expr * pred_expression = pred_expr_it->next();
-			if (pred_expression->token == NULLITY) {
-				has_null_pred = true;
-				break;
-			}
-		}
-
-		if (!has_null_pred) {
-//			func_inst->print();
-			Predicate * another_branch = new Predicate(func_inst);
-			another_branch->copy_predicate_expr(curr_pred);
-			another_branch->add_predicate_expr(NULLITY, NULL, 1);
-			curr_pred->add_predicate_expr(NULLITY, NULL, 0);
-
-			Predicate * parent = curr_pred->get_parent();
-			parent->add_child(another_branch);
-		}
-	}
-
-	ModelVector<Predicate *> * branches = curr_pred->get_children();
-	for (uint i = 0; i < branches->size(); i++) {
-		Predicate * branch = (*branches)[i];
-		deep_update(branch);
 	}
 }
 

@@ -223,6 +223,7 @@ void ModelHistory::add_to_loc_func_nodes_map(void * location, FuncNode * node)
 	func_node_list->push_back(node);
 }
 
+/* Reallocate some snapshotted memories when new executions start */
 void ModelHistory::set_new_exec_flag()
 {
 	for (uint i = 1; i < func_nodes.size(); i++) {
