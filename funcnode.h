@@ -37,10 +37,10 @@ public:
 	uint64_t query_last_read(void * location, uint32_t tid);
 	void clear_read_map(uint32_t tid);
 
-	/* TODO: generate EQUALITY or NULLITY predicate based on write_history in history.cc */
 	void update_predicate_tree(action_list_t * act_list);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<FuncInst *, ModelAction *, uintptr_t, 0>* inst_act_map, SnapVector<Predicate *> * unset_predicates);
 	void generate_predicate(Predicate ** curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
+	bool amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act);
 
 	void incr_exit_count() { exit_count++; }
 	uint32_t get_exit_count() { return exit_count; }
@@ -86,7 +86,6 @@ private:
 	 * val_loc_map: keep track of locations that have the same values written to;
 	 * loc_may_equal_map: deduced from val_loc_map;
 	 */
-
 	loc_set_t * read_locations;
 	HashTable<uint64_t, loc_set_t *, uint64_t, 0> * val_loc_map;
 	HashTable<void *, loc_set_t *, uintptr_t, 0> * loc_may_equal_map;

@@ -279,19 +279,23 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 	while (it != NULL) {
 		ModelAction * next_act = it->getVal();
 		FuncInst * next_inst = get_inst(next_act);
-		SnapVector<Predicate *> * unset_predicates = new SnapVector<Predicate *>();
 
-		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map, unset_predicates);
+		SnapVector<Predicate *> unset_predicates = SnapVector<Predicate *>();
+		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map, &unset_predicates);
 
-		// no predicate expressions, follow the only branch
-		if (!branch_found && unset_predicates->size() != 0) {
-			ASSERT(unset_predicates->size() == 1);
-			Predicate * one_branch = (*unset_predicates)[0];
-			curr_pred = one_branch;
-			branch_found = true;
+		// no predicate expressions
+		if (!branch_found && unset_predicates.size() != 0) {
+			ASSERT(unset_predicates.size() == 1);
+			Predicate * one_branch = unset_predicates[0];
+
+			bool amended = amend_predicate_expr(&curr_pred, next_inst, next_act);
+			if (amended)
+				continue;
+			else {
+				curr_pred = one_branch;
+				branch_found = true;
+			}
 		}
-
-		delete unset_predicates;
 
 		// detect loops
 		if (!branch_found && inst_id_map.contains(next_inst)) {
@@ -330,6 +334,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 						if (loc_act_map.contains(neighbor)) {
 							ModelAction * last_act = loc_act_map.get(neighbor);
 							FuncInst * last_inst = get_inst(last_act);
+
 							struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
 							half_pred_expressions.push_back(expression);
 						}
@@ -337,8 +342,13 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 				} 
 			} else {
 				// next_inst is not single location
-				struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
-				half_pred_expressions.push_back(expression);
+				uint64_t read_val = next_act->get_reads_from_value();
+
+				// only generate NULLITY predicate when it is actually NULL.
+				if ( (void*)read_val == NULL) {
+					struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
+					half_pred_expressions.push_back(expression);
+				}
 			}
 
 			if (half_pred_expressions.size() == 0) {
@@ -477,6 +487,28 @@ void FuncNode::generate_predicate(Predicate ** curr_pred, FuncInst * next_inst,
 	}
 }
 
+/* Amend predicates that contain no predicate expressions. Currenlty only amend with NULLITY predicates */
+bool FuncNode::amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act)
+{
+	// there should only be only child
+	Predicate * unset_pred = (*curr_pred)->get_children()->back();
+	uint64_t read_val = next_act->get_reads_from_value();
+
+	// only generate NULLITY predicate when it is actually NULL.
+	if ( !next_inst->is_single_location() && (void*)read_val == NULL ) {
+		Predicate * new_pred = new Predicate(next_inst);
+
+		(*curr_pred)->add_child(new_pred);
+		new_pred->set_parent(*curr_pred);
+
+		unset_pred->add_predicate_expr(NULLITY, NULL, false);
+		new_pred->add_predicate_expr(NULLITY, NULL, true);
+
+		return true;
+	}
+
+	return false;
+}
 
 void FuncNode::add_to_val_loc_map(uint64_t val, void * loc)
 {
