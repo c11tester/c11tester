@@ -15,6 +15,7 @@ class Scheduler;
 class Thread;
 class TraceAnalysis;
 class Fuzzer;
+class NewFuzzer;
 class FuncNode;
 class FuncInst;
 class Predicate;

@@ -1,13 +1,15 @@
-#ifndef FUZZER_H
-#define FUZZER_H
+#ifndef __NEWFUZZER_H__
+#define __NEWFUZZER_H__
+
+#include "fuzzer.h"
 #include "classlist.h"
 #include "mymemory.h"
 #include "stl-model.h"
 
-class Fuzzer {
+class NewFuzzer : public Fuzzer {
 public:
-	Fuzzer() {}
-	virtual int selectWrite(ModelAction *read, SnapVector<ModelAction *>* rf_set);
+	NewFuzzer() {}
+	int selectWrite(ModelAction *read, SnapVector<ModelAction *>* rf_set);
 	Thread * selectThread(int * threadlist, int numthreads);
 	Thread * selectNotify(action_list_t * waiters);
 	bool shouldSleep(const ModelAction *sleep);
@@ -15,4 +17,5 @@ public:
 	MEMALLOC
 private:
 };
-#endif
+
+#endif /* end of __NEWFUZZER_H__ */

@@ -15,6 +15,7 @@
 #include "bugmessage.h"
 #include "history.h"
 #include "fuzzer.h"
+#include "newfuzzer.h"
 
 #define INITIAL_THREAD_ID       0
 
@@ -64,7 +65,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
 	mo_graph(new CycleGraph()),
-	fuzzer(new Fuzzer()),
+	fuzzer(new NewFuzzer()),
 	thrd_func_list(),
 	thrd_func_act_lists(),
 	isfinished(false)
@@ -302,7 +303,6 @@ void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
 		ModelAction *rf = (*rf_set)[index];
-
 
 		ASSERT(rf);
 		bool canprune = false;
