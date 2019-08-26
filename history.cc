@@ -48,6 +48,9 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 
 	if ( func_nodes.size() <= func_id )
 		resize_func_nodes( func_id + 1 );
+
+	FuncNode * func_node = func_nodes[func_id];
+	func_node->init_predicate_tree_position(tid);
 }
 
 /* @param func_id a non-zero value */
@@ -63,12 +66,13 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 
 	if (last_func_id == func_id) {
 		FuncNode * func_node = func_nodes[func_id];
+		func_node->unset_predicate_tree_position(tid);
 		//func_node->clear_read_map(tid);
 
 		action_list_t * curr_act_list = func_act_lists->back();
 
 		/* defer the processing of curr_act_list until the function has exits a few times 
-		 * (currently 2 times) so that more information can be gathered to infer nullity predicates.
+		 * (currently twice) so that more information can be gathered to infer nullity predicates.
 		 */
 		func_node->incr_exit_count();
 		if (func_node->get_exit_count() >= 2) {
@@ -99,7 +103,7 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 	if ( old_size < new_size )
 		func_nodes.resize(new_size);
 
-	for (uint32_t id = old_size;id < new_size;id++) {
+	for (uint32_t id = old_size; id < new_size; id++) {
 		const char * func_name = func_map_rev[id];
 		FuncNode * func_node = new FuncNode(this);
 		func_node->set_func_id(id);

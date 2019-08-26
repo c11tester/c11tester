@@ -33,9 +33,9 @@ public:
 	void update_tree(action_list_t * act_list);
 	void update_inst_tree(func_inst_list_t * inst_list);
 
-	void store_read(ModelAction * act, uint32_t tid);
-	uint64_t query_last_read(void * location, uint32_t tid);
-	void clear_read_map(uint32_t tid);
+	void store_read(ModelAction * act, thread_id_t tid);
+	uint64_t query_last_read(void * location, thread_id_t tid);
+	void clear_read_map(thread_id_t tid);
 
 	void update_predicate_tree(action_list_t * act_list);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<FuncInst *, ModelAction *, uintptr_t, 0>* inst_act_map, SnapVector<Predicate *> * unset_predicates);
@@ -51,9 +51,13 @@ public:
 	void add_to_val_loc_map(value_set_t * values, void * loc);
 	void update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations);
 
+	void init_predicate_tree_position(thread_id_t tid);
+	void unset_predicate_tree_position(thread_id_t tid);
+	Predicate * get_predicate_tree_position(thread_id_t tid);
+
 	void print_predicate_tree();
 	void print_val_loc_map();
-	void print_last_read(uint32_t tid);
+	void print_last_read(thread_id_t tid);
 
 	MEMALLOC
 private:
@@ -89,7 +93,10 @@ private:
 	loc_set_t * read_locations;
 	HashTable<uint64_t, loc_set_t *, uint64_t, 0> * val_loc_map;
 	HashTable<void *, loc_set_t *, uintptr_t, 0> * loc_may_equal_map;
-	value_set_t * values_may_read_from;
+	// value_set_t * values_may_read_from;
+
+	/* run-time position in the predicate tree for each thread */
+	ModelVector<Predicate *> predicate_tree_position;
 };
 
 #endif /* __FUNCNODE_H__ */

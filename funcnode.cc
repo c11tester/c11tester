@@ -8,19 +8,20 @@ FuncNode::FuncNode(ModelHistory * history) :
 	inst_list(),
 	entry_insts(),
 //	thrd_read_map(),
-	action_list_buffer()
+	action_list_buffer(),
+	predicate_tree_position()
 {
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
 
-	// memory will be reclaimed after each execution
+	// memories that are reclaimed after each execution
 	read_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
-	values_may_read_from = new value_set_t();
+	//values_may_read_from = new value_set_t();
 }
 
-/* Reallocate some snapshotted memories when new executions start */
+/* Reallocate snapshotted memories when new executions start */
 void FuncNode::set_new_exec_flag()
 {
 //	for (uint i = 0; i < thrd_read_map.size(); i++)
@@ -28,13 +29,13 @@ void FuncNode::set_new_exec_flag()
 
 	for (mllnode<FuncInst *> * it = inst_list.begin(); it != NULL; it = it->getNext()) {
 		FuncInst * inst = it->getVal();
-		inst->reset_location();
+		inst->unset_location();
 	}
 
 	read_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
-	values_may_read_from = new value_set_t();
+	//values_may_read_from = new value_set_t();
 }
 
 /* Check whether FuncInst with the same type, position, and location
@@ -163,13 +164,13 @@ void FuncNode::update_tree(action_list_t * act_list)
 		}
 	}
 
-	model_print("function %s\n", func_name);
+//	model_print("function %s\n", func_name);
 //	print_val_loc_map();
 
 	update_inst_tree(&inst_list);
 	update_predicate_tree(&read_act_list);
 
-	print_predicate_tree();
+//	print_predicate_tree();
 }
 
 /** 
@@ -207,7 +208,7 @@ void FuncNode::update_inst_tree(func_inst_list_t * inst_list)
 
 /* @param tid thread id
  * Store the values read by atomic read actions into thrd_read_map */
-void FuncNode::store_read(ModelAction * act, uint32_t tid)
+void FuncNode::store_read(ModelAction * act, thread_id_t tid)
 {
 /*
 	ASSERT(act);
@@ -228,7 +229,7 @@ void FuncNode::store_read(ModelAction * act, uint32_t tid)
 */
 }
 
-uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
+uint64_t FuncNode::query_last_read(void * location, thread_id_t tid)
 {
 /*
 	if (thrd_read_map.size() <= tid)
@@ -249,7 +250,7 @@ uint64_t FuncNode::query_last_read(void * location, uint32_t tid)
  * Reset read map for a thread. This function shall only be called
  * when a thread exits a function
  */
-void FuncNode::clear_read_map(uint32_t tid)
+void FuncNode::clear_read_map(thread_id_t tid)
 {
 /*
 	if (thrd_read_map.size() <= tid)
@@ -521,7 +522,7 @@ void FuncNode::add_to_val_loc_map(uint64_t val, void * loc)
 
 	update_loc_may_equal_map(loc, locations);
 	locations->add(loc);
-	values_may_read_from->add(val);
+	// values_may_read_from->add(val);
 }
 
 void FuncNode::add_to_val_loc_map(value_set_t * values, void * loc)
@@ -558,6 +559,21 @@ void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_location
 	}
 }
 
+void FuncNode::init_predicate_tree_position(thread_id_t tid)
+{
+	uint thread_id = id_to_int(tid);
+	if (predicate_tree_position.size() <= thread_id)
+		predicate_tree_position.resize(thread_id + 1);
+
+	predicate_tree_position[thread_id] = predicate_tree_entry;
+}
+
+void FuncNode::unset_predicate_tree_position(thread_id_t tid)
+{
+	uint thread_id = id_to_int(tid);
+	predicate_tree_position[thread_id] = NULL;
+}
+
 void FuncNode::print_predicate_tree()
 {
 	model_print("digraph function_%s {\n", func_name);
@@ -567,6 +583,7 @@ void FuncNode::print_predicate_tree()
 
 void FuncNode::print_val_loc_map()
 {
+/*
 	value_set_iter * val_it = values_may_read_from->iterator();
 	while (val_it->hasNext()) {
 		uint64_t value = val_it->next();
@@ -580,13 +597,14 @@ void FuncNode::print_val_loc_map()
 		}
 		model_print("\n");
 	}
+*/
 }
 
 /* @param tid thread id
  * Print the values read by the last read actions for each memory location
  */
 /*
-void FuncNode::print_last_read(uint32_t tid)
+void FuncNode::print_last_read(thread_id_t tid)
 {
 	ASSERT(thrd_read_map.size() > tid);
 	read_map_t * read_map = thrd_read_map[tid];
