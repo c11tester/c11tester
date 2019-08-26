@@ -527,6 +527,9 @@ void FuncNode::add_to_val_loc_map(uint64_t val, void * loc)
 
 void FuncNode::add_to_val_loc_map(value_set_t * values, void * loc)
 {
+	if (values == NULL)
+		return;
+
 	value_set_iter * it = values->iterator();
 	while (it->hasNext()) {
 		uint64_t val = it->next();
@@ -572,6 +575,12 @@ void FuncNode::unset_predicate_tree_position(thread_id_t tid)
 {
 	uint thread_id = id_to_int(tid);
 	predicate_tree_position[thread_id] = NULL;
+}
+
+Predicate * FuncNode::get_predicate_tree_position(thread_id_t tid)
+{
+	uint thread_id = id_to_int(tid);
+	return predicate_tree_position[thread_id];
 }
 
 void FuncNode::print_predicate_tree()
