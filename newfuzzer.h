@@ -14,8 +14,13 @@ public:
 	Thread * selectNotify(action_list_t * waiters);
 	bool shouldSleep(const ModelAction *sleep);
 	bool shouldWake(const ModelAction *sleep);
+
+	void register_engine(ModelHistory * history, ModelExecution * execution);
+
 	MEMALLOC
 private:
+	ModelHistory * history;
+	ModelExecution * execution;
 };
 
 #endif /* end of __NEWFUZZER_H__ */

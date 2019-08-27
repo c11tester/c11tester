@@ -33,8 +33,8 @@ ModelChecker::ModelChecker() :
 	params(),
 	restart_flag(false),
 	scheduler(new Scheduler()),
-	execution(new ModelExecution(this, scheduler)),
 	history(new ModelHistory()),
+	execution(new ModelExecution(this, scheduler)),
 	execution_number(1),
 	trace_analyses(),
 	inspect_plugin(NULL)

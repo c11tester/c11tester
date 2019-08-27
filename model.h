@@ -76,9 +76,9 @@ private:
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
+	ModelHistory * history;
 	ModelExecution *execution;
 	Thread * init_thread;
-	ModelHistory *history;
 
 	int execution_number;
 
