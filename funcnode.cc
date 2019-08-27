@@ -150,12 +150,14 @@ void FuncNode::update_tree(action_list_t * act_list)
 		if (func_inst->is_read()) {
 			read_act_list.push_back(act);
 
-			/* the first time an action reads from some location, import all the values that have
+			/* If func_inst may only read_from a single location, then:
+			 *
+			 * The first time an action reads from some location, import all the values that have
 			 * been written to this location from ModelHistory and notify ModelHistory that this
-			 * FuncNode may read from this location. 
+			 * FuncNode may read from this location
 			 */
 			void * loc = act->get_location();
-			if (!read_locations->contains(loc)) {
+			if (!read_locations->contains(loc) && func_inst->is_single_location()) {
 				read_locations->add(loc);
 				value_set_t * write_values = write_history->get(loc);
 				add_to_val_loc_map(write_values, loc);
@@ -539,6 +541,9 @@ void FuncNode::add_to_val_loc_map(value_set_t * values, void * loc)
 
 void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations)
 {
+	if ( old_locations->contains(new_loc) )
+		return;
+
 	loc_set_t * neighbors = loc_may_equal_map->get(new_loc);
 
 	if (neighbors == NULL) {
