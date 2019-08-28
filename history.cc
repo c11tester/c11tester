@@ -6,7 +6,7 @@
 
 #include "model.h"
 #include "execution.h"
-
+#include "newfuzzer.h"
 
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
@@ -51,6 +51,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 
 	FuncNode * func_node = func_nodes[func_id];
 	func_node->init_predicate_tree_position(tid);
+	func_node->init_inst_act_map(tid);
 }
 
 /* @param func_id a non-zero value */
@@ -66,7 +67,8 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 
 	if (last_func_id == func_id) {
 		FuncNode * func_node = func_nodes[func_id];
-		func_node->unset_predicate_tree_position(tid);
+		func_node->set_predicate_tree_position(tid, NULL);
+		func_node->reset_inst_act_map(tid);
 		//func_node->clear_read_map(tid);
 
 		action_list_t * curr_act_list = func_act_lists->back();
@@ -149,30 +151,36 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (func_id == 0 || act->get_position() == NULL)
 		return;
 
+	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
+
+	action_list_t * curr_act_list = func_act_lists->back();
+	ASSERT(curr_act_list != NULL);
+
+	ModelAction * last_act = NULL;
+	if (curr_act_list->size() != 0)
+		last_act = curr_act_list->back();
+
+	// skip actions that are second part of a read modify write or actions with the same sequence number
+	if (second_part_of_rmw ||
+		(last_act != NULL && last_act->get_seq_number() == act->get_seq_number()) )
+		return;
+
 	if ( func_nodes.size() <= func_id )
 		resize_func_nodes( func_id + 1 );
 
 	FuncNode * func_node = func_nodes[func_id];
 
-//	if (act->is_read())
-//		func_node->store_read(act, tid);
-
 	/* add to curr_inst_list */
-	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
-	if (!second_part_of_rmw) {
-		action_list_t * curr_act_list = func_act_lists->back();
-		ASSERT(curr_act_list != NULL);
+	curr_act_list->push_back(act);
+	func_node->add_inst(act);
 
-		ModelAction * last_act = NULL;
-		if (curr_act_list->size() != 0)
-			last_act = curr_act_list->back();
+	if (act->is_read()) {
+		func_node->update_inst_act_map(tid, act);
 
-		// do not add actions with the same sequence number twice
-		if (last_act != NULL && last_act->get_seq_number() == act->get_seq_number())
-			return;
-
-		curr_act_list->push_back(act);
-		func_node->add_inst(act);
+		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
+		Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
+		func_node->set_predicate_tree_position(tid, selected_branch);
+		//func_node->store_read(act, tid);
 	}
 }
 

@@ -11,6 +11,7 @@ public:
 	NewFuzzer();
 	int selectWrite(ModelAction *read, SnapVector<ModelAction *>* rf_set);
 	void selectBranch(int thread_id, Predicate * curr_pred, FuncInst * read_inst);
+	Predicate * get_selected_child_branch(thread_id_t tid);
 
 	Thread * selectThread(int * threadlist, int numthreads);
 	Thread * selectNotify(action_list_t * waiters);
