@@ -18,6 +18,8 @@ FuncNode::FuncNode(ModelHistory * history) :
 	read_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
+	thrd_inst_act_map = new SnapVector<inst_act_map_t *>();
+
 	//values_may_read_from = new value_set_t();
 }
 
@@ -35,6 +37,8 @@ void FuncNode::set_new_exec_flag()
 	read_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
+	thrd_inst_act_map = new SnapVector<inst_act_map_t *>();
+
 	//values_may_read_from = new value_set_t();
 }
 
@@ -154,7 +158,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 			 *
 			 * The first time an action reads from some location, import all the values that have
 			 * been written to this location from ModelHistory and notify ModelHistory that this
-			 * FuncNode may read from this location
+			 * FuncNode may read from this location.
 			 */
 			void * loc = act->get_location();
 			if (!read_locations->contains(loc) && func_inst->is_single_location()) {
@@ -206,60 +210,6 @@ void FuncNode::update_inst_tree(func_inst_list_t * inst_list)
 
 		it = it->getNext();
 	}
-}
-
-/* @param tid thread id
- * Store the values read by atomic read actions into thrd_read_map */
-void FuncNode::store_read(ModelAction * act, thread_id_t tid)
-{
-/*
-	ASSERT(act);
-
-	void * location = act->get_location();
-	uint64_t read_from_val = act->get_reads_from_value();
-
-	// resize and initialize
-	uint32_t old_size = thrd_read_map.size();
-	if (old_size <= tid) {
-		thrd_read_map.resize(tid + 1);
-		for (uint32_t i = old_size; i < tid + 1;i++)
-			thrd_read_map[i] = new read_map_t();
-	}
-
-	read_map_t * read_map = thrd_read_map[tid];
-	read_map->put(location, read_from_val);
-*/
-}
-
-uint64_t FuncNode::query_last_read(void * location, thread_id_t tid)
-{
-/*
-	if (thrd_read_map.size() <= tid)
-		return VALUE_NONE;
-
-	read_map_t * read_map = thrd_read_map[tid];
-
-	// last read value not found
-	if ( !read_map->contains(location) )
-		return VALUE_NONE;
-
-	uint64_t read_val = read_map->get(location);
-	return read_val;
-*/
-}
-
-/* @param tid thread id
- * Reset read map for a thread. This function shall only be called
- * when a thread exits a function
- */
-void FuncNode::clear_read_map(thread_id_t tid)
-{
-/*
-	if (thrd_read_map.size() <= tid)
-		return;
-
-	thrd_read_map[tid]->reset();
-*/
 }
 
 void FuncNode::update_predicate_tree(action_list_t * act_list)
@@ -569,23 +519,58 @@ void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_location
 
 void FuncNode::init_predicate_tree_position(thread_id_t tid)
 {
-	uint thread_id = id_to_int(tid);
-	if (predicate_tree_position.size() <= thread_id)
+	int thread_id = id_to_int(tid);
+	if (predicate_tree_position.size() <= (uint) thread_id)
 		predicate_tree_position.resize(thread_id + 1);
 
 	predicate_tree_position[thread_id] = predicate_tree_entry;
 }
 
-void FuncNode::unset_predicate_tree_position(thread_id_t tid)
+void FuncNode::set_predicate_tree_position(thread_id_t tid, Predicate * pred)
 {
-	uint thread_id = id_to_int(tid);
-	predicate_tree_position[thread_id] = NULL;
+	int thread_id = id_to_int(tid);
+	predicate_tree_position[thread_id] = pred;
 }
 
 Predicate * FuncNode::get_predicate_tree_position(thread_id_t tid)
 {
-	uint thread_id = id_to_int(tid);
+	int thread_id = id_to_int(tid);
 	return predicate_tree_position[thread_id];
+}
+
+void FuncNode::init_inst_act_map(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	uint old_size = thrd_inst_act_map->size();
+
+	if (thrd_inst_act_map->size() <= (uint) thread_id) {
+		uint new_size = thread_id + 1;
+		thrd_inst_act_map->resize(new_size);
+
+		for (uint i = old_size; i < new_size; i++)
+			(*thrd_inst_act_map)[i] = new inst_act_map_t(128);
+	}
+}
+
+void FuncNode::reset_inst_act_map(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	inst_act_map_t * map = (*thrd_inst_act_map)[thread_id];
+	map->reset();
+}
+
+void FuncNode::update_inst_act_map(thread_id_t tid, ModelAction * read_act)
+{
+	int thread_id = id_to_int(tid);
+	inst_act_map_t * map = (*thrd_inst_act_map)[thread_id];
+	FuncInst * read_inst = get_inst(read_act);
+	map->put(read_inst, read_act);
+}
+
+inst_act_map_t * FuncNode::get_inst_act_map(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	return (*thrd_inst_act_map)[thread_id];
 }
 
 void FuncNode::print_predicate_tree()

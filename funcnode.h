@@ -10,6 +10,7 @@
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
 typedef HashTable<void *, uint64_t, uintptr_t, 4> read_map_t;
+typedef HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map_t;
 
 class FuncNode {
 public:
@@ -33,10 +34,6 @@ public:
 	void update_tree(action_list_t * act_list);
 	void update_inst_tree(func_inst_list_t * inst_list);
 
-	void store_read(ModelAction * act, thread_id_t tid);
-	uint64_t query_last_read(void * location, thread_id_t tid);
-	void clear_read_map(thread_id_t tid);
-
 	void update_predicate_tree(action_list_t * act_list);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<FuncInst *, ModelAction *, uintptr_t, 0>* inst_act_map, SnapVector<Predicate *> * unset_predicates);
 	void generate_predicate(Predicate ** curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
@@ -52,8 +49,13 @@ public:
 	void update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations);
 
 	void init_predicate_tree_position(thread_id_t tid);
-	void unset_predicate_tree_position(thread_id_t tid);
+	void set_predicate_tree_position(thread_id_t tid, Predicate * pred);
 	Predicate * get_predicate_tree_position(thread_id_t tid);
+
+	void init_inst_act_map(thread_id_t tid);
+	void reset_inst_act_map(thread_id_t tid);
+	void update_inst_act_map(thread_id_t tid, ModelAction * read_act);
+	inst_act_map_t * get_inst_act_map(thread_id_t tid);
 
 	void print_predicate_tree();
 	void print_val_loc_map();
@@ -97,6 +99,8 @@ private:
 
 	/* run-time position in the predicate tree for each thread */
 	ModelVector<Predicate *> predicate_tree_position;
+
+	SnapVector<inst_act_map_t *> * thrd_inst_act_map;
 };
 
 #endif /* __FUNCNODE_H__ */
