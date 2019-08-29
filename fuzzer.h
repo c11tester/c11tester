@@ -15,7 +15,7 @@ public:
 	bool shouldSleep(const ModelAction *sleep);
 	bool shouldWake(const ModelAction *sleep);
 	virtual void register_engine(ModelHistory * history, ModelExecution * execution) = 0;
-	MEMALLOC
+	SNAPSHOTALLOC
 private:
 };
 #endif

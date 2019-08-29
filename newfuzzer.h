@@ -23,7 +23,7 @@ public:
 
 	void register_engine(ModelHistory * history, ModelExecution * execution);
 
-	MEMALLOC
+	SNAPSHOTALLOC
 private:
 	ModelHistory * history;
 	ModelExecution * execution;
@@ -31,7 +31,7 @@ private:
 	SnapVector<ModelAction *> thrd_last_read_act;
 	SnapVector<Predicate *> thrd_curr_pred;
 	SnapVector<Predicate *> thrd_selected_child_branch;
-	SnapVector< SnapVector<ModelAction *> * > thrd_pruned_writes;
+	SnapVector< SnapVector<ModelAction *> *> thrd_pruned_writes;
 };
 
 #endif /* end of __NEWFUZZER_H__ */

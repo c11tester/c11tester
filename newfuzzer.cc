@@ -120,8 +120,6 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 		return false;
 
 	int thread_id = id_to_int(tid);
-	bool pruned = false;
-
 	uint old_size = thrd_pruned_writes.size();
 	if (thrd_pruned_writes.size() <= (uint) thread_id) {
 		uint new_size = thread_id + 1;
@@ -132,6 +130,7 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 	SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
 	pruned_writes->clear();	// clear the old pruned_writes set
 
+	bool pruned = false;
 	uint index = 0;
 	while ( index < rf_set->size() ) {
 		ModelAction * write_act = (*rf_set)[index];
@@ -143,7 +142,7 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 			uint64_t write_val = write_act->get_write_value();
 			bool equality;
 
-			// No predicate, return everything in the rf_set
+			// No predicate, return false
 			if (expression->token == NOPREDICATE)
 				return pruned;
 
