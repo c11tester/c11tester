@@ -180,7 +180,6 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
 		Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
 		func_node->set_predicate_tree_position(tid, selected_branch);
-		//func_node->store_read(act, tid);
 	}
 }
 
@@ -192,25 +191,6 @@ FuncNode * ModelHistory::get_func_node(uint32_t func_id)
 
 	return func_nodes[func_id];
 }
-
-/*
-uint64_t ModelHistory::query_last_read(void * location, thread_id_t tid)
-{
-	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
-	uint32_t id = id_to_int(tid);
-
-	ASSERT( thrd_func_list->size() > id );
-	uint32_t func_id = (*thrd_func_list)[id].back();
-	FuncNode * func_node = func_nodes[func_id];
-
-	uint64_t last_read_val = 0xdeadbeef;
-	if (func_node != NULL) {
-		last_read_val = func_node->query_last_read(location, tid);
-	}
-
-	return last_read_val;
-}
-*/
 
 void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
 {
