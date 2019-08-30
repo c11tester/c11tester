@@ -363,7 +363,7 @@ bool ModelChecker::should_terminate_execution()
 	/* Infeasible -> don't take any more steps */
 	if (execution->is_infeasible())
 		return true;
-	else if (execution->isfeasibleprefix() && execution->have_fatal_bug_reports()) {
+	else if (execution->isfeasibleprefix() && execution->have_bug_reports()) {
 		execution->set_assert();
 		return true;
 	} else if (execution->isFinished()) {

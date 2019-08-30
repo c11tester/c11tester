@@ -199,16 +199,6 @@ bool ModelExecution::have_bug_reports() const
 	return priv->bugs.size() != 0;
 }
 
-/** @return True, if any fatal bugs have been reported for this execution.
- *  Any bug other than a data race is considered a fatal bug. Data races
- *  are not considered fatal unless the number of races is exceeds
- *  a threshold (temporarily set as 15).
- */
-bool ModelExecution::have_fatal_bug_reports() const
-{
-	return priv->bugs.size() != 0;
-}
-
 SnapVector<bug_message *> * ModelExecution::get_bugs() const
 {
 	return &priv->bugs;

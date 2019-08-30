@@ -70,7 +70,6 @@ public:
 	bool assert_bug(const char *msg);
 
 	bool have_bug_reports() const;
-	bool have_fatal_bug_reports() const;
 
 	SnapVector<bug_message *> * get_bugs() const;
 
