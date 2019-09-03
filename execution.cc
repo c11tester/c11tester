@@ -293,6 +293,9 @@ void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
+		if (index == -1)	// no feasible write exists
+			return;
+
 		ModelAction *rf = (*rf_set)[index];
 
 		ASSERT(rf);
@@ -676,19 +679,14 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 
 	wake_up_sleeping_actions(curr);
 
-	/* Add the action to lists before any other model-checking tasks */
+	/* Add uninitialized actions to lists */
 	if (!second_part_of_rmw && curr->get_type() != NOOP)
-		add_action_to_lists(curr);
-
-	if (curr->is_write())
-		add_write_to_lists(curr);
+		add_uninit_action_to_lists(curr);
 
 	SnapVector<ModelAction *> * rf_set = NULL;
 	/* Build may_read_from set for newly-created actions */
 	if (newly_explored && curr->is_read())
 		rf_set = build_may_read_from(curr);
-
-	process_thread_action(curr);
 
 	if (curr->is_read() && !second_part_of_rmw) {
 		process_read(curr, rf_set);
@@ -696,6 +694,15 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	} else {
 		ASSERT(rf_set == NULL);
 	}
+
+	/* Add the action to lists */
+	if (!second_part_of_rmw && curr->get_type() != NOOP)
+		add_action_to_lists(curr);
+
+	if (curr->is_write())
+		add_write_to_lists(curr);
+
+	process_thread_action(curr);
 
 	if (curr->is_write())
 		process_write(curr);
@@ -1084,13 +1091,15 @@ ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
 }
 
 /**
- * Performs various bookkeeping operations for the current ModelAction. For
- * instance, adds action to the per-object, per-thread action vector and to the
- * action trace list of all thread actions.
+ * Performs various bookkeeping operations for the current ModelAction when it is
+ * the first atomic action occurred at its memory location.
  *
- * @param act is the ModelAction to add.
+ * For instance, adds uninitialized action to the per-object, per-thread action vector
+ * and to the action trace list of all thread actions.
+ *
+ * @param act is the ModelAction to process.
  */
-void ModelExecution::add_action_to_lists(ModelAction *act)
+void ModelExecution::add_uninit_action_to_lists(ModelAction *act)
 {
 	int tid = id_to_int(act->get_tid());
 	ModelAction *uninit = NULL;
@@ -1101,40 +1110,69 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		uninit_id = id_to_int(uninit->get_tid());
 		list->push_front(uninit);
 		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
-		if (uninit_id >= (int)vec->size()) {
+		if ((int)vec->size() <= uninit_id) {
 			int oldsize = (int) vec->size();
 			vec->resize(uninit_id + 1);
-			for(int i=oldsize;i<uninit_id+1;i++) {
-				new(&(*vec)[i]) action_list_t();
+			for(int i = oldsize; i < uninit_id + 1; i++) {
+				new (&(*vec)[i]) action_list_t();
 			}
 		}
 		(*vec)[uninit_id].push_front(uninit);
 	}
-	list->push_back(act);
 
 	// Update action trace, a total order of all actions
-	action_trace.push_back(act);
 	if (uninit)
 		action_trace.push_front(uninit);
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
-	if (tid >= (int)vec->size()) {
-		uint oldsize =vec->size();
+	if ((int)vec->size() <= tid) {
+		uint oldsize = vec->size();
 		vec->resize(priv->next_thread_id);
-		for(uint i=oldsize;i<priv->next_thread_id;i++)
+		for(uint i = oldsize; i < priv->next_thread_id; i++)
 			new (&(*vec)[i]) action_list_t();
 	}
-	(*vec)[tid].push_back(act);
 	if (uninit)
 		(*vec)[uninit_id].push_front(uninit);
 
 	// Update thrd_last_action, the last action taken by each thrad
 	if ((int)thrd_last_action.size() <= tid)
 		thrd_last_action.resize(get_num_threads());
-	thrd_last_action[tid] = act;
 	if (uninit)
 		thrd_last_action[uninit_id] = uninit;
+}
+
+
+/**
+ * Performs various bookkeeping operations for the current ModelAction. For
+ * instance, adds action to the per-object, per-thread action vector and to the
+ * action trace list of all thread actions.
+ *
+ * @param act is the ModelAction to add.
+ */
+void ModelExecution::add_action_to_lists(ModelAction *act)
+{
+	int tid = id_to_int(act->get_tid());
+	action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
+	list->push_back(act);
+
+	// Update action trace, a total order of all actions
+	action_trace.push_back(act);
+
+	// Update obj_thrd_map, a per location, per thread, order of actions
+	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
+	if ((int)vec->size() <= tid) {
+		uint oldsize = vec->size();
+		vec->resize(priv->next_thread_id);
+		for(uint i = oldsize; i < priv->next_thread_id; i++)
+			new (&(*vec)[i]) action_list_t();
+	}
+	(*vec)[tid].push_back(act);
+
+	// Update thrd_last_action, the last action taken by each thrad
+	if ((int)thrd_last_action.size() <= tid)
+		thrd_last_action.resize(get_num_threads());
+	thrd_last_action[tid] = act;
 
 	// Update thrd_last_fence_release, the last release fence taken by each thread
 	if (act->is_fence() && act->is_release()) {
@@ -1148,10 +1186,10 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		get_safe_ptr_action(&obj_map, mutex_loc)->push_back(act);
 
 		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, mutex_loc);
-		if (tid >= (int)vec->size()) {
+		if ((int)vec->size() <= tid) {
 			uint oldsize = vec->size();
 			vec->resize(priv->next_thread_id);
-			for(uint i=oldsize;i<priv->next_thread_id;i++)
+			for(uint i = oldsize; i < priv->next_thread_id; i++)
 				new (&(*vec)[i]) action_list_t();
 		}
 		(*vec)[tid].push_back(act);

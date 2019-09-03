@@ -121,6 +121,7 @@ private:
 	void read_from(ModelAction *act, ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
 
+	void add_uninit_action_to_lists(ModelAction *act);
 	void add_action_to_lists(ModelAction *act);
 	void add_normal_write_to_lists(ModelAction *act);
 	void add_write_to_lists(ModelAction *act);
