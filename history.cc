@@ -160,9 +160,11 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (curr_act_list->size() != 0)
 		last_act = curr_act_list->back();
 
-	// skip actions that are second part of a read modify write or actions with the same sequence number
-	if (second_part_of_rmw ||
-		(last_act != NULL && last_act->get_seq_number() == act->get_seq_number()) )
+	/* skip actions that are paused by fuzzer (sequence number is 0), 
+	 * that are second part of a read modify write or actions with the same sequence number */
+	modelclock_t curr_seq_number = act->get_seq_number();
+	if (curr_seq_number == 0 || second_part_of_rmw ||
+		(last_act != NULL && last_act->get_seq_number() == curr_seq_number) )
 		return;
 
 	if ( func_nodes.size() <= func_id )
