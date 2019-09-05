@@ -1671,7 +1671,7 @@ bool ModelExecution::is_enabled(thread_id_t tid) const
 Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) const
 {
 	/* Do not split atomic RMW */
-	if (curr->is_rmwr())
+	if (curr->is_rmwr() && !paused_by_fuzzer(curr))
 		return get_thread(curr);
 	/* Follow CREATE with the created thread */
 	/* which is not needed, because model.cc takes care of this */
@@ -1681,6 +1681,15 @@ Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) cons
 		return curr->get_thread_operand();
 	}
 	return NULL;
+}
+
+/** @param act A read atomic action */
+bool ModelExecution::paused_by_fuzzer(const ModelAction * act) const
+{
+	ASSERT(act->is_read());
+
+	// Actions paused by fuzzer have their sequence number reset to 0
+	return act->get_seq_number() == 0;
 }
 
 /**

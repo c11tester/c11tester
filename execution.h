@@ -200,6 +200,7 @@ private:
 	Fuzzer * fuzzer;
 
 	Thread * action_select_next_thread(const ModelAction *curr) const;
+	bool paused_by_fuzzer(const ModelAction * act) const;
 
 	/* thrd_func_list stores a list of function ids for each thread.
 	 * Each element in thrd_func_list stores the functions that
