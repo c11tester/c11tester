@@ -130,6 +130,12 @@ modelclock_t ModelExecution::get_next_seq_num()
 	return ++priv->used_sequence_numbers;
 }
 
+/** Restore the last used sequence number when actions of a thread are postponed by Fuzzer */
+void ModelExecution::restore_last_seq_num()
+{
+	priv->used_sequence_numbers--;
+}
+
 /**
  * @brief Should the current action wake up a given thread?
  *
@@ -282,7 +288,7 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
  * @param rf_set is the set of model actions we can possibly read from
  * @return True if processing this read updates the mo_graph.
  */
-void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
+bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
 {
 	SnapVector<const ModelAction *> * priorset = new SnapVector<const ModelAction *>();
 	bool hasnonatomicstore = hasNonAtomicStore(curr->get_location());
@@ -294,7 +300,7 @@ void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
 		if (index == -1)	// no feasible write exists
-			return;
+			return false;
 
 		ModelAction *rf = (*rf_set)[index];
 
@@ -311,7 +317,7 @@ void ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 				int tid = id_to_int(curr->get_tid());
 				(*obj_thrd_map.get(curr->get_location()))[tid].pop_back();
 			}
-			return;
+			return true;
 		}
 		priorset->clear();
 		(*rf_set)[index] = rf_set->back();
@@ -689,11 +695,12 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 		rf_set = build_may_read_from(curr);
 
 	if (curr->is_read() && !second_part_of_rmw) {
-		process_read(curr, rf_set);
+		bool success = process_read(curr, rf_set);
 		delete rf_set;
-	} else {
+		if (!success)
+			return curr;	// Do not add action to lists
+	} else
 		ASSERT(rf_set == NULL);
-	}
 
 	/* Add the action to lists */
 	if (!second_part_of_rmw && curr->get_type() != NOOP)

@@ -12,9 +12,10 @@ class NewFuzzer : public Fuzzer {
 public:
 	NewFuzzer();
 	int selectWrite(ModelAction *read, SnapVector<ModelAction *>* rf_set);
-	Predicate * selectBranch(thread_id_t tid, Predicate * curr_pred, FuncInst * read_inst);
 	Predicate * get_selected_child_branch(thread_id_t tid);
-	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map);
+	void conditional_sleep(Thread * thread);
+	bool has_paused_threads();
+	void wake_up_paused_threads(int * threadlist, int * numthreads);
 
 	Thread * selectThread(int * threadlist, int numthreads);
 	Thread * selectNotify(action_list_t * waiters);
@@ -32,6 +33,14 @@ private:
 	SnapVector<Predicate *> thrd_curr_pred;
 	SnapVector<Predicate *> thrd_selected_child_branch;
 	SnapVector< SnapVector<ModelAction *> *> thrd_pruned_writes;
+
+	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map);
+	Predicate * selectBranch(thread_id_t tid, Predicate * curr_pred, FuncInst * read_inst);
+
+	/* Threads put to sleep by NewFuzzer because no writes in rf_set satisfies the selected predicate.
+	 * Only used by selectWrite;
+	 */
+	SnapVector<Thread *> paused_thread_set;
 };
 
 #endif /* end of __NEWFUZZER_H__ */

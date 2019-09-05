@@ -122,6 +122,7 @@ public:
 
 	void copy_from_new(ModelAction *newaction);
 	void set_seq_number(modelclock_t num);
+	void reset_seq_number();
 	void set_try_lock(bool obtainedlock);
 	bool is_thread_start() const;
 	bool is_thread_join() const;

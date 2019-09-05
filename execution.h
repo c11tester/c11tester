@@ -93,6 +93,8 @@ public:
 	bool isFinished() {return isfinished;}
 	void setFinished() {isfinished = true;}
 
+	void restore_last_seq_num();
+
 	SNAPSHOTALLOC
 private:
 	int get_execution_number() const;
@@ -112,7 +114,7 @@ private:
 
 	bool next_execution();
 	bool initialize_curr_action(ModelAction **curr);
-	void process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
+	bool process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
 	void process_write(ModelAction *curr);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);

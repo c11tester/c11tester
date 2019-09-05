@@ -10,7 +10,8 @@ public:
 	Fuzzer() {}
 	virtual int selectWrite(ModelAction *read, SnapVector<ModelAction *>* rf_set);
 	virtual Predicate * get_selected_child_branch(thread_id_t tid) = 0;
-	Thread * selectThread(int * threadlist, int numthreads);
+	virtual bool has_paused_threads() { return false; }
+	virtual Thread * selectThread(int * threadlist, int numthreads);
 	Thread * selectNotify(action_list_t * waiters);
 	bool shouldSleep(const ModelAction *sleep);
 	bool shouldWake(const ModelAction *sleep);

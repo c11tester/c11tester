@@ -208,8 +208,8 @@ Thread * Scheduler::select_next_thread()
 			thread_list[avail_threads++] = i;
 	}
 
-	if (avail_threads == 0)
-		return NULL;// No threads availablex
+	if (avail_threads == 0 && !execution->getFuzzer()->has_paused_threads())
+		return NULL;	// No threads available
 
 	Thread * thread = execution->getFuzzer()->selectThread(thread_list, avail_threads);
 	curr_thread_index = id_to_int(thread->get_id());

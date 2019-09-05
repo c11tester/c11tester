@@ -219,6 +219,11 @@ void ModelAction::set_seq_number(modelclock_t num)
 	seq_number = num;
 }
 
+void ModelAction::reset_seq_number()
+{
+	seq_number = 0;
+}
+
 bool ModelAction::is_thread_start() const
 {
 	return type == THREAD_START;

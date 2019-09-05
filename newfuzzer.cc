@@ -4,12 +4,14 @@
 #include "action.h"
 #include "execution.h"
 #include "funcnode.h"
+#include "schedule.h"
 
 NewFuzzer::NewFuzzer() :
 	thrd_last_read_act(),
 	thrd_curr_pred(),
 	thrd_selected_child_branch(),
-	thrd_pruned_writes()
+	thrd_pruned_writes(),
+	paused_thread_set()
 {}
 
 /**
@@ -47,9 +49,21 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	// TODO: make this thread sleep if no write satisfies the chosen predicate
 	// if no read satisfies the selected predicate
 	if ( rf_set->size() == 0 ) {
+		Thread * read_thread = execution->get_thread(tid);
+		model_print("the %d read action of thread %d is unsuccessful\n", read->get_seq_number(), read_thread->get_id());
+
+		read_thread->set_pending(read);
+		read->reset_seq_number();	// revert some operations
+		execution->restore_last_seq_num();
+		
+		conditional_sleep(read_thread);
+		return -1;
+/*
 		SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
 		for (uint i = 0; i < pruned_writes->size(); i++)
 			rf_set->push_back( (*pruned_writes)[i] );
+		pruned_writes->clear();
+*/
 	}
 
 	ASSERT(rf_set->size() != 0);
@@ -185,4 +199,47 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 	}
 
 	return pruned;
+}
+
+/* @brief Put a thread to sleep because no writes in rf_set satisfies the selected predicate. 
+ *
+ * @param thread A thread whose last action is a read
+ */
+void NewFuzzer::conditional_sleep(Thread * thread)
+{
+	model->getScheduler()->add_sleep(thread);
+	paused_thread_set.push_back(thread);
+}
+
+bool NewFuzzer::has_paused_threads()
+{
+	return paused_thread_set.size() != 0;
+}
+
+Thread * NewFuzzer::selectThread(int * threadlist, int numthreads)
+{
+	if (numthreads == 0 && has_paused_threads()) {
+		wake_up_paused_threads(threadlist, &numthreads);
+		model_print("list size: %d\n", numthreads);
+		model_print("active t id: %d\n", threadlist[0]);
+	}
+
+	int random_index = random() % numthreads;
+	int thread = threadlist[random_index];
+	thread_id_t curr_tid = int_to_id(thread);
+	return model->get_thread(curr_tid);
+}
+
+void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
+{
+	int random_index = random() % paused_thread_set.size();
+	Thread * thread = paused_thread_set[random_index];
+	model->getScheduler()->remove_sleep(thread);
+
+	paused_thread_set[random_index] = paused_thread_set.back();
+	paused_thread_set.pop_back();
+
+	model_print("thread %d is woken up\n", thread->get_id());
+	threadlist[*numthreads] = thread->get_id();
+	(*numthreads)++;
 }
