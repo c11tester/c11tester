@@ -373,7 +373,27 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		}
 		break;
 	}
-	case ATOMIC_WAIT:
+	case ATOMIC_WAIT: {
+		/* wake up the other threads */
+		for (unsigned int i = 0;i < get_num_threads();i++) {
+			Thread *t = get_thread(int_to_id(i));
+			Thread *curr_thrd = get_thread(curr);
+			if (t->waiting_on() == curr_thrd && t->get_pending()->is_lock())
+				scheduler->wake(t);
+		}
+
+		/* unlock the lock - after checking who was waiting on it */
+		state->locked = NULL;
+
+		if (fuzzer->shouldWait(curr)) {
+			/* disable this thread */
+			get_safe_ptr_action(&condvar_waiters_map, curr->get_location())->push_back(curr);
+			scheduler->sleep(get_thread(curr));
+		}
+
+		break;
+	}
+	case ATOMIC_TIMEDWAIT:
 	case ATOMIC_UNLOCK: {
 		//TODO: FIX WAIT SITUATION...WAITS CAN SPURIOUSLY FAIL...TIMED WAITS SHOULD PROBABLY JUST BE THE SAME AS NORMAL WAITS...THINK ABOUT PROBABILITIES THOUGH....AS IN TIMED WAIT MUST FAIL TO GUARANTEE PROGRESS...NORMAL WAIT MAY FAIL...SO NEED NORMAL WAIT TO WORK CORRECTLY IN THE CASE IT SPURIOUSLY FAILS AND IN THE CASE IT DOESN'T...  TIMED WAITS MUST EVENMTUALLY RELEASE...
 
@@ -387,10 +407,6 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 
 		/* unlock the lock - after checking who was waiting on it */
 		state->locked = NULL;
-
-		if (!curr->is_wait())
-			break;/* The rest is only for ATOMIC_WAIT */
-
 		break;
 	}
 	case ATOMIC_NOTIFY_ALL: {

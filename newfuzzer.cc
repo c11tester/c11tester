@@ -52,8 +52,9 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		Thread * read_thread = execution->get_thread(tid);
 		model_print("the %d read action of thread %d is unsuccessful\n", read->get_seq_number(), read_thread->get_id());
 
+		// reset thread pending action and revert sequence numbers
 		read_thread->set_pending(read);
-		read->reset_seq_number();	// revert some operations
+		read->reset_seq_number();
 		execution->restore_last_seq_num();
 		
 		conditional_sleep(read_thread);
@@ -242,4 +243,9 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 	model_print("thread %d is woken up\n", thread->get_id());
 	threadlist[*numthreads] = thread->get_id();
 	(*numthreads)++;
+}
+
+bool NewFuzzer::shouldWait(const ModelAction * act)
+{
+	return random() & 1;
 }

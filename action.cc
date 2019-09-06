@@ -236,7 +236,7 @@ bool ModelAction::is_thread_join() const
 
 bool ModelAction::is_mutex_op() const
 {
-	return type == ATOMIC_LOCK || type == ATOMIC_TRYLOCK || type == ATOMIC_UNLOCK || type == ATOMIC_WAIT || type == ATOMIC_NOTIFY_ONE || type == ATOMIC_NOTIFY_ALL;
+	return type == ATOMIC_LOCK || type == ATOMIC_TRYLOCK || type == ATOMIC_UNLOCK || type == ATOMIC_WAIT || type == ATOMIC_TIMEDWAIT || type == ATOMIC_NOTIFY_ONE || type == ATOMIC_NOTIFY_ALL;
 }
 
 bool ModelAction::is_lock() const
@@ -250,7 +250,7 @@ bool ModelAction::is_sleep() const
 }
 
 bool ModelAction::is_wait() const {
-	return type == ATOMIC_WAIT;
+	return type == ATOMIC_WAIT || type == ATOMIC_TIMEDWAIT;
 }
 
 bool ModelAction::is_notify() const {
@@ -701,6 +701,7 @@ const char * ModelAction::get_type_str() const
 	case ATOMIC_UNLOCK: return "unlock";
 	case ATOMIC_TRYLOCK: return "trylock";
 	case ATOMIC_WAIT: return "wait";
+	case ATOMIC_TIMEDWAIT: return "timed wait";
 	case ATOMIC_NOTIFY_ONE: return "notify one";
 	case ATOMIC_NOTIFY_ALL: return "notify all";
 	case ATOMIC_ANNOTATION: return "annotation";

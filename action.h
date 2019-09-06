@@ -73,6 +73,7 @@ typedef enum action_type {
 	ATOMIC_NOTIFY_ONE,	// < A notify_one action
 	ATOMIC_NOTIFY_ALL,	// < A notify all action
 	ATOMIC_WAIT,	// < A wait action
+	ATOMIC_TIMEDWAIT,	// < A timed wait action
 	ATOMIC_ANNOTATION,	// < An annotation action to pass information to a trace analysis
 	NOOP	// no operation, which returns control to scheduler
 } action_type_t;

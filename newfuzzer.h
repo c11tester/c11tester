@@ -19,8 +19,9 @@ public:
 
 	Thread * selectThread(int * threadlist, int numthreads);
 	Thread * selectNotify(action_list_t * waiters);
-	bool shouldSleep(const ModelAction *sleep);
-	bool shouldWake(const ModelAction *sleep);
+	bool shouldSleep(const ModelAction * sleep);
+	bool shouldWake(const ModelAction * sleep);
+	bool shouldWait(const ModelAction * wait);
 
 	void register_engine(ModelHistory * history, ModelExecution * execution);
 

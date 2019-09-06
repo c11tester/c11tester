@@ -189,6 +189,8 @@ int pthread_cond_wait(pthread_cond_t *p_cond, pthread_mutex_t *p_mutex) {
 	ModelExecution *execution = model->get_execution();
 	if ( !execution->getCondMap()->contains(p_cond) )
 		pthread_cond_init(p_cond, NULL);
+	if ( !execution->getMutexMap()->contains(p_mutex) )
+		pthread_mutex_init(p_mutex, NULL);
 
 	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
 	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
@@ -198,8 +200,7 @@ int pthread_cond_wait(pthread_cond_t *p_cond, pthread_mutex_t *p_mutex) {
 }
 
 int pthread_cond_timedwait(pthread_cond_t *p_cond,
-													 pthread_mutex_t *p_mutex, const struct timespec *abstime) {
-// implement cond_timedwait as a noop and let the scheduler decide which thread goes next
+	pthread_mutex_t *p_mutex, const struct timespec *abstime) {
 	ModelExecution *execution = model->get_execution();
 
 	if ( !execution->getCondMap()->contains(p_cond) )
@@ -208,11 +209,12 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
 		pthread_mutex_init(p_mutex, NULL);
 
 	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
-//	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
+	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 
-	model->switch_to_master(new ModelAction(NOOP, std::memory_order_seq_cst, v));
-//	v->wait(*m);
-//	printf("timed_wait called\n");
+	model->switch_to_master(new ModelAction(ATOMIC_TIMEDWAIT, std::memory_order_seq_cst, v, (uint64_t) m));
+	m->lock();
+
+	// model_print("Timed_wait is called\n");
 	return 0;
 }
 

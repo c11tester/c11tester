@@ -15,6 +15,7 @@ public:
 	Thread * selectNotify(action_list_t * waiters);
 	bool shouldSleep(const ModelAction *sleep);
 	bool shouldWake(const ModelAction *sleep);
+	virtual bool shouldWait(const ModelAction *wait) = 0;
 	virtual void register_engine(ModelHistory * history, ModelExecution * execution) = 0;
 	SNAPSHOTALLOC
 private:
