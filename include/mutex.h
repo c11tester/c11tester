@@ -25,8 +25,6 @@ public:
 	bool try_lock();
 	void unlock();
 	struct mutex_state * get_state() {return &state;}
-	void initialize() { state.init = 1; }	// WL
-	bool is_initialized() { return state.init == 1; }
 
 private:
 	struct mutex_state state;
