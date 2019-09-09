@@ -82,9 +82,6 @@ private:
 	/* Possible entry atomic actions in this function */
 	func_inst_list_mt entry_insts;
 
-	/* Store the values read by atomic read actions per memory location for each thread */
-	//ModelVector<read_map_t *> thrd_read_map;
-
 	/* Store action_lists when calls to update_tree are deferred */
 	ModelList<action_list_t *> action_list_buffer;
 

@@ -7,7 +7,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-//	thrd_read_map(),
 	action_list_buffer(),
 	predicate_tree_position()
 {
@@ -26,9 +25,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 /* Reallocate snapshotted memories when new executions start */
 void FuncNode::set_new_exec_flag()
 {
-//	for (uint i = 0; i < thrd_read_map.size(); i++)
-//		thrd_read_map[i] = new read_map_t();
-
 	for (mllnode<FuncInst *> * it = inst_list.begin(); it != NULL; it = it->getNext()) {
 		FuncInst * inst = it->getVal();
 		inst->unset_location();
@@ -598,23 +594,3 @@ void FuncNode::print_val_loc_map()
 	}
 */
 }
-
-/* @param tid thread id
- * Print the values read by the last read actions for each memory location
- */
-/*
-void FuncNode::print_last_read(thread_id_t tid)
-{
-	ASSERT(thrd_read_map.size() > tid);
-	read_map_t * read_map = thrd_read_map[tid];
-
-	mllnode<void *> * it;
-	for (it = read_locations.begin();it != NULL;it=it->getNext()) {
-		if ( !read_map->contains(it->getVal()) )
-			break;
-
-		uint64_t read_val = read_map->get(it->getVal());
-		model_print("last read of thread %d at %p: 0x%x\n", tid, it->getVal(), read_val);
-	}
-}
-*/
