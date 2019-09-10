@@ -136,7 +136,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 	/* build inst_list from act_list for later processing */
 	func_inst_list_t inst_list;
-	action_list_t read_act_list;
+	action_list_t rw_act_list;
 
 	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL; it = it->getNext()) {
 		ModelAction * act = it->getVal();
@@ -147,9 +147,11 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 		inst_list.push_back(func_inst);
 
-		if (func_inst->is_read()) {
-			read_act_list.push_back(act);
+		if (func_inst->is_write())
+			rw_act_list.push_back(act);
 
+		if (func_inst->is_read()) {
+			rw_act_list.push_back(act);
 			/* If func_inst may only read_from a single location, then:
 			 *
 			 * The first time an action reads from some location, import all the values that have
@@ -170,7 +172,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 //	print_val_loc_map();
 
 	update_inst_tree(&inst_list);
-	update_predicate_tree(&read_act_list);
+	update_predicate_tree(&rw_act_list);
 
 //	print_predicate_tree();
 }
@@ -232,7 +234,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		SnapVector<Predicate *> unset_predicates = SnapVector<Predicate *>();
 		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map, &unset_predicates);
 
-		// no predicate expressions
+		// A branch with unset predicate expression is detected
 		if (!branch_found && unset_predicates.size() != 0) {
 			ASSERT(unset_predicates.size() == 1);
 			Predicate * one_branch = unset_predicates[0];
@@ -246,7 +248,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			}
 		}
 
-		// detect loops
+		// Detect loops
 		if (!branch_found && inst_id_map.contains(next_inst)) {
 			FuncInst * curr_inst = curr_pred->get_func_inst();
 			uint32_t curr_id = inst_id_map.get(curr_inst);
@@ -263,58 +265,49 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			}
 		}
 
-		// generate new branches
+		// Generate new branches
 		if (!branch_found) {
 			SnapVector<struct half_pred_expr *> half_pred_expressions;
 			void * loc = next_act->get_location();
 
-			if ( loc_act_map.contains(loc) ) {
-				ModelAction * last_act = loc_act_map.get(loc);
-				FuncInst * last_inst = get_inst(last_act);
-				struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
-				half_pred_expressions.push_back(expression);
-			} else if ( next_inst->is_single_location() ){
-				loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
-
-				if (loc_may_equal != NULL) {
-					loc_set_iter * loc_it = loc_may_equal->iterator();
-					while (loc_it->hasNext()) {
-						void * neighbor = loc_it->next();
-						if (loc_act_map.contains(neighbor)) {
-							ModelAction * last_act = loc_act_map.get(neighbor);
-							FuncInst * last_inst = get_inst(last_act);
-
-							struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
-							half_pred_expressions.push_back(expression);
-						}
-					}
-				} 
-			} else {
-				// next_inst is not single location
-				uint64_t read_val = next_act->get_reads_from_value();
-
-				// only generate NULLITY predicate when it is actually NULL.
-				if ( (void*)read_val == NULL) {
-					struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
+			if (next_act->is_read()) {
+				if ( loc_act_map.contains(loc) ) {
+					ModelAction * last_act = loc_act_map.get(loc);
+					FuncInst * last_inst = get_inst(last_act);
+					struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
 					half_pred_expressions.push_back(expression);
+				} else if ( next_inst->is_single_location() ){
+					loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
+
+					if (loc_may_equal != NULL) {
+						loc_set_iter * loc_it = loc_may_equal->iterator();
+						while (loc_it->hasNext()) {
+							void * neighbor = loc_it->next();
+							if (loc_act_map.contains(neighbor)) {
+								ModelAction * last_act = loc_act_map.get(neighbor);
+								FuncInst * last_inst = get_inst(last_act);
+
+								struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
+								half_pred_expressions.push_back(expression);
+							}
+						}
+					} 
+				} else {
+					// next_inst is not single location
+					uint64_t read_val = next_act->get_reads_from_value();
+
+					// only generate NULLITY predicate when it is actually NULL.
+					if ( (void*)read_val == NULL) {
+						struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
+						half_pred_expressions.push_back(expression);
+					}
 				}
-			}
-
-			if (half_pred_expressions.size() == 0) {
-				// no predicate needs to be generated
-				Predicate * new_pred = new Predicate(next_inst);
-				curr_pred->add_child(new_pred);
-				new_pred->set_parent(curr_pred);
-
-				if (curr_pred->is_entry_predicate())
-					new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
-
-				curr_pred = new_pred;
 			} else {
-				generate_predicate(&curr_pred, next_inst, &half_pred_expressions);
-				bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map, NULL);
-				ASSERT(branch_found);
+				// TODO: when next_act is a write action, do anything?
 			}
+
+			generate_predicate(&curr_pred, next_inst, &half_pred_expressions);
+			continue;
 		}
 
 		inst_pred_map.put(next_inst, curr_pred);
@@ -403,7 +396,21 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 void FuncNode::generate_predicate(Predicate ** curr_pred, FuncInst * next_inst,
 	SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
-	ASSERT(half_pred_expressions->size() != 0);
+	if (half_pred_expressions->size() == 0) {
+		Predicate * new_pred = new Predicate(next_inst);
+		(*curr_pred)->add_child(new_pred);
+		new_pred->set_parent(*curr_pred);
+
+		/* entry predicates and predicates containing write actions 
+		 * have no predicate expressions */
+		if ( (*curr_pred)->is_entry_predicate() )
+			new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
+		else if (next_inst->is_write())
+			new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
+
+		return;
+	}
+
 	SnapVector<Predicate *> predicates;
 
 	struct half_pred_expr * half_expr = (*half_pred_expressions)[0];

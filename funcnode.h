@@ -9,7 +9,6 @@
 #include "history.h"
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
-typedef HashTable<void *, uint64_t, uintptr_t, 4> read_map_t;
 typedef HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map_t;
 
 class FuncNode {
