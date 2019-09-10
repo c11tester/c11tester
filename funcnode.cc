@@ -268,45 +268,8 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		// Generate new branches
 		if (!branch_found) {
 			SnapVector<struct half_pred_expr *> half_pred_expressions;
-			void * loc = next_act->get_location();
-
-			if (next_act->is_read()) {
-				if ( loc_act_map.contains(loc) ) {
-					ModelAction * last_act = loc_act_map.get(loc);
-					FuncInst * last_inst = get_inst(last_act);
-					struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
-					half_pred_expressions.push_back(expression);
-				} else if ( next_inst->is_single_location() ){
-					loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
-
-					if (loc_may_equal != NULL) {
-						loc_set_iter * loc_it = loc_may_equal->iterator();
-						while (loc_it->hasNext()) {
-							void * neighbor = loc_it->next();
-							if (loc_act_map.contains(neighbor)) {
-								ModelAction * last_act = loc_act_map.get(neighbor);
-								FuncInst * last_inst = get_inst(last_act);
-
-								struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
-								half_pred_expressions.push_back(expression);
-							}
-						}
-					} 
-				} else {
-					// next_inst is not single location
-					uint64_t read_val = next_act->get_reads_from_value();
-
-					// only generate NULLITY predicate when it is actually NULL.
-					if ( (void*)read_val == NULL) {
-						struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
-						half_pred_expressions.push_back(expression);
-					}
-				}
-			} else {
-				// TODO: when next_act is a write action, do anything?
-			}
-
-			generate_predicate(&curr_pred, next_inst, &half_pred_expressions);
+			infer_predicates(next_inst, next_act, &loc_act_map, &half_pred_expressions);
+			generate_predicates(&curr_pred, next_inst, &half_pred_expressions);
 			continue;
 		}
 
@@ -392,8 +355,51 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 	return branch_found;
 }
 
+void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
+	HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map,
+	SnapVector<struct half_pred_expr *> * half_pred_expressions)
+{
+	void * loc = next_act->get_location();
+
+	if (next_inst->is_read()) {
+		if ( loc_act_map->contains(loc) ) {
+			ModelAction * last_act = loc_act_map->get(loc);
+			FuncInst * last_inst = get_inst(last_act);
+			struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
+			half_pred_expressions->push_back(expression);
+		} else if ( next_inst->is_single_location() ){
+			loc_set_t * loc_may_equal = loc_may_equal_map->get(loc);
+
+			if (loc_may_equal != NULL) {
+				loc_set_iter * loc_it = loc_may_equal->iterator();
+				while (loc_it->hasNext()) {
+					void * neighbor = loc_it->next();
+					if (loc_act_map->contains(neighbor)) {
+						ModelAction * last_act = loc_act_map->get(neighbor);
+						FuncInst * last_inst = get_inst(last_act);
+
+						struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
+						half_pred_expressions->push_back(expression);
+					}
+				}
+			}
+		} else {
+			// next_inst is not single location
+			uint64_t read_val = next_act->get_reads_from_value();
+
+			// only infer NULLITY predicate when it is actually NULL.
+			if ( (void*)read_val == NULL) {
+				struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
+				half_pred_expressions->push_back(expression);
+			}
+		}
+	} else {
+		// TODO: when next_act is a write action, do anything?
+	}
+}
+
 /* Able to generate complex predicates when there are multiple predciate expressions */
-void FuncNode::generate_predicate(Predicate ** curr_pred, FuncInst * next_inst,
+void FuncNode::generate_predicates(Predicate ** curr_pred, FuncInst * next_inst,
 	SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	if (half_pred_expressions->size() == 0) {
