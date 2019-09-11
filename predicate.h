@@ -66,6 +66,10 @@ public:
 	bool is_entry_predicate() { return entry_predicate; }
 	void set_entry_predicate() { entry_predicate = true; }
 
+	/* Whether func_inst does write or not */
+	bool is_write() { return does_write; }
+	void set_write(bool is_write) { does_write = is_write; }
+
 	void print_predicate();
 	void print_pred_subtree();
 
@@ -73,15 +77,16 @@ public:
 private:
 	FuncInst * func_inst;
 	bool entry_predicate;
+	bool does_write;
 
-	/* may have multiple predicate expressions */
+	/* May have multiple predicate expressions */
 	PredExprSet pred_expressions;
 	ModelVector<Predicate *> children;
 
-	/* only a single parent may exist */
+	/* Only a single parent may exist */
 	Predicate * parent;
 
-	/* may have multiple back edges, e.g. nested loops */
+	/* May have multiple back edges, e.g. nested loops */
 	PredSet backedges;
 };
 

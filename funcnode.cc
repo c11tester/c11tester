@@ -147,16 +147,23 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 		inst_list.push_back(func_inst);
 
-		if (func_inst->is_write())
+		/* NOTE: for rmw actions, func_inst and act may have different
+		 * action types because of action type conversion in ModelExecution
+		 * func_inst->is_write() <==> pure writes (excluding rmw) */
+		if (func_inst->is_write()) {
+			// model_print("write detected\n");
 			rw_act_list.push_back(act);
+		}
 
+		/* func_inst->is_read() <==> read + rmw */
 		if (func_inst->is_read()) {
 			rw_act_list.push_back(act);
 			/* If func_inst may only read_from a single location, then:
 			 *
-			 * The first time an action reads from some location, import all the values that have
-			 * been written to this location from ModelHistory and notify ModelHistory that this
-			 * FuncNode may read from this location.
+			 * The first time an action reads from some location,
+			 * import all the values that have been written to this
+			 * location from ModelHistory and notify ModelHistory
+			 * that this FuncNode may read from this location.
 			 */
 			void * loc = act->get_location();
 			if (!read_locations->contains(loc) && func_inst->is_single_location()) {
@@ -273,6 +280,9 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			continue;
 		}
 
+		if (next_act->is_write())
+			curr_pred->set_write(true);
+
 		inst_pred_map.put(next_inst, curr_pred);
 		if (!inst_id_map.contains(next_inst))
 			inst_id_map.put(next_inst, inst_counter++);
@@ -304,6 +314,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 		PredExprSet * pred_expressions = branch->get_pred_expressions();
 		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 
+		/* Only read and rmw actions my have unset predicate expressions */
 		if (pred_expressions->getSize() == 0) {
 			predicate_correct = false;
 			unset_predicates->push_back(branch);
@@ -355,6 +366,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 	return branch_found;
 }
 
+/* Infer predicate expressions, which are generated in FuncNode::generate_predicates */
 void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 	HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map,
 	SnapVector<struct half_pred_expr *> * half_pred_expressions)
@@ -362,6 +374,7 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 	void * loc = next_act->get_location();
 
 	if (next_inst->is_read()) {
+		/* read + rmw */
 		if ( loc_act_map->contains(loc) ) {
 			ModelAction * last_act = loc_act_map->get(loc);
 			FuncInst * last_inst = get_inst(last_act);
@@ -394,7 +407,8 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 			}
 		}
 	} else {
-		// TODO: when next_act is a write action, do anything?
+		/* Pure writes */
+		// TODO: do anything here?
 	}
 }
 
@@ -407,12 +421,14 @@ void FuncNode::generate_predicates(Predicate ** curr_pred, FuncInst * next_inst,
 		(*curr_pred)->add_child(new_pred);
 		new_pred->set_parent(*curr_pred);
 
-		/* entry predicates and predicates containing write actions 
+		/* entry predicates and predicates containing pure write actions
 		 * have no predicate expressions */
 		if ( (*curr_pred)->is_entry_predicate() )
 			new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
-		else if (next_inst->is_write())
+		else if (next_inst->is_write()) {
+			/* next_inst->is_write() <==> pure writes */
 			new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
+		}
 
 		return;
 	}
@@ -526,6 +542,7 @@ void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_location
 	}
 }
 
+/* Every time a thread enters a function, set its position to the predicate tree entry */
 void FuncNode::init_predicate_tree_position(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
@@ -541,12 +558,14 @@ void FuncNode::set_predicate_tree_position(thread_id_t tid, Predicate * pred)
 	predicate_tree_position[thread_id] = pred;
 }
 
+/* @return The position of a thread in a predicate tree */
 Predicate * FuncNode::get_predicate_tree_position(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
 	return predicate_tree_position[thread_id];
 }
 
+/* Make sure elements of thrd_inst_act_map are initialized properly when threads enter functions */
 void FuncNode::init_inst_act_map(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
@@ -561,6 +580,7 @@ void FuncNode::init_inst_act_map(thread_id_t tid)
 	}
 }
 
+/* Reset elements of thrd_inst_act_map when threads exit functions */
 void FuncNode::reset_inst_act_map(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);

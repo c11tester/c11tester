@@ -32,12 +32,8 @@ public:
 
 	void update_tree(action_list_t * act_list);
 	void update_inst_tree(func_inst_list_t * inst_list);
-
 	void update_predicate_tree(action_list_t * act_list);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<FuncInst *, ModelAction *, uintptr_t, 0> * inst_act_map, SnapVector<Predicate *> * unset_predicates);
-	void infer_predicates(FuncInst * next_inst, ModelAction * next_act, HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map, SnapVector<struct half_pred_expr *> * half_pred_expressions);
-	void generate_predicates(Predicate ** curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
-	bool amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act);
 
 	void incr_exit_count() { exit_count++; }
 	uint32_t get_exit_count() { return exit_count; }
@@ -82,21 +78,26 @@ private:
 	/* Possible entry atomic actions in this function */
 	func_inst_list_mt entry_insts;
 
+	void infer_predicates(FuncInst * next_inst, ModelAction * next_act, HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map, SnapVector<struct half_pred_expr *> * half_pred_expressions);
+	void generate_predicates(Predicate ** curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
+	bool amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act);
+
 	/* Store action_lists when calls to update_tree are deferred */
 	ModelList<action_list_t *> action_list_buffer;
 
 	/* read_locations: set of locations read by this FuncNode
 	 * val_loc_map: keep track of locations that have the same values written to;
-	 * loc_may_equal_map: deduced from val_loc_map;
-	 */
+	 * loc_may_equal_map: look up locations that may share the same value as key; 
+	 * 			deduced from val_loc_map;	*/
 	loc_set_t * read_locations;
 	HashTable<uint64_t, loc_set_t *, uint64_t, 0> * val_loc_map;
 	HashTable<void *, loc_set_t *, uintptr_t, 0> * loc_may_equal_map;
 	// value_set_t * values_may_read_from;
 
-	/* run-time position in the predicate tree for each thread */
+	/* Run-time position in the predicate tree for each thread */
 	ModelVector<Predicate *> predicate_tree_position;
 
+	/* A run-time map from FuncInst to ModelAction for each thread; needed by NewFuzzer */
 	SnapVector<inst_act_map_t *> * thrd_inst_act_map;
 };
 
