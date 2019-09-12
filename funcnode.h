@@ -38,7 +38,7 @@ public:
 	void incr_exit_count() { exit_count++; }
 	uint32_t get_exit_count() { return exit_count; }
 
-	ModelList<action_list_t *> * get_action_list_buffer() { return &action_list_buffer; }
+	SnapList<action_list_t *> * get_action_list_buffer() { return action_list_buffer; }
 
 	void add_to_val_loc_map(uint64_t val, void * loc);
 	void add_to_val_loc_map(value_set_t * values, void * loc);
@@ -83,7 +83,7 @@ private:
 	bool amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act);
 
 	/* Store action_lists when calls to update_tree are deferred */
-	ModelList<action_list_t *> action_list_buffer;
+	SnapList<action_list_t *> * action_list_buffer;
 
 	/* read_locations: set of locations read by this FuncNode
 	 * val_loc_map: keep track of locations that have the same values written to;

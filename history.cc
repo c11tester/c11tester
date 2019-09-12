@@ -69,7 +69,6 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 		FuncNode * func_node = func_nodes[func_id];
 		func_node->set_predicate_tree_position(tid, NULL);
 		func_node->reset_inst_act_map(tid);
-		//func_node->clear_read_map(tid);
 
 		action_list_t * curr_act_list = func_act_lists->back();
 
@@ -78,7 +77,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 		 */
 		func_node->incr_exit_count();
 		if (func_node->get_exit_count() >= 2) {
-			ModelList<action_list_t *> * action_list_buffer = func_node->get_action_list_buffer();
+			SnapList<action_list_t *> * action_list_buffer = func_node->get_action_list_buffer();
 			while (action_list_buffer->size() > 0) {
 				action_list_t * act_list = action_list_buffer->back();
 				action_list_buffer->pop_back();

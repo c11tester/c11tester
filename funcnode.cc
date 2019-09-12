@@ -7,13 +7,13 @@ FuncNode::FuncNode(ModelHistory * history) :
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	action_list_buffer(),
 	predicate_tree_position()
 {
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
 
 	// memories that are reclaimed after each execution
+	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
@@ -30,6 +30,7 @@ void FuncNode::set_new_exec_flag()
 		inst->unset_location();
 	}
 
+	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
