@@ -42,9 +42,10 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	}
 
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
-
-	(*thrd_func_list)[id].push_back(func_id);
 	func_act_lists->push_back( new action_list_t() );
+
+	uint32_t last_func_id = (*thrd_func_list)[id].back();
+	(*thrd_func_list)[id].push_back(func_id);
 
 	if ( func_nodes.size() <= func_id )
 		resize_func_nodes( func_id + 1 );
@@ -52,6 +53,12 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	FuncNode * func_node = func_nodes[func_id];
 	func_node->init_predicate_tree_position(tid);
 	func_node->init_inst_act_map(tid);
+
+	/* Add edges between FuncNodes */
+	if (last_func_id != 0) {
+		FuncNode * last_func_node = func_nodes[last_func_id];
+		add_edges_between(last_func_node, func_node);
+	}
 }
 
 /* @param func_id a non-zero value */
@@ -178,6 +185,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (act->is_read()) {
 		func_node->update_inst_act_map(tid, act);
 
+		// Update predicate tree position
 		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
 		Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
 		func_node->set_predicate_tree_position(tid, selected_branch);
@@ -223,6 +231,13 @@ void ModelHistory::set_new_exec_flag()
 		FuncNode * func_node = func_nodes[i];
 		func_node->set_new_exec_flag();
 	}
+}
+
+/* Add edges between FuncNodes */
+void ModelHistory::add_edges_between(FuncNode * prev_node, FuncNode * next_node)
+{
+	prev_node->add_out_edge(next_node);
+	next_node->add_in_edge(prev_node);
 }
 
 void ModelHistory::print_write()

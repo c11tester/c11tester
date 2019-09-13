@@ -2,12 +2,14 @@
 
 FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
-	predicate_tree_initialized(false),
 	exit_count(0),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	predicate_tree_position()
+	predicate_tree_position(),
+	edge_table(32),
+	out_edges(),
+	in_edges()
 {
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
@@ -602,6 +604,39 @@ inst_act_map_t * FuncNode::get_inst_act_map(thread_id_t tid)
 	int thread_id = id_to_int(tid);
 	return (*thrd_inst_act_map)[thread_id];
 }
+
+/* Add FuncNodes that this node may follow */
+void FuncNode::add_out_edge(FuncNode * other)
+{
+	if ( !edge_table.contains(other) ) {
+		edge_table.put(other, OUT_EDGE);
+		out_edges.push_back(other);
+		return;
+	}
+
+	edge_type_t edge = edge_table.get(other);
+	if (edge == IN_EDGE) {
+		edge_table.put(other, BI_EDGE);
+		out_edges.push_back(other);
+	}
+}
+
+/* Add FuncNodes that come before this node */
+void FuncNode::add_in_edge(FuncNode * other)
+{
+	if ( !edge_table.contains(other) ) {
+		edge_table.put(other, IN_EDGE);
+		in_edges.push_back(other);
+		return;
+	}
+
+	edge_type_t edge = edge_table.get(other);
+	if (edge == OUT_EDGE) {
+		edge_table.put(other, BI_EDGE);
+		in_edges.push_back(other);
+	}
+}
+
 
 void FuncNode::print_predicate_tree()
 {

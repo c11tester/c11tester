@@ -11,6 +11,10 @@
 typedef ModelList<FuncInst *> func_inst_list_mt;
 typedef HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map_t;
 
+typedef enum edge_type {
+	IN_EDGE, OUT_EDGE, BI_EDGE
+} edge_type_t;
+
 class FuncNode {
 public:
 	FuncNode(ModelHistory * history);
@@ -53,6 +57,9 @@ public:
 	void update_inst_act_map(thread_id_t tid, ModelAction * read_act);
 	inst_act_map_t * get_inst_act_map(thread_id_t tid);
 
+	void add_out_edge(FuncNode * other);
+	void add_in_edge(FuncNode * other);
+
 	void print_predicate_tree();
 	void print_val_loc_map();
 	void print_last_read(thread_id_t tid);
@@ -62,7 +69,6 @@ private:
 	uint32_t func_id;
 	const char * func_name;
 	ModelHistory * history;
-	bool predicate_tree_initialized;
 	Predicate * predicate_tree_entry;	// a dummy node whose children are the real entries
 
 	uint32_t exit_count;
@@ -99,6 +105,11 @@ private:
 
 	/* A run-time map from FuncInst to ModelAction for each thread; needed by NewFuzzer */
 	SnapVector<inst_act_map_t *> * thrd_inst_act_map;
+
+	/* Store the relation between this FuncNode and other FuncNodes */
+	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;
+	ModelList<FuncNode *> out_edges;	/* FuncNodes that follow this node */
+	ModelList<FuncNode *> in_edges;		/* FuncNodes that comes before this node */
 };
 
 #endif /* __FUNCNODE_H__ */

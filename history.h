@@ -51,6 +51,8 @@ private:
 
 	/* Map a location to FuncNodes that may read from it */
 	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 4> loc_func_nodes_map;
+
+	void add_edges_between(FuncNode * prev_node, FuncNode * next_node);
 };
 
 #endif	/* __HISTORY_H__ */
