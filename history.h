@@ -32,7 +32,7 @@ public:
 	void add_to_loc_func_nodes_map(void * location, FuncNode * node);
 
 	void set_new_exec_flag();
-	void print_write();
+	void dump_func_node_graph();
 	void print_func_node();
 
 	MEMALLOC
@@ -52,6 +52,7 @@ private:
 	/* Map a location to FuncNodes that may read from it */
 	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 4> loc_func_nodes_map;
 
+	SnapVector<uint32_t> thrd_last_entered_func;
 	void add_edges_between(FuncNode * prev_node, FuncNode * next_node);
 };
 

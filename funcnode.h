@@ -58,7 +58,7 @@ public:
 	inst_act_map_t * get_inst_act_map(thread_id_t tid);
 
 	void add_out_edge(FuncNode * other);
-	void add_in_edge(FuncNode * other);
+	ModelList<FuncNode *> * get_out_edges() { return &out_edges; }
 
 	void print_predicate_tree();
 	void print_val_loc_map();
@@ -109,7 +109,6 @@ private:
 	/* Store the relation between this FuncNode and other FuncNodes */
 	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;
 	ModelList<FuncNode *> out_edges;	/* FuncNodes that follow this node */
-	ModelList<FuncNode *> in_edges;		/* FuncNodes that comes before this node */
 };
 
 #endif /* __FUNCNODE_H__ */

@@ -8,8 +8,7 @@ FuncNode::FuncNode(ModelHistory * history) :
 	entry_insts(),
 	predicate_tree_position(),
 	edge_table(32),
-	out_edges(),
-	in_edges()
+	out_edges()
 {
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
@@ -620,23 +619,6 @@ void FuncNode::add_out_edge(FuncNode * other)
 		out_edges.push_back(other);
 	}
 }
-
-/* Add FuncNodes that come before this node */
-void FuncNode::add_in_edge(FuncNode * other)
-{
-	if ( !edge_table.contains(other) ) {
-		edge_table.put(other, IN_EDGE);
-		in_edges.push_back(other);
-		return;
-	}
-
-	edge_type_t edge = edge_table.get(other);
-	if (edge == OUT_EDGE) {
-		edge_table.put(other, BI_EDGE);
-		in_edges.push_back(other);
-	}
-}
-
 
 void FuncNode::print_predicate_tree()
 {

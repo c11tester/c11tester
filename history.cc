@@ -14,8 +14,9 @@ ModelHistory::ModelHistory() :
 	func_map(),
 	func_map_rev(),
 	func_nodes(),
-	write_history(),	// snapshot data structure
-	loc_func_nodes_map()	// shapshot data structure
+	write_history(),		// snapshot data structure
+	loc_func_nodes_map(),		// shapshot data structure
+	thrd_last_entered_func()	// snapshot data structure
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -29,22 +30,26 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	if ( thrd_func_list->size() <= id ) {
 		uint oldsize = thrd_func_list->size();
 		thrd_func_list->resize( id + 1 );
+		thrd_func_act_lists->resize( id + 1 );
+
 		for (uint i = oldsize; i < id + 1; i++) {
 			new (&(*thrd_func_list)[i]) func_id_list_t();
 			// push 0 as a dummy function id to a void seg fault
 			(*thrd_func_list)[i].push_back(0);
-		}
 
-		thrd_func_act_lists->resize( id + 1 );
-		for (uint i = oldsize; i < id + 1; i++) {
 			(*thrd_func_act_lists)[i] = new SnapList<action_list_t *>();
 		}
+	}
+
+	while (	thrd_last_entered_func.size() <= id ) {
+		thrd_last_entered_func.push_back(0);	// 0 is a dummy function id
 	}
 
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 	func_act_lists->push_back( new action_list_t() );
 
-	uint32_t last_func_id = (*thrd_func_list)[id].back();
+	uint32_t last_entered_func_id = thrd_last_entered_func[id];
+	thrd_last_entered_func[id] = func_id;
 	(*thrd_func_list)[id].push_back(func_id);
 
 	if ( func_nodes.size() <= func_id )
@@ -55,8 +60,8 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	func_node->init_inst_act_map(tid);
 
 	/* Add edges between FuncNodes */
-	if (last_func_id != 0) {
-		FuncNode * last_func_node = func_nodes[last_func_id];
+	if (last_entered_func_id != 0) {
+		FuncNode * last_func_node = func_nodes[last_entered_func_id];
 		add_edges_between(last_func_node, func_node);
 	}
 }
@@ -237,11 +242,23 @@ void ModelHistory::set_new_exec_flag()
 void ModelHistory::add_edges_between(FuncNode * prev_node, FuncNode * next_node)
 {
 	prev_node->add_out_edge(next_node);
-	next_node->add_in_edge(prev_node);
 }
 
-void ModelHistory::print_write()
+void ModelHistory::dump_func_node_graph()
 {
+	model_print("digraph func_node_graph {\n");
+	for (uint i = 1; i < func_nodes.size(); i++) {
+		FuncNode * node = func_nodes[i];
+		ModelList<FuncNode *> * out_edges = node->get_out_edges();
+
+		model_print("\"%p\" [label=\"%s\"]\n", node, node->get_func_name());
+		mllnode<FuncNode *> * it;
+		for (it = out_edges->begin(); it != NULL; it = it->getNext()) {
+			FuncNode * other = it->getVal();
+			model_print("\"%p\" -> \"%p\"\n", node, other);
+		}
+	}
+	model_print("}\n");
 }
 
 void ModelHistory::print_func_node()
@@ -258,15 +275,5 @@ void ModelHistory::print_func_node()
 			FuncInst *inst = it->getVal();
 			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
 		}
-/*
-                func_inst_list_mt * inst_list = funcNode->get_inst_list();
-
-                model_print("function %s has following actions\n", funcNode->get_func_name());
-                func_inst_list_mt::iterator it;
-                for (it = inst_list->begin(); it != inst_list->end(); it++) {
-                        FuncInst *inst = *it;
-                        model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
-                }
-*/
 	}
 }
