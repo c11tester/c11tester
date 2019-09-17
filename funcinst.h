@@ -48,7 +48,11 @@ private:
 	 * location only stores the memory location when this FuncInst was constructed.
 	 */
 	void * location;
+
+	/* NOTE: for rmw actions, func_inst and act may have different
+	 * action types because of action type conversion in ModelExecution */
 	action_type type;
+
 	memory_order order;
 	FuncNode * func_node;
 
@@ -66,4 +70,3 @@ private:
 };
 
 #endif	/* __FUNCINST_H__ */
-

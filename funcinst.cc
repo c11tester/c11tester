@@ -59,11 +59,14 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 }
 */
 
+/* Note: is_read() is equivalent to ModelAction::is_read() */
 bool FuncInst::is_read() const
 {
 	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS || type == ATOMIC_RMW;
 }
 
+/* Note: because of action type conversion in ModelExecution
+ * is_write() <==> pure writes (excluding rmw) */
 bool FuncInst::is_write() const
 {
 	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT || type == NONATOMIC_WRITE;
