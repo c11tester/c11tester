@@ -35,7 +35,7 @@ int nanosleep(const struct timespec *rqtp, struct timespec *rmtp) {
 }
 
 int pthread_create(pthread_t *t, const pthread_attr_t * attr,
-									 pthread_start_t start_routine, void * arg) {
+	 pthread_start_t start_routine, void * arg) {
 	if (!model) {
 		snapshot_system_init(10000, 1024, 1024, 40000);
 		model = new ModelChecker();
@@ -115,7 +115,7 @@ int pthread_mutex_lock(pthread_mutex_t *p_mutex) {
 	if (m != NULL) {
 		m->lock();
 	} else {
-		printf("ah\n");
+		return 1;
 	}
 
 	return 0;
@@ -140,30 +140,39 @@ int pthread_mutex_unlock(pthread_mutex_t *p_mutex) {
 		m->unlock();
 	} else {
 		printf("try to unlock an untracked pthread_mutex\n");
+		return 1;
 	}
 
 	return 0;
 }
 
 int pthread_mutex_timedlock (pthread_mutex_t *__restrict p_mutex,
-														 const struct timespec *__restrict abstime) {
+	 const struct timespec *__restrict abstime) {
 // timedlock just gives the option of giving up the lock, so return and let the scheduler decide which thread goes next
 
-/*
-        ModelExecution *execution = model->get_execution();
-        if (!execution->mutex_map.contains(p_mutex)) {
-                pthread_mutex_init(p_mutex, NULL);
-        }
-        cdsc::snapmutex *m = execution->mutex_map.get(p_mutex);
+	if (!model) {
+		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
 
-        if (m != NULL) {
-                m->lock();
-        } else {
-                printf("something is wrong with pthread_mutex_timedlock\n");
-        }
+	ModelExecution *execution = model->get_execution();
 
-        printf("pthread_mutex_timedlock is called. It is currently implemented as a normal lock operation without no timeout\n");
- */
+	/* to protect the case where PTHREAD_MUTEX_INITIALIZER is used
+	   instead of pthread_mutex_init, or where *p_mutex is not stored
+	   in the execution->mutex_map for some reason. */
+	if (!execution->getMutexMap()->contains(p_mutex)) {
+		pthread_mutex_init(p_mutex, NULL);
+	}
+
+	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
+
+	if (m != NULL) {
+		m->lock();
+	} else {
+		return 1;
+	}
+
 	return 0;
 }
 
