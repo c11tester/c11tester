@@ -27,9 +27,10 @@ public:
 	ModelVector<FuncNode *> * getFuncNodes() { return &func_nodes; }
 	FuncNode * get_func_node(uint32_t func_id);
 
-	void add_to_write_history(void * location, uint64_t write_val);
+	void update_write_history(void * location, uint64_t write_val);
 	HashTable<void *, value_set_t *, uintptr_t, 4> * getWriteHistory() { return &write_history; }
-	void add_to_loc_func_nodes_map(void * location, FuncNode * node);
+	void update_loc_func_nodes_map(void * location, FuncNode * node);
+	void update_loc_wr_func_nodes_map(void * location, FuncNode * node);
 
 	void set_new_exec_flag();
 	void dump_func_node_graph();
@@ -47,11 +48,16 @@ private:
 
 	ModelVector<FuncNode *> func_nodes;
 
+	/* Map a location to a set of values that have been written to it */
 	HashTable<void *, value_set_t *, uintptr_t, 4> write_history;
 
 	/* Map a location to FuncNodes that may read from it */
 	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 4> loc_func_nodes_map;
 
+	/* Map a location to FuncNodes that may write to it */
+	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 4> loc_wr_func_nodes_map;
+
+	/* Keeps track of the last function entered by each thread */
 	SnapVector<uint32_t> thrd_last_entered_func;
 	void add_edges_between(FuncNode * prev_node, FuncNode * next_node);
 };

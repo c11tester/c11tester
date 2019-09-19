@@ -13,9 +13,10 @@ FuncNode::FuncNode(ModelHistory * history) :
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
 
-	// memories that are reclaimed after each execution
+	// Memories that are reclaimed after each execution
 	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
+	write_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
 	thrd_inst_act_map = new SnapVector<inst_act_map_t *>();
@@ -33,6 +34,7 @@ void FuncNode::set_new_exec_flag()
 
 	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
+	write_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
 	thrd_inst_act_map = new SnapVector<inst_act_map_t *>();
@@ -143,23 +145,28 @@ void FuncNode::update_tree(action_list_t * act_list)
 	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL; it = it->getNext()) {
 		ModelAction * act = it->getVal();
 		FuncInst * func_inst = get_inst(act);
+		void * loc = act->get_location();
 
 		if (func_inst == NULL)
 			continue;
 
 		inst_list.push_back(func_inst);
+		bool act_added = false;
 
-		/* NOTE: for rmw actions, func_inst and act may have different
-		 * action types because of action type conversion in ModelExecution
-		 * func_inst->is_write() <==> pure writes (excluding rmw) */
-		if (func_inst->is_write()) {
-			// model_print("write detected\n");
+		if (act->is_write()) {
 			rw_act_list.push_back(act);
+			act_added = true;
+			if (!write_locations->contains(loc)) {
+				write_locations->add(loc);
+				history->update_loc_wr_func_nodes_map(loc, this);
+			}
+
 		}
 
-		/* func_inst->is_read() <==> read + rmw */
-		if (func_inst->is_read()) {
-			rw_act_list.push_back(act);
+		if (act->is_read()) {
+			if (!act_added)
+				rw_act_list.push_back(act);
+
 			/* If func_inst may only read_from a single location, then:
 			 *
 			 * The first time an action reads from some location,
@@ -167,12 +174,11 @@ void FuncNode::update_tree(action_list_t * act_list)
 			 * location from ModelHistory and notify ModelHistory
 			 * that this FuncNode may read from this location.
 			 */
-			void * loc = act->get_location();
 			if (!read_locations->contains(loc) && func_inst->is_single_location()) {
 				read_locations->add(loc);
 				value_set_t * write_values = write_history->get(loc);
 				add_to_val_loc_map(write_values, loc);
-				history->add_to_loc_func_nodes_map(loc, this);
+				history->update_loc_func_nodes_map(loc, this);
 			}
 		}
 	}

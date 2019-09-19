@@ -91,13 +91,18 @@ private:
 	/* Store action_lists when calls to update_tree are deferred */
 	SnapList<action_list_t *> * action_list_buffer;
 
-	/* read_locations: set of locations read by this FuncNode
-	 * val_loc_map: keep track of locations that have the same values written to;
-	 * loc_may_equal_map: look up locations that may share the same value as key; 
-	 * 			deduced from val_loc_map;	*/
+	/* Set of locations read by this FuncNode */
 	loc_set_t * read_locations;
+
+	/* Set of locations written to by this FuncNode */
+	loc_set_t * write_locations;
+
+	/* Keeps track of locations that have the same values written to */
 	HashTable<uint64_t, loc_set_t *, uint64_t, 0> * val_loc_map;
+
+	/* Keeps track of locations that may share the same value as key, deduced from val_loc_map */
 	HashTable<void *, loc_set_t *, uintptr_t, 0> * loc_may_equal_map;
+
 	// value_set_t * values_may_read_from;
 
 	/* Run-time position in the predicate tree for each thread */
@@ -108,7 +113,9 @@ private:
 
 	/* Store the relation between this FuncNode and other FuncNodes */
 	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;
-	ModelList<FuncNode *> out_edges;	/* FuncNodes that follow this node */
+
+	/* FuncNodes that follow this node */
+	ModelList<FuncNode *> out_edges;
 };
 
 #endif /* __FUNCNODE_H__ */

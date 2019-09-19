@@ -144,17 +144,16 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (act->is_write()) {
 		void * location = act->get_location();
 		uint64_t value = act->get_write_value();
-		add_to_write_history(location, value);
+		update_write_history(location, value);
 
-		/* update FuncNodes */
+		/* Update FuncNodes that may read from this location */
 		SnapList<FuncNode *> * func_nodes = loc_func_nodes_map.get(location);
-		sllnode<FuncNode *> * it = NULL;
-		if (func_nodes != NULL)
-			it = func_nodes->begin();
-
-		for (; it != NULL; it = it->getNext()) {
-			FuncNode * func_node = it->getVal();
-			func_node->add_to_val_loc_map(value, location);
+		if (func_nodes != NULL) {
+			sllnode<FuncNode *> * it = func_nodes->begin();
+			for (; it != NULL; it = it->getNext()) {
+				FuncNode * func_node = it->getVal();
+				func_node->add_to_val_loc_map(value, location);
+			}
 		}
 	}
 
@@ -167,19 +166,17 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	action_list_t * curr_act_list = func_act_lists->back();
 	ASSERT(curr_act_list != NULL);
 
-	ModelAction * last_act = NULL;
-	if (curr_act_list->size() != 0)
-		last_act = curr_act_list->back();
-
-	/* skip actions that are paused by fuzzer (sequence number is 0), 
-	 * that are second part of a read modify write or actions with the same sequence number */
 	modelclock_t curr_seq_number = act->get_seq_number();
-	if (curr_seq_number == 0 || second_part_of_rmw ||
-		(last_act != NULL && last_act->get_seq_number() == curr_seq_number) )
-		return;
+	/* Skip actions that are second part of a read modify write or actions with the same sequence number */
+	if (curr_act_list->size() != 0) {
+		ModelAction * last_act = curr_act_list->back();
+		if (second_part_of_rmw || last_act->get_seq_number() == curr_seq_number)
+			return;
+	}
 
-	if ( func_nodes.size() <= func_id )
-		resize_func_nodes( func_id + 1 );
+	/* skip actions that are paused by fuzzer (sequence number is 0) */
+	if (curr_seq_number == 0)
+		return;
 
 	FuncNode * func_node = func_nodes[func_id];
 
@@ -206,7 +203,7 @@ FuncNode * ModelHistory::get_func_node(uint32_t func_id)
 	return func_nodes[func_id];
 }
 
-void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
+void ModelHistory::update_write_history(void * location, uint64_t write_val)
 {
 	value_set_t * write_set = write_history.get(location);
 
@@ -218,9 +215,20 @@ void ModelHistory::add_to_write_history(void * location, uint64_t write_val)
 	write_set->add(write_val);
 }
 
-void ModelHistory::add_to_loc_func_nodes_map(void * location, FuncNode * node)
+void ModelHistory::update_loc_func_nodes_map(void * location, FuncNode * node)
 {
 	SnapList<FuncNode *> * func_node_list = loc_func_nodes_map.get(location);
+	if (func_node_list == NULL) {
+		func_node_list = new SnapList<FuncNode *>();
+		loc_func_nodes_map.put(location, func_node_list);
+	}
+
+	func_node_list->push_back(node);
+}
+
+void ModelHistory::update_loc_wr_func_nodes_map(void * location, FuncNode * node)
+{
+	SnapList<FuncNode *> * func_node_list = loc_wr_func_nodes_map.get(location);
 	if (func_node_list == NULL) {
 		func_node_list = new SnapList<FuncNode *>();
 		loc_func_nodes_map.put(location, func_node_list);
