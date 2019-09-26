@@ -291,12 +291,15 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		if (next_act->is_write())
 			curr_pred->set_write(true);
 
+		if (next_act->is_read()) {
+			loc_act_map.put(next_act->get_location(), next_act);
+			inst_act_map.put(next_inst, next_act);
+		}
+
 		inst_pred_map.put(next_inst, curr_pred);
 		if (!inst_id_map.contains(next_inst))
 			inst_id_map.put(next_inst, inst_counter++);
 
-		loc_act_map.put(next_act->get_location(), next_act);
-		inst_act_map.put(next_inst, next_act);
 		it = it->getNext();
 	}
 }
