@@ -230,13 +230,14 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 	if (act_list == NULL || act_list->size() == 0)
 		return;
 
-	/* map a FuncInst to the its predicate */
+	/* Map a FuncInst to the its predicate */
 	HashTable<FuncInst *, Predicate *, uintptr_t, 0> inst_pred_map(128);
 
-	// number FuncInsts to detect loops
+	// Number FuncInsts to detect loops
 	HashTable<FuncInst *, uint32_t, uintptr_t, 0> inst_id_map(128);
 	uint32_t inst_counter = 0;
 
+	/* Only need to store the locations of read actions */
 	HashTable<void *, ModelAction *, uintptr_t, 0> loc_act_map(128);
 	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map(128);
 
@@ -293,9 +294,9 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 
 		if (next_act->is_read()) {
 			loc_act_map.put(next_act->get_location(), next_act);
-			inst_act_map.put(next_inst, next_act);
 		}
 
+		inst_act_map.put(next_inst, next_act);
 		inst_pred_map.put(next_inst, curr_pred);
 		if (!inst_id_map.contains(next_inst))
 			inst_id_map.put(next_inst, inst_counter++);
@@ -473,6 +474,12 @@ void FuncNode::generate_predicates(Predicate ** curr_pred, FuncInst * next_inst,
 		Predicate * pred= predicates[i];
 		(*curr_pred)->add_child(pred);
 		pred->set_parent(*curr_pred);
+	}
+
+	/* Free memories allocated by infer_predicate */
+	for (uint i = 0; i < half_pred_expressions->size(); i++) {
+		struct half_pred_expr * tmp = (*half_pred_expressions)[i];
+		snapshot_free(tmp);
 	}
 }
 

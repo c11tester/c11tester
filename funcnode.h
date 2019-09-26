@@ -9,7 +9,6 @@
 #include "history.h"
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
-typedef HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map_t;
 
 typedef enum edge_type {
 	IN_EDGE, OUT_EDGE, BI_EDGE
