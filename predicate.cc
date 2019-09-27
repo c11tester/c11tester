@@ -58,6 +58,39 @@ void Predicate::copy_predicate_expr(Predicate * other)
 	}
 }
 
+/* Evaluate predicate expressions against the given inst_act_map */
+SnapVector<struct concrete_pred_expr> Predicate::evaluate(inst_act_map_t * inst_act_map)
+{
+	SnapVector<struct concrete_pred_expr> concrete_exprs;
+	PredExprSetIter * it = pred_expressions.iterator();
+
+	while (it->hasNext()) {
+		struct pred_expr * ptr = it->next();
+		uint64_t value = 0;
+
+		switch(ptr->token) {
+			case NOPREDICATE:
+				break;
+			case EQUALITY:
+				FuncInst * to_be_compared;
+				ModelAction * last_act;
+
+				to_be_compared = ptr->func_inst;
+				last_act = inst_act_map->get(to_be_compared);
+				value = last_act->get_reads_from_value();
+				break;
+			case NULLITY:
+				break;
+			default:
+				break;
+		}
+
+		concrete_exprs.push_back(concrete_pred_expr(ptr->token, value, ptr->value));
+	}
+
+	return concrete_exprs;
+}
+
 void Predicate::print_predicate()
 {
 	model_print("\"%p\" [shape=box, label=\"\n", this);

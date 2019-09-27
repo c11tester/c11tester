@@ -25,6 +25,8 @@ void NewFuzzer::register_engine(ModelHistory * history, ModelExecution *executio
 
 int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set)
 {
+//	return random() % rf_set->size();
+
 	thread_id_t tid = read->get_tid();
 	int thread_id = id_to_int(tid);
 
@@ -46,8 +48,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		prune_writes(tid, selected_branch, rf_set, inst_act_map);
 	}
 
-	// TODO: make this thread sleep if no write satisfies the chosen predicate
-	// if no read satisfies the selected predicate
+	// No write satisfies the selected predicate
 	if ( rf_set->size() == 0 ) {
 		Thread * read_thread = execution->get_thread(tid);
 		model_print("the %d read action of thread %d is unsuccessful\n", read->get_seq_number(), read_thread->get_id());
@@ -56,7 +57,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		read_thread->set_pending(read);
 		read->reset_seq_number();
 		execution->restore_last_seq_num();
-		
+
 		conditional_sleep(read_thread);
 		return -1;
 /*
@@ -147,39 +148,30 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 
 	bool pruned = false;
 	uint index = 0;
+	SnapVector<struct concrete_pred_expr> concrete_exprs = pred->evaluate(inst_act_map);
+
 	while ( index < rf_set->size() ) {
 		ModelAction * write_act = (*rf_set)[index];
+		uint64_t write_val = write_act->get_write_value();
 		bool satisfy_predicate = true;
 
-		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
-		while (pred_expr_it->hasNext()) {
-			struct pred_expr * expression = pred_expr_it->next();
-			uint64_t write_val = write_act->get_write_value();
+		for (uint i = 0; i < concrete_exprs.size(); i++) {
+			struct concrete_pred_expr concrete = concrete_exprs[i];
 			bool equality;
 
-			// No predicate, return false
-			if (expression->token == NOPREDICATE)
-				return pruned;
-
-			switch(expression->token) {
+			switch (concrete.token) {
+				case NOPREDICATE:
+					return false;
 				case EQUALITY:
-					FuncInst * to_be_compared;
-					ModelAction * last_act;
-					uint64_t last_read;
-
-					to_be_compared = expression->func_inst;
-					last_act = inst_act_map->get(to_be_compared);
-					last_read = last_act->get_reads_from_value();
-
-					equality = (write_val == last_read);
-					if (equality != expression->value)
+					equality = (write_val == concrete.value);
+					if (equality != concrete.equality)
 						satisfy_predicate = false;
 					break;
 				case NULLITY:
 					equality = ((void*)write_val == NULL);
-					if (equality != expression->value)
-						satisfy_predicate = false;
-					break;
+                                        if (equality != concrete.equality)
+                                                satisfy_predicate = false;
+                                        break;
 				default:
 					model_print("unknown predicate token\n");
 					break;
@@ -231,6 +223,7 @@ Thread * NewFuzzer::selectThread(int * threadlist, int numthreads)
 	return model->get_thread(curr_tid);
 }
 
+/* Force waking up one of threads paused by Fuzzer */
 void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 {
 	int random_index = random() % paused_thread_set.size();
@@ -243,6 +236,12 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 	model_print("thread %d is woken up\n", thread->get_id());
 	threadlist[*numthreads] = thread->get_id();
 	(*numthreads)++;
+}
+
+/* Notify one of conditional sleeping threads if the desired write is available */
+bool NewFuzzer::notify_conditional_sleep(Thread * thread)
+{
+
 }
 
 bool NewFuzzer::shouldWait(const ModelAction * act)

@@ -6,16 +6,12 @@
 #include "mymemory.h"
 #include "stl-model.h"
 
-typedef HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map_t;
-
 class NewFuzzer : public Fuzzer {
 public:
 	NewFuzzer();
 	int selectWrite(ModelAction *read, SnapVector<ModelAction *>* rf_set);
 	Predicate * get_selected_child_branch(thread_id_t tid);
-	void conditional_sleep(Thread * thread);
 	bool has_paused_threads();
-	void wake_up_paused_threads(int * threadlist, int * numthreads);
 
 	Thread * selectThread(int * threadlist, int numthreads);
 	Thread * selectNotify(action_list_t * waiters);
@@ -42,6 +38,10 @@ private:
 	 * Only used by selectWrite;
 	 */
 	SnapVector<Thread *> paused_thread_set;
+
+	void conditional_sleep(Thread * thread);
+	void wake_up_paused_threads(int * threadlist, int * numthreads);
+	bool notify_conditional_sleep(Thread * thread);
 };
 
 #endif /* end of __NEWFUZZER_H__ */

@@ -44,6 +44,19 @@ struct half_pred_expr {
 	SNAPSHOTALLOC
 };
 
+struct concrete_pred_expr {
+	concrete_pred_expr(token_t token, uint64_t value, bool equality) :
+		token(token),
+		value(value),
+		equality(equality)
+	{}
+
+	token_t token;
+	uint64_t value;
+	bool equality;
+
+	SNAPSHOTALLOC
+};
 
 class Predicate {
 public:
@@ -69,6 +82,8 @@ public:
 	/* Whether func_inst does write or not */
 	bool is_write() { return does_write; }
 	void set_write(bool is_write) { does_write = is_write; }
+
+	SnapVector<struct concrete_pred_expr> evaluate(inst_act_map_t * inst_act_map);
 
 	void print_predicate();
 	void print_pred_subtree();
