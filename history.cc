@@ -2,6 +2,7 @@
 #include "history.h"
 #include "action.h"
 #include "funcnode.h"
+#include "funcinst.h"
 #include "common.h"
 
 #include "model.h"
@@ -62,7 +63,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	/* Add edges between FuncNodes */
 	if (last_entered_func_id != 0) {
 		FuncNode * last_func_node = func_nodes[last_entered_func_id];
-		add_edges_between(last_func_node, func_node);
+		last_func_node->add_out_edge(func_node);
 	}
 }
 
@@ -244,12 +245,6 @@ void ModelHistory::set_new_exec_flag()
 		FuncNode * func_node = func_nodes[i];
 		func_node->set_new_exec_flag();
 	}
-}
-
-/* Add edges between FuncNodes */
-void ModelHistory::add_edges_between(FuncNode * prev_node, FuncNode * next_node)
-{
-	prev_node->add_out_edge(next_node);
 }
 
 void ModelHistory::dump_func_node_graph()

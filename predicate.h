@@ -1,7 +1,6 @@
 #ifndef __PREDICATE_H__
 #define __PREDICATE_H__
 
-#include "funcinst.h"
 #include "hashset.h"
 #include "predicatetypes.h"
 #include "classlist.h"

@@ -1,12 +1,15 @@
 #include "newfuzzer.h"
 #include "threads-model.h"
-#include "model.h"
 #include "action.h"
-#include "execution.h"
 #include "history.h"
 #include "funcnode.h"
-#include "schedule.h"
+#include "funcinst.h"
+#include "predicate.h"
 #include "concretepredicate.h"
+
+#include "model.h"
+#include "schedule.h"
+#include "execution.h"
 
 NewFuzzer::NewFuzzer() :
 	thrd_last_read_act(),

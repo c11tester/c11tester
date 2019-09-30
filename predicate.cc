@@ -1,3 +1,4 @@
+#include "funcinst.h"
 #include "predicate.h"
 #include "concretepredicate.h"
 

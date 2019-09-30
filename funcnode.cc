@@ -1,5 +1,8 @@
+#include "action.h"
 #include "history.h"
 #include "funcnode.h"
+#include "funcinst.h"
+#include "predicate.h"
 #include "concretepredicate.h"
 
 FuncNode::FuncNode(ModelHistory * history) :

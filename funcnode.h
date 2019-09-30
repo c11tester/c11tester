@@ -1,12 +1,9 @@
 #ifndef __FUNCNODE_H__
 #define __FUNCNODE_H__
 
-#include "action.h"
-#include "funcinst.h"
-#include "hashtable.h"
 #include "hashset.h"
-#include "predicate.h"
-#include "history.h"
+#include "classlist.h"
+#include "threads-model.h"
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
 

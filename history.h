@@ -3,8 +3,8 @@
 
 #include "stl-model.h"
 #include "common.h"
+#include "classlist.h"
 #include "hashtable.h"
-#include "hashset.h"
 #include "threads-model.h"
 
 class ModelHistory {
@@ -59,7 +59,6 @@ private:
 
 	/* Keeps track of the last function entered by each thread */
 	SnapVector<uint32_t> thrd_last_entered_func;
-	void add_edges_between(FuncNode * prev_node, FuncNode * next_node);
 };
 
 #endif	/* __HISTORY_H__ */
