@@ -5,6 +5,7 @@
 #include "execution.h"
 #include "funcnode.h"
 #include "schedule.h"
+#include "concretepredicate.h"
 
 NewFuzzer::NewFuzzer() :
 	thrd_last_read_act(),
@@ -241,7 +242,7 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 /* Notify one of conditional sleeping threads if the desired write is available */
 bool NewFuzzer::notify_conditional_sleep(Thread * thread)
 {
-
+	
 }
 
 bool NewFuzzer::shouldWait(const ModelAction * act)
