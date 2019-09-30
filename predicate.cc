@@ -1,4 +1,5 @@
 #include "predicate.h"
+#include "concretepredicate.h"
 
 Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
 	func_inst(func_inst),
@@ -59,9 +60,9 @@ void Predicate::copy_predicate_expr(Predicate * other)
 }
 
 /* Evaluate predicate expressions against the given inst_act_map */
-SnapVector<struct concrete_pred_expr> Predicate::evaluate(inst_act_map_t * inst_act_map)
+ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id_t tid)
 {
-	SnapVector<struct concrete_pred_expr> concrete_exprs;
+	ConcretePredicate * concrete = new ConcretePredicate(tid);
 	PredExprSetIter * it = pred_expressions.iterator();
 
 	while (it->hasNext()) {
@@ -85,11 +86,12 @@ SnapVector<struct concrete_pred_expr> Predicate::evaluate(inst_act_map_t * inst_
 				break;
 		}
 
-		concrete_exprs.push_back(concrete_pred_expr(ptr->token, value, ptr->value));
+		concrete->add_expression(ptr->token, value, ptr->value);
 	}
 
-	return concrete_exprs;
+	return concrete;
 }
+
 
 void Predicate::print_predicate()
 {

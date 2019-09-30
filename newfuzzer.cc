@@ -3,6 +3,7 @@
 #include "model.h"
 #include "action.h"
 #include "execution.h"
+#include "history.h"
 #include "funcnode.h"
 #include "schedule.h"
 #include "concretepredicate.h"
@@ -149,15 +150,17 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 
 	bool pruned = false;
 	uint index = 0;
-	SnapVector<struct concrete_pred_expr> concrete_exprs = pred->evaluate(inst_act_map);
+
+	ConcretePredicate * concrete_pred = pred->evaluate(inst_act_map, tid);
+	SnapVector<struct concrete_pred_expr> * concrete_exprs = concrete_pred->getExpressions();
 
 	while ( index < rf_set->size() ) {
 		ModelAction * write_act = (*rf_set)[index];
 		uint64_t write_val = write_act->get_write_value();
 		bool satisfy_predicate = true;
 
-		for (uint i = 0; i < concrete_exprs.size(); i++) {
-			struct concrete_pred_expr concrete = concrete_exprs[i];
+		for (uint i = 0; i < concrete_exprs->size(); i++) {
+			struct concrete_pred_expr concrete = (*concrete_exprs)[i];
 			bool equality;
 
 			switch (concrete.token) {

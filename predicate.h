@@ -4,6 +4,7 @@
 #include "funcinst.h"
 #include "hashset.h"
 #include "predicatetypes.h"
+#include "classlist.h"
 
 unsigned int pred_expr_hash (struct pred_expr *);
 bool pred_expr_equal(struct pred_expr *, struct pred_expr *);
@@ -35,7 +36,7 @@ public:
 	bool is_write() { return does_write; }
 	void set_write(bool is_write) { does_write = is_write; }
 
-	SnapVector<struct concrete_pred_expr> evaluate(inst_act_map_t * inst_act_map);
+	ConcretePredicate * evaluate(inst_act_map_t * inst_act_map, thread_id_t tid);
 
 	void print_predicate();
 	void print_pred_subtree();

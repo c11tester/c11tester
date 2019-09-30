@@ -1,7 +1,7 @@
 #include "concretepredicate.h"
 
-ConcretePredicate::ConcretePredicate(void * loc) :
-	location(loc),
+ConcretePredicate::ConcretePredicate(thread_id_t tid) :
+	tid(tid),
 	expressions()
 {}
 

@@ -1,4 +1,6 @@
+#include "history.h"
 #include "funcnode.h"
+#include "concretepredicate.h"
 
 FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
@@ -331,9 +333,10 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 			unset_predicates->push_back(branch);
 		}
 
-		SnapVector<struct concrete_pred_expr> concrete_exprs = branch->evaluate(inst_act_map);
-		for (uint i = 0; i < concrete_exprs.size(); i++) {
-			struct concrete_pred_expr concrete = concrete_exprs[i];
+		ConcretePredicate * concrete_pred = branch->evaluate(inst_act_map, next_act->get_tid());
+		SnapVector<struct concrete_pred_expr> * concrete_exprs = concrete_pred->getExpressions();
+		for (uint i = 0; i < concrete_exprs->size(); i++) {
+			struct concrete_pred_expr concrete = (*concrete_exprs)[i];
 			uint64_t next_read;
 			bool equality;
 

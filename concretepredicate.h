@@ -2,12 +2,13 @@
 #define __CONCRETE_PREDICATE_H__
 
 #include <inttypes.h>
+#include "modeltypes.h"
 #include "classlist.h"
 #include "predicatetypes.h"
 
 class ConcretePredicate {
 public:
-	ConcretePredicate(void * loc);
+	ConcretePredicate(thread_id_t tid);
 	~ConcretePredicate();
 
 	void add_expression(token_t token, uint64_t value, bool equality);
@@ -16,6 +17,7 @@ public:
 
 	SNAPSHOTALLOC
 private:
+	thread_id_t tid;
 	void * location;
 	SnapVector<struct concrete_pred_expr> expressions;
 };

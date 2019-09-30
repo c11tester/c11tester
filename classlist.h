@@ -19,6 +19,7 @@ class NewFuzzer;
 class FuncNode;
 class FuncInst;
 class Predicate;
+class ConcretePredicate;
 
 struct model_snapshot_members;
 struct bug_message;
