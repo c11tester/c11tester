@@ -93,7 +93,6 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 	return concrete;
 }
 
-
 void Predicate::print_predicate()
 {
 	model_print("\"%p\" [shape=box, label=\"\n", this);

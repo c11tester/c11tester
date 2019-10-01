@@ -365,6 +365,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 					break;
 			}
 		}
+		delete concrete_pred;
 
 		if (predicate_correct) {
 			*curr_pred = branch;
