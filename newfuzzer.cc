@@ -16,7 +16,8 @@ NewFuzzer::NewFuzzer() :
 	thrd_curr_pred(),
 	thrd_selected_child_branch(),
 	thrd_pruned_writes(),
-	paused_thread_set()
+	paused_thread_set(),
+	paused_thread_table(128)
 {}
 
 /**
@@ -42,9 +43,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	if (read != thrd_last_read_act[thread_id]) {
 		thrd_last_read_act[thread_id] = read;
 
-		SnapVector<func_id_list_t> * thrd_func_list = execution->get_thrd_func_list();
-		uint32_t func_id = (*thrd_func_list)[thread_id].back();
-		FuncNode * func_node = history->get_func_node(func_id);
+		FuncNode * func_node = history->get_curr_func_node(tid);
 		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
 		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
 		FuncInst * read_inst = func_node->get_inst(read);
@@ -53,7 +52,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		prune_writes(tid, selected_branch, rf_set, inst_act_map);
 	}
 
-	// No write satisfies the selected predicate
+	// No write satisfies the selected predicate, so pause this thread.
 	if ( rf_set->size() == 0 ) {
 		Thread * read_thread = execution->get_thread(tid);
 		model_print("the %d read action of thread %d is unsuccessful\n", read->get_seq_number(), read_thread->get_id());
@@ -198,6 +197,8 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 			index++;
 	}
 
+	delete concrete_pred;
+
 	return pruned;
 }
 
@@ -207,8 +208,23 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
  */
 void NewFuzzer::conditional_sleep(Thread * thread)
 {
+	int index = paused_thread_set.size();
+
 	model->getScheduler()->add_sleep(thread);
 	paused_thread_set.push_back(thread);
+	paused_thread_table.put(thread, index);	// Update table
+
+	/*  */
+	ModelAction * read = thread->get_pending();
+	thread_id_t tid = thread->get_id();
+	FuncNode * func_node = history->get_curr_func_node(tid);
+	inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
+
+	Predicate * selected_branch = get_selected_child_branch(tid);
+	ConcretePredicate * concrete = selected_branch->evaluate(inst_act_map, tid);
+	concrete->set_location(read->get_location());
+
+	history->add_waiting_write(concrete);
 }
 
 bool NewFuzzer::has_paused_threads()
@@ -230,25 +246,45 @@ Thread * NewFuzzer::selectThread(int * threadlist, int numthreads)
 	return model->get_thread(curr_tid);
 }
 
-/* Force waking up one of threads paused by Fuzzer */
+/* Force waking up one of threads paused by Fuzzer, because otherwise
+ * the Fuzzer is not making progress
+ */
 void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 {
 	int random_index = random() % paused_thread_set.size();
 	Thread * thread = paused_thread_set[random_index];
 	model->getScheduler()->remove_sleep(thread);
 
-	paused_thread_set[random_index] = paused_thread_set.back();
+	Thread * last_thread = paused_thread_set.back();
+	paused_thread_set[random_index] = last_thread;
 	paused_thread_set.pop_back();
+	paused_thread_table.put(last_thread, random_index);	// Update table
+	paused_thread_table.remove(thread);
 
-	model_print("thread %d is woken up\n", thread->get_id());
-	threadlist[*numthreads] = thread->get_id();
+	thread_id_t tid = thread->get_id();
+	history->remove_waiting_write(tid);
+
+	model_print("thread %d is woken up\n", tid);
+	threadlist[*numthreads] = tid;
 	(*numthreads)++;
 }
 
-/* Notify one of conditional sleeping threads if the desired write is available */
-bool NewFuzzer::notify_conditional_sleep(Thread * thread)
+/* Wake up conditional sleeping threads if the desired write is available */
+void NewFuzzer::notify_paused_thread(Thread * thread)
 {
-	
+	ASSERT(paused_thread_table.contains(thread));
+
+	int index = paused_thread_table.get(thread);
+	model->getScheduler()->remove_sleep(thread);
+
+	Thread * last_thread = paused_thread_set.back();
+	paused_thread_set[index] = last_thread;
+	paused_thread_set.pop_back();
+	paused_thread_table.put(last_thread, index);	// Update table
+	paused_thread_table.remove(thread);
+
+	thread_id_t tid = thread->get_id();
+	history->remove_waiting_write(tid);
 }
 
 bool NewFuzzer::shouldWait(const ModelAction * act)

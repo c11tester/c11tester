@@ -13,7 +13,9 @@ public:
 
 	void add_expression(token_t token, uint64_t value, bool equality);
 	SnapVector<struct concrete_pred_expr> * getExpressions() { return &expressions; }
+	void set_location(void * loc) { location = loc; }
 	void * get_location() { return location; }
+	thread_id_t get_tid() { return tid; }
 
 	SNAPSHOTALLOC
 private:

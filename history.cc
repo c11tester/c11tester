@@ -4,6 +4,7 @@
 #include "funcnode.h"
 #include "funcinst.h"
 #include "common.h"
+#include "concretepredicate.h"
 
 #include "model.h"
 #include "execution.h"
@@ -17,7 +18,10 @@ ModelHistory::ModelHistory() :
 	func_nodes(),
 	write_history(),		// snapshot data structure
 	loc_func_nodes_map(),		// shapshot data structure
-	thrd_last_entered_func()	// snapshot data structure
+	loc_wr_func_nodes_map(),	// shapshot data structure
+	thrd_last_entered_func(),	// snapshot data structure
+	loc_waiting_writes_map(),	// snapshot data structure
+	thrd_waiting_write()		// snapshot data structure
 {}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -156,6 +160,8 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 				func_node->add_to_val_loc_map(value, location);
 			}
 		}
+
+		check_waiting_write(act);
 	}
 
 	/* the following does not care about actions without a position */
@@ -195,13 +201,24 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	}
 }
 
-/* return the FuncNode given its func_id  */
+/* Return the FuncNode given its func_id  */
 FuncNode * ModelHistory::get_func_node(uint32_t func_id)
 {
 	if (func_nodes.size() <= func_id)	// this node has not been added to func_nodes
 		return NULL;
 
 	return func_nodes[func_id];
+}
+
+/* Return the current FuncNode when given a thread id */
+FuncNode * ModelHistory::get_curr_func_node(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	SnapVector<func_id_list_t> * thrd_func_list =  model->get_execution()->get_thrd_func_list();
+	uint32_t func_id = (*thrd_func_list)[thread_id].back();
+	FuncNode * func_node = func_nodes[func_id];
+
+	return func_node;
 }
 
 void ModelHistory::update_write_history(void * location, uint64_t write_val)
@@ -236,6 +253,106 @@ void ModelHistory::update_loc_wr_func_nodes_map(void * location, FuncNode * node
 	}
 
 	func_node_list->push_back(node);
+}
+
+/* When a thread is paused by Fuzzer, keep track of the condition it is waiting for */
+void ModelHistory::add_waiting_write(ConcretePredicate * concrete)
+{
+	void * location = concrete->get_location();
+	SnapVector<ConcretePredicate *> * waiting_conditions = loc_waiting_writes_map.get(location);
+	if (waiting_conditions == NULL) {
+		waiting_conditions = new SnapVector<ConcretePredicate *>();
+		loc_waiting_writes_map.put(location, waiting_conditions);
+	}
+
+	/* waiting_conditions should not have duplications */
+	waiting_conditions->push_back(concrete);
+
+	int thread_id = id_to_int(concrete->get_tid());
+	int oldsize = thrd_waiting_write.size();
+
+	if (oldsize <= thread_id) {
+		for (int i = oldsize; i < thread_id + 1; i++)
+			thrd_waiting_write.resize(thread_id + 1);
+	}
+
+	thrd_waiting_write[thread_id] = concrete;
+}
+
+void ModelHistory::remove_waiting_write(thread_id_t tid)
+{
+	ConcretePredicate * concrete = thrd_waiting_write[ id_to_int(tid) ];
+	void * location = concrete->get_location();
+	SnapVector<ConcretePredicate *> * concrete_preds = loc_waiting_writes_map.get(location);
+
+	for (uint i = 0; i < concrete_preds->size(); i++) {
+		ConcretePredicate * current = (*concrete_preds)[i];
+		if (concrete == current) {
+			(*concrete_preds)[i] = concrete_preds->back();
+			concrete_preds->pop_back();
+			break;
+		}
+	}
+
+	int thread_id = id_to_int( concrete->get_tid() );
+	thrd_waiting_write[thread_id] = NULL;
+	delete concrete;
+}
+
+/* Check if any other thread is waiting for this write action. If so, wake them up */
+void ModelHistory::check_waiting_write(ModelAction * write_act)
+{
+	void * location = write_act->get_location();
+	uint64_t value = write_act->get_write_value();
+	SnapVector<ConcretePredicate *> * concrete_preds = loc_waiting_writes_map.get(location);
+	SnapVector<ConcretePredicate *> to_remove = SnapVector<ConcretePredicate *>();
+	if (concrete_preds == NULL)
+		return;
+
+	uint index = 0;
+	while (index < concrete_preds->size()) {
+		ConcretePredicate * concrete_pred = (*concrete_preds)[index];
+		SnapVector<struct concrete_pred_expr> * concrete_exprs = concrete_pred->getExpressions();
+		bool satisfy_predicate = true;
+		/* Check if the written value satisfies every predicate expression */
+		for (uint i = 0; i < concrete_exprs->size(); i++) {
+			struct concrete_pred_expr concrete = (*concrete_exprs)[i];
+			bool equality;
+			switch (concrete.token) {
+				case EQUALITY:
+					equality = (value == concrete.value);
+					break;
+				case NULLITY:
+					equality = ((void*)value == NULL);
+					break;
+				default:
+					model_print("unknown predicate token");
+					break;
+			}
+
+			if (equality != concrete.equality) {
+				satisfy_predicate = false;
+				break;
+			}
+		}
+
+		if (satisfy_predicate) {
+			to_remove.push_back(concrete_pred);
+		}
+
+		index++;
+	}
+
+	for (uint i = 0; i < to_remove.size(); i++) {
+		ConcretePredicate * concrete_pred = to_remove[i];
+
+		/* Wake up threads */
+		thread_id_t tid = concrete_pred->get_tid();
+		Thread * thread = model->get_thread(tid);
+
+		model_print("** thread %d is woken up\n", thread->get_id());
+		model->get_execution()->getFuzzer()->notify_paused_thread(thread);
+	}
 }
 
 /* Reallocate some snapshotted memories when new executions start */
