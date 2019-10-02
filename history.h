@@ -71,6 +71,8 @@ private:
 	/* A run-time map from FuncInst to ModelAction per each FuncNode, per each thread.
 	 * Manipulated by FuncNode, and needed by NewFuzzer */
 	HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0> * func_inst_act_maps;
+
+	bool skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list);
 };
 
 #endif	/* __HISTORY_H__ */

@@ -135,7 +135,7 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 {
 	ModelExecution * execution = model->get_execution();
-	/* return if thread i has not entered any function or has exited
+	/* Return if thread i has not entered any function or has exited
 	   from all functions */
 	SnapVector<func_id_list_t> * thrd_func_list = execution->get_thrd_func_list();
 	SnapVector< SnapList<action_list_t *> *> *
@@ -145,7 +145,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if ( thrd_func_list->size() <= id )
 		return;
 
-	/* get the function id that thread i is currently in */
+	/* Get the function id that thread i is currently in */
 	uint32_t func_id = (*thrd_func_list)[id].back();
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 
@@ -167,30 +167,19 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		check_waiting_write(act);
 	}
 
-	/* the following does not care about actions without a position */
+	/* The following does not care about actions without a position */
 	if (func_id == 0 || act->get_position() == NULL)
 		return;
-
-	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
 
 	action_list_t * curr_act_list = func_act_lists->back();
 	ASSERT(curr_act_list != NULL);
 
-	modelclock_t curr_seq_number = act->get_seq_number();
-	/* Skip actions that are second part of a read modify write or actions with the same sequence number */
-	if (curr_act_list->size() != 0) {
-		ModelAction * last_act = curr_act_list->back();
-		if (second_part_of_rmw || last_act->get_seq_number() == curr_seq_number)
-			return;
-	}
-
-	/* skip actions that are paused by fuzzer (sequence number is 0) */
-	if (curr_seq_number == 0)
+	if (skip_action(act, curr_act_list))
 		return;
 
 	FuncNode * func_node = func_nodes[func_id];
 
-	/* add to curr_inst_list */
+	/* Add to curr_inst_list */
 	curr_act_list->push_back(act);
 	func_node->add_inst(act);
 
@@ -373,6 +362,29 @@ SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
 	}
 
 	return maps;
+}
+
+bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list)
+{
+	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
+	modelclock_t curr_seq_number = act->get_seq_number();
+
+	/* Skip actions that are second part of a read modify write */
+	if (second_part_of_rmw)
+		return true;
+
+	/* Skip actions with the same sequence number */
+	if (curr_act_list->size() != 0) {
+		ModelAction * last_act = curr_act_list->back();
+		if (last_act->get_seq_number() == curr_seq_number)
+			return true;
+	}
+
+	/* Skip actions that are paused by fuzzer (sequence number is 0) */
+	if (curr_seq_number == 0)
+		return true;
+
+	return false;
 }
 
 /* Reallocate some snapshotted memories when new executions start */
