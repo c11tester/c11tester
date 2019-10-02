@@ -89,6 +89,7 @@ public:
 	ModelAction * check_current_action(ModelAction *curr);
 
 	SnapVector<func_id_list_t> * get_thrd_func_list() { return &thrd_func_list; }
+	SnapVector<uint32_t> * get_thrd_last_entered_func() { return &thrd_last_entered_func; }
 	SnapVector< SnapList<action_list_t *> *> * get_thrd_func_act_lists() { return &thrd_func_act_lists; }
 	bool isFinished() {return isfinished;}
 	void setFinished() {isfinished = true;}
@@ -209,6 +210,7 @@ private:
 	 * This data structure is handled by ModelHistory
 	 */
 	SnapVector<func_id_list_t> thrd_func_list;
+	SnapVector<uint32_t> thrd_last_entered_func;
 
 	/* Keeps track of atomic actions that thread i has performed in some
 	 * function. Index of SnapVector is thread id. SnapList simulates

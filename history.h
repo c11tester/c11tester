@@ -65,9 +65,6 @@ private:
 	/* Map a location to FuncNodes that may write to it */
 	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0> * loc_wr_func_nodes_map;
 
-	/* Keeps track of the last function entered by each thread */
-	SnapVector<uint32_t> * thrd_last_entered_func;
-
 	HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0> * loc_waiting_writes_map;
 	SnapVector<ConcretePredicate *> * thrd_waiting_write;
 

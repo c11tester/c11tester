@@ -21,7 +21,6 @@ ModelHistory::ModelHistory() :
 	write_history = new HashTable<void *, value_set_t *, uintptr_t, 4>();
 	loc_func_nodes_map = new HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0>();
 	loc_wr_func_nodes_map = new HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0>();
-	thrd_last_entered_func = new SnapVector<uint32_t>();
 	loc_waiting_writes_map = new HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0>();
 	thrd_waiting_write = new SnapVector<ConcretePredicate *>();
 	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>();
@@ -30,10 +29,12 @@ ModelHistory::ModelHistory() :
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 {
 	//model_print("thread %d entering func %d\n", tid, func_id);
+	ModelExecution * execution = model->get_execution();
 	uint id = id_to_int(tid);
-	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
+	SnapVector<func_id_list_t> * thrd_func_list = execution->get_thrd_func_list();
 	SnapVector< SnapList<action_list_t *> *> *
-		thrd_func_act_lists = model->get_execution()->get_thrd_func_act_lists();
+		thrd_func_act_lists = execution->get_thrd_func_act_lists();
+	SnapVector<uint32_t> * thrd_last_entered_func = execution->get_thrd_last_entered_func();
 
 	if ( thrd_func_list->size() <= id ) {
 		uint oldsize = thrd_func_list->size();
@@ -41,16 +42,13 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		thrd_func_act_lists->resize( id + 1 );
 
 		for (uint i = oldsize; i < id + 1; i++) {
-			new (&(*thrd_func_list)[i]) func_id_list_t();
 			// push 0 as a dummy function id to a void seg fault
+			new (&(*thrd_func_list)[i]) func_id_list_t();
 			(*thrd_func_list)[i].push_back(0);
 
 			(*thrd_func_act_lists)[i] = new SnapList<action_list_t *>();
+			thrd_last_entered_func->push_back(0);
 		}
-	}
-
-	while (	thrd_last_entered_func->size() <= id ) {
-		thrd_last_entered_func->push_back(0);	// 0 is a dummy function id
 	}
 
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
@@ -77,10 +75,11 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 /* @param func_id a non-zero value */
 void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 {
+	ModelExecution * execution = model->get_execution();
 	uint32_t id = id_to_int(tid);
-	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
+	SnapVector<func_id_list_t> * thrd_func_list = execution->get_thrd_func_list();
 	SnapVector< SnapList<action_list_t *> *> *
-		thrd_func_act_lists = model->get_execution()->get_thrd_func_act_lists();
+		thrd_func_act_lists = execution->get_thrd_func_act_lists();
 
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 	uint32_t last_func_id = (*thrd_func_list)[id].back();
@@ -135,11 +134,12 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 
 void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 {
+	ModelExecution * execution = model->get_execution();
 	/* return if thread i has not entered any function or has exited
 	   from all functions */
-	SnapVector<func_id_list_t> * thrd_func_list = model->get_execution()->get_thrd_func_list();
+	SnapVector<func_id_list_t> * thrd_func_list = execution->get_thrd_func_list();
 	SnapVector< SnapList<action_list_t *> *> *
-		thrd_func_act_lists = model->get_execution()->get_thrd_func_act_lists();
+		thrd_func_act_lists = execution->get_thrd_func_act_lists();
 
 	uint32_t id = id_to_int(tid);
 	if ( thrd_func_list->size() <= id )
@@ -198,7 +198,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		func_node->update_inst_act_map(tid, act);
 
 		// Update predicate tree position
-		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
+		Fuzzer * fuzzer = execution->getFuzzer();
 		Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
 		func_node->set_predicate_tree_position(tid, selected_branch);
 	}
