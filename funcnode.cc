@@ -5,6 +5,8 @@
 #include "predicate.h"
 #include "concretepredicate.h"
 
+#include "model.h"
+
 FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
 	exit_count(0),
@@ -31,11 +33,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 /* Reallocate snapshotted memories when new executions start */
 void FuncNode::set_new_exec_flag()
 {
-	for (mllnode<FuncInst *> * it = inst_list.begin(); it != NULL; it = it->getNext()) {
-		FuncInst * inst = it->getVal();
-		inst->unset_location();
-	}
-
 	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	write_locations = new loc_set_t();
@@ -66,10 +63,13 @@ void FuncNode::add_inst(ModelAction *act)
 		FuncInst * inst = func_inst_map.get(position);
 
 		ASSERT(inst->get_type() == act->get_type());
+		int curr_execution_number = model->get_execution_number();
 
-		// locations are set to NULL when new executions start
-		if (inst->get_location() == NULL)
+		/* Reset locations when new executions start */
+		if (inst->get_execution_number() != curr_execution_number) {
 			inst->set_location(act->get_location());
+			inst->set_execution_number(curr_execution_number);
+		}
 
 		if (inst->get_location() != act->get_location())
 			inst->not_single_location();

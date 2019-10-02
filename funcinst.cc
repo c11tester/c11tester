@@ -1,7 +1,9 @@
 #include "funcinst.h"
+#include "model.h"
 
 FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
-	single_location(true)
+	single_location(true),
+	execution_number(model->get_execution_number())
 {
 	ASSERT(act);
 	ASSERT(func_node);

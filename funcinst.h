@@ -17,7 +17,6 @@ public:
 
 	void * get_location() const { return location; }
 	void set_location(void * loc) { location = loc; }
-	void unset_location() { location = NULL; }
 
 	action_type get_type() const { return type; }
 	memory_order get_mo() const { return order; }
@@ -36,6 +35,9 @@ public:
 	bool is_write() const;
 	bool is_single_location() { return single_location; }
 	void not_single_location() { single_location = false; }
+
+	void set_execution_number(int new_number) { execution_number = new_number; }
+	int get_execution_number() { return execution_number; }
 
 	void print();
 
@@ -57,6 +59,7 @@ private:
 	FuncNode * func_node;
 
 	bool single_location;
+	int execution_number;
 
 	/* Currently not in use. May remove this field later
 	 *
