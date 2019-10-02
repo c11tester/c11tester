@@ -24,7 +24,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 	write_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
-	thrd_inst_act_map = new SnapVector<inst_act_map_t *>();
 
 	//values_may_read_from = new value_set_t();
 }
@@ -42,7 +41,6 @@ void FuncNode::set_new_exec_flag()
 	write_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
-	thrd_inst_act_map = new SnapVector<inst_act_map_t *>();
 
 	//values_may_read_from = new value_set_t();
 }
@@ -586,6 +584,7 @@ Predicate * FuncNode::get_predicate_tree_position(thread_id_t tid)
 void FuncNode::init_inst_act_map(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
+	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
 	uint old_size = thrd_inst_act_map->size();
 
 	if (thrd_inst_act_map->size() <= (uint) thread_id) {
@@ -601,6 +600,8 @@ void FuncNode::init_inst_act_map(thread_id_t tid)
 void FuncNode::reset_inst_act_map(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
+	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
+
 	inst_act_map_t * map = (*thrd_inst_act_map)[thread_id];
 	map->reset();
 }
@@ -608,6 +609,8 @@ void FuncNode::reset_inst_act_map(thread_id_t tid)
 void FuncNode::update_inst_act_map(thread_id_t tid, ModelAction * read_act)
 {
 	int thread_id = id_to_int(tid);
+	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
+
 	inst_act_map_t * map = (*thrd_inst_act_map)[thread_id];
 	FuncInst * read_inst = get_inst(read_act);
 	map->put(read_inst, read_act);
@@ -616,6 +619,8 @@ void FuncNode::update_inst_act_map(thread_id_t tid, ModelAction * read_act)
 inst_act_map_t * FuncNode::get_inst_act_map(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
+	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
+
 	return (*thrd_inst_act_map)[thread_id];
 }
 

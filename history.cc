@@ -15,14 +15,17 @@ ModelHistory::ModelHistory() :
 	func_counter(1),	/* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
-	func_nodes(),
-	write_history(),		// snapshot data structure
-	loc_func_nodes_map(),		// shapshot data structure
-	loc_wr_func_nodes_map(),	// shapshot data structure
-	thrd_last_entered_func(),	// snapshot data structure
-	loc_waiting_writes_map(),	// snapshot data structure
-	thrd_waiting_write()		// snapshot data structure
-{}
+	func_nodes()
+{
+	/* The following are snapshot data structures */
+	write_history = new HashTable<void *, value_set_t *, uintptr_t, 4>();
+	loc_func_nodes_map = new HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0>();
+	loc_wr_func_nodes_map = new HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0>();
+	thrd_last_entered_func = new SnapVector<uint32_t>();
+	loc_waiting_writes_map = new HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0>();
+	thrd_waiting_write = new SnapVector<ConcretePredicate *>();
+	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>();
+}
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 {
@@ -46,15 +49,15 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		}
 	}
 
-	while (	thrd_last_entered_func.size() <= id ) {
-		thrd_last_entered_func.push_back(0);	// 0 is a dummy function id
+	while (	thrd_last_entered_func->size() <= id ) {
+		thrd_last_entered_func->push_back(0);	// 0 is a dummy function id
 	}
 
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 	func_act_lists->push_back( new action_list_t() );
 
-	uint32_t last_entered_func_id = thrd_last_entered_func[id];
-	thrd_last_entered_func[id] = func_id;
+	uint32_t last_entered_func_id = (*thrd_last_entered_func)[id];
+	(*thrd_last_entered_func)[id] = func_id;
 	(*thrd_func_list)[id].push_back(func_id);
 
 	if ( func_nodes.size() <= func_id )
@@ -152,7 +155,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		update_write_history(location, value);
 
 		/* Update FuncNodes that may read from this location */
-		SnapList<FuncNode *> * func_nodes = loc_func_nodes_map.get(location);
+		SnapList<FuncNode *> * func_nodes = loc_func_nodes_map->get(location);
 		if (func_nodes != NULL) {
 			sllnode<FuncNode *> * it = func_nodes->begin();
 			for (; it != NULL; it = it->getNext()) {
@@ -204,7 +207,11 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 /* Return the FuncNode given its func_id  */
 FuncNode * ModelHistory::get_func_node(uint32_t func_id)
 {
-	if (func_nodes.size() <= func_id)	// this node has not been added to func_nodes
+	if (func_id == 0)
+		return NULL;
+
+	// This node has not been added to func_nodes
+	if (func_nodes.size() <= func_id)
 		return NULL;
 
 	return func_nodes[func_id];
@@ -216,18 +223,21 @@ FuncNode * ModelHistory::get_curr_func_node(thread_id_t tid)
 	int thread_id = id_to_int(tid);
 	SnapVector<func_id_list_t> * thrd_func_list =  model->get_execution()->get_thrd_func_list();
 	uint32_t func_id = (*thrd_func_list)[thread_id].back();
-	FuncNode * func_node = func_nodes[func_id];
 
-	return func_node;
+	if (func_id != 0) {
+		return func_nodes[func_id];
+	}
+
+	return NULL;
 }
 
 void ModelHistory::update_write_history(void * location, uint64_t write_val)
 {
-	value_set_t * write_set = write_history.get(location);
+	value_set_t * write_set = write_history->get(location);
 
 	if (write_set == NULL) {
 		write_set = new value_set_t();
-		write_history.put(location, write_set);
+		write_history->put(location, write_set);
 	}
 
 	write_set->add(write_val);
@@ -235,10 +245,10 @@ void ModelHistory::update_write_history(void * location, uint64_t write_val)
 
 void ModelHistory::update_loc_func_nodes_map(void * location, FuncNode * node)
 {
-	SnapList<FuncNode *> * func_node_list = loc_func_nodes_map.get(location);
+	SnapList<FuncNode *> * func_node_list = loc_func_nodes_map->get(location);
 	if (func_node_list == NULL) {
 		func_node_list = new SnapList<FuncNode *>();
-		loc_func_nodes_map.put(location, func_node_list);
+		loc_func_nodes_map->put(location, func_node_list);
 	}
 
 	func_node_list->push_back(node);
@@ -246,10 +256,10 @@ void ModelHistory::update_loc_func_nodes_map(void * location, FuncNode * node)
 
 void ModelHistory::update_loc_wr_func_nodes_map(void * location, FuncNode * node)
 {
-	SnapList<FuncNode *> * func_node_list = loc_wr_func_nodes_map.get(location);
+	SnapList<FuncNode *> * func_node_list = loc_wr_func_nodes_map->get(location);
 	if (func_node_list == NULL) {
 		func_node_list = new SnapList<FuncNode *>();
-		loc_func_nodes_map.put(location, func_node_list);
+		loc_func_nodes_map->put(location, func_node_list);
 	}
 
 	func_node_list->push_back(node);
@@ -259,31 +269,28 @@ void ModelHistory::update_loc_wr_func_nodes_map(void * location, FuncNode * node
 void ModelHistory::add_waiting_write(ConcretePredicate * concrete)
 {
 	void * location = concrete->get_location();
-	SnapVector<ConcretePredicate *> * waiting_conditions = loc_waiting_writes_map.get(location);
+	SnapVector<ConcretePredicate *> * waiting_conditions = loc_waiting_writes_map->get(location);
 	if (waiting_conditions == NULL) {
 		waiting_conditions = new SnapVector<ConcretePredicate *>();
-		loc_waiting_writes_map.put(location, waiting_conditions);
+		loc_waiting_writes_map->put(location, waiting_conditions);
 	}
 
 	/* waiting_conditions should not have duplications */
 	waiting_conditions->push_back(concrete);
 
 	int thread_id = id_to_int(concrete->get_tid());
-	int oldsize = thrd_waiting_write.size();
-
-	if (oldsize <= thread_id) {
-		for (int i = oldsize; i < thread_id + 1; i++)
-			thrd_waiting_write.resize(thread_id + 1);
+	if (thrd_waiting_write->size() <= (uint) thread_id) {
+		thrd_waiting_write->resize(thread_id + 1);
 	}
 
-	thrd_waiting_write[thread_id] = concrete;
+	(*thrd_waiting_write)[thread_id] = concrete;
 }
 
 void ModelHistory::remove_waiting_write(thread_id_t tid)
 {
-	ConcretePredicate * concrete = thrd_waiting_write[ id_to_int(tid) ];
+	ConcretePredicate * concrete = (*thrd_waiting_write)[ id_to_int(tid) ];
 	void * location = concrete->get_location();
-	SnapVector<ConcretePredicate *> * concrete_preds = loc_waiting_writes_map.get(location);
+	SnapVector<ConcretePredicate *> * concrete_preds = loc_waiting_writes_map->get(location);
 
 	for (uint i = 0; i < concrete_preds->size(); i++) {
 		ConcretePredicate * current = (*concrete_preds)[i];
@@ -295,16 +302,16 @@ void ModelHistory::remove_waiting_write(thread_id_t tid)
 	}
 
 	int thread_id = id_to_int( concrete->get_tid() );
-	thrd_waiting_write[thread_id] = NULL;
+	(*thrd_waiting_write)[thread_id] = NULL;
 	delete concrete;
 }
 
-/* Check if any other thread is waiting for this write action. If so, wake them up */
+/* Check if any other thread is waiting for this write action. If so, "notify" them */
 void ModelHistory::check_waiting_write(ModelAction * write_act)
 {
 	void * location = write_act->get_location();
 	uint64_t value = write_act->get_write_value();
-	SnapVector<ConcretePredicate *> * concrete_preds = loc_waiting_writes_map.get(location);
+	SnapVector<ConcretePredicate *> * concrete_preds = loc_waiting_writes_map->get(location);
 	SnapVector<ConcretePredicate *> to_remove = SnapVector<ConcretePredicate *>();
 	if (concrete_preds == NULL)
 		return;
@@ -353,6 +360,19 @@ void ModelHistory::check_waiting_write(ModelAction * write_act)
 		model_print("** thread %d is woken up\n", thread->get_id());
 		model->get_execution()->getFuzzer()->notify_paused_thread(thread);
 	}
+}
+
+SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
+{
+	ASSERT(func_id != 0);
+
+	SnapVector<inst_act_map_t *> * maps = func_inst_act_maps->get(func_id);
+	if (maps == NULL) {
+		maps = new SnapVector<inst_act_map_t *>();
+		func_inst_act_maps->put(func_id, maps);
+	}
+
+	return maps;
 }
 
 /* Reallocate some snapshotted memories when new executions start */

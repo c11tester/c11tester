@@ -104,9 +104,6 @@ private:
 	/* Run-time position in the predicate tree for each thread */
 	ModelVector<Predicate *> predicate_tree_position;
 
-	/* A run-time map from FuncInst to ModelAction for each thread; needed by NewFuzzer */
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map;
-
 	/* Store the relation between this FuncNode and other FuncNodes */
 	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;
 

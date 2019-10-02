@@ -29,14 +29,16 @@ public:
 	FuncNode * get_curr_func_node(thread_id_t tid);
 
 	void update_write_history(void * location, uint64_t write_val);
-	HashTable<void *, value_set_t *, uintptr_t, 4> * getWriteHistory() { return &write_history; }
+	HashTable<void *, value_set_t *, uintptr_t, 4> * getWriteHistory() { return write_history; }
 	void update_loc_func_nodes_map(void * location, FuncNode * node);
 	void update_loc_wr_func_nodes_map(void * location, FuncNode * node);
 
 	void add_waiting_write(ConcretePredicate * concrete);
 	void remove_waiting_write(thread_id_t tid);
 	void check_waiting_write(ModelAction * write_act);
-	SnapVector<ConcretePredicate *> * getThrdWaitingWrite() { return &thrd_waiting_write; }
+	SnapVector<ConcretePredicate *> * getThrdWaitingWrite() { return thrd_waiting_write; }
+
+	SnapVector<inst_act_map_t *> * getThrdInstActMap(uint32_t func_id);
 
 	void set_new_exec_flag();
 	void dump_func_node_graph();
@@ -55,19 +57,23 @@ private:
 	ModelVector<FuncNode *> func_nodes;
 
 	/* Map a location to a set of values that have been written to it */
-	HashTable<void *, value_set_t *, uintptr_t, 4> write_history;
+	HashTable<void *, value_set_t *, uintptr_t, 4> * write_history;
 
 	/* Map a location to FuncNodes that may read from it */
-	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 4> loc_func_nodes_map;
+	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0> * loc_func_nodes_map;
 
 	/* Map a location to FuncNodes that may write to it */
-	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 4> loc_wr_func_nodes_map;
+	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0> * loc_wr_func_nodes_map;
 
 	/* Keeps track of the last function entered by each thread */
-	SnapVector<uint32_t> thrd_last_entered_func;
+	SnapVector<uint32_t> * thrd_last_entered_func;
 
-	HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 4> loc_waiting_writes_map;
-	SnapVector<ConcretePredicate *> thrd_waiting_write;
+	HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0> * loc_waiting_writes_map;
+	SnapVector<ConcretePredicate *> * thrd_waiting_write;
+
+	/* A run-time map from FuncInst to ModelAction per each FuncNode, per each thread.
+	 * Manipulated by FuncNode, and needed by NewFuzzer */
+	HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0> * func_inst_act_maps;
 };
 
 #endif	/* __HISTORY_H__ */
