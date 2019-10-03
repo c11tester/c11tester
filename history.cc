@@ -19,11 +19,12 @@ ModelHistory::ModelHistory() :
 {
 	/* The following are snapshot data structures */
 	write_history = new HashTable<void *, value_set_t *, uintptr_t, 4>();
-	loc_func_nodes_map = new HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0>();
-	loc_wr_func_nodes_map = new HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0>();
+	loc_rd_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
+	loc_wr_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
 	loc_waiting_writes_map = new HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0>();
 	thrd_waiting_write = new SnapVector<ConcretePredicate *>();
-	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>();
+	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>(128);
+	func_threads_map = new HashTable<uint32_t, SnapVector<thread_id_t> *, int, 0>(128);
 }
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -155,13 +156,10 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		update_write_history(location, value);
 
 		/* Update FuncNodes that may read from this location */
-		SnapList<FuncNode *> * func_nodes = loc_func_nodes_map->get(location);
-		if (func_nodes != NULL) {
-			sllnode<FuncNode *> * it = func_nodes->begin();
-			for (; it != NULL; it = it->getNext()) {
-				FuncNode * func_node = it->getVal();
-				func_node->add_to_val_loc_map(value, location);
-			}
+		SnapVector<FuncNode *> * func_node_list = getRdFuncNodes(location);
+		for (uint i = 0; i < func_node_list->size(); i++) {
+			FuncNode * func_node = (*func_node_list)[i];
+			func_node->add_to_val_loc_map(value, location);
 		}
 
 		check_waiting_write(act);
@@ -232,26 +230,38 @@ void ModelHistory::update_write_history(void * location, uint64_t write_val)
 	write_set->add(write_val);
 }
 
-void ModelHistory::update_loc_func_nodes_map(void * location, FuncNode * node)
+void ModelHistory::update_loc_rd_func_nodes_map(void * location, FuncNode * node)
 {
-	SnapList<FuncNode *> * func_node_list = loc_func_nodes_map->get(location);
-	if (func_node_list == NULL) {
-		func_node_list = new SnapList<FuncNode *>();
-		loc_func_nodes_map->put(location, func_node_list);
-	}
-
+	SnapVector<FuncNode *> * func_node_list = getRdFuncNodes(location);
 	func_node_list->push_back(node);
 }
 
 void ModelHistory::update_loc_wr_func_nodes_map(void * location, FuncNode * node)
 {
-	SnapList<FuncNode *> * func_node_list = loc_wr_func_nodes_map->get(location);
+	SnapVector<FuncNode *> * func_node_list = getWrFuncNodes(location);
+	func_node_list->push_back(node);
+}
+
+SnapVector<FuncNode *> * ModelHistory::getRdFuncNodes(void * location)
+{
+	SnapVector<FuncNode *> * func_node_list = loc_rd_func_nodes_map->get(location);
 	if (func_node_list == NULL) {
-		func_node_list = new SnapList<FuncNode *>();
-		loc_func_nodes_map->put(location, func_node_list);
+		func_node_list = new SnapVector<FuncNode *>();
+		loc_wr_func_nodes_map->put(location, func_node_list);
 	}
 
-	func_node_list->push_back(node);
+	return func_node_list;
+}
+
+SnapVector<FuncNode *> * ModelHistory::getWrFuncNodes(void * location)
+{
+	SnapVector<FuncNode *> * func_node_list = loc_wr_func_nodes_map->get(location);
+	if (func_node_list == NULL) {
+		func_node_list = new SnapVector<FuncNode *>();
+		loc_wr_func_nodes_map->put(location, func_node_list);
+	}
+
+	return func_node_list;
 }
 
 /* When a thread is paused by Fuzzer, keep track of the condition it is waiting for */
@@ -385,6 +395,25 @@ bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr
 		return true;
 
 	return false;
+}
+
+void ModelHistory::update_func_threads_map(uint32_t func_id, thread_id_t tid)
+{
+	SnapVector<thread_id_t> * thread_ids = get_calling_threads(func_id);
+	thread_ids->push_back(tid);
+}
+
+/* Return a vector of thread_id's that have called this function before */
+SnapVector<thread_id_t> * ModelHistory::get_calling_threads(uint32_t func_id)
+{
+	SnapVector<thread_id_t> * thread_ids = func_threads_map->get(func_id);
+	if (thread_ids == NULL) {
+		/* Make sure the result can be iterated without checking nullity */
+		thread_ids = new SnapVector<thread_id_t>();
+		func_threads_map->put(func_id, thread_ids);
+	}
+
+	return thread_ids;
 }
 
 /* Reallocate some snapshotted memories when new executions start */

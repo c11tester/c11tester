@@ -181,7 +181,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 				read_locations->add(loc);
 				value_set_t * write_values = write_history->get(loc);
 				add_to_val_loc_map(write_values, loc);
-				history->update_loc_func_nodes_map(loc, this);
+				history->update_loc_rd_func_nodes_map(loc, this);
 			}
 		}
 	}

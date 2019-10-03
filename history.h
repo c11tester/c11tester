@@ -30,8 +30,10 @@ public:
 
 	void update_write_history(void * location, uint64_t write_val);
 	HashTable<void *, value_set_t *, uintptr_t, 4> * getWriteHistory() { return write_history; }
-	void update_loc_func_nodes_map(void * location, FuncNode * node);
+	void update_loc_rd_func_nodes_map(void * location, FuncNode * node);
 	void update_loc_wr_func_nodes_map(void * location, FuncNode * node);
+	SnapVector<FuncNode *> * getRdFuncNodes(void * location);
+	SnapVector<FuncNode *> * getWrFuncNodes(void * location);
 
 	void add_waiting_write(ConcretePredicate * concrete);
 	void remove_waiting_write(thread_id_t tid);
@@ -39,6 +41,9 @@ public:
 	SnapVector<ConcretePredicate *> * getThrdWaitingWrite() { return thrd_waiting_write; }
 
 	SnapVector<inst_act_map_t *> * getThrdInstActMap(uint32_t func_id);
+
+	void update_func_threads_map(uint32_t func_id, thread_id_t tid);
+	SnapVector<thread_id_t> * get_calling_threads(uint32_t func_id);
 
 	void set_new_exec_flag();
 	void dump_func_node_graph();
@@ -60,10 +65,10 @@ private:
 	HashTable<void *, value_set_t *, uintptr_t, 4> * write_history;
 
 	/* Map a location to FuncNodes that may read from it */
-	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0> * loc_func_nodes_map;
+	HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0> * loc_rd_func_nodes_map;
 
 	/* Map a location to FuncNodes that may write to it */
-	HashTable<void *, SnapList<FuncNode *> *, uintptr_t, 0> * loc_wr_func_nodes_map;
+	HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0> * loc_wr_func_nodes_map;
 
 	HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0> * loc_waiting_writes_map;
 	SnapVector<ConcretePredicate *> * thrd_waiting_write;
@@ -73,6 +78,9 @@ private:
 	HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0> * func_inst_act_maps;
 
 	bool skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list);
+
+	/* Map func_id to threads that have called this function */
+	HashTable<uint32_t, SnapVector<thread_id_t> *, int, 0> * func_threads_map;
 };
 
 #endif	/* __HISTORY_H__ */
