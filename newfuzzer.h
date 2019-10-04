@@ -42,6 +42,8 @@ private:
 
 	void conditional_sleep(Thread * thread);
 	void wake_up_paused_threads(int * threadlist, int * numthreads);
+
+	void find_threads(ModelAction * pending_read);
 };
 
 #endif /* end of __NEWFUZZER_H__ */

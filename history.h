@@ -42,9 +42,6 @@ public:
 
 	SnapVector<inst_act_map_t *> * getThrdInstActMap(uint32_t func_id);
 
-	void update_func_threads_map(uint32_t func_id, thread_id_t tid);
-	SnapVector<thread_id_t> * get_calling_threads(uint32_t func_id);
-
 	void set_new_exec_flag();
 	void dump_func_node_graph();
 	void print_func_node();
@@ -78,9 +75,6 @@ private:
 	HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0> * func_inst_act_maps;
 
 	bool skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list);
-
-	/* Map func_id to threads that have called this function */
-	HashTable<uint32_t, SnapVector<thread_id_t> *, int, 0> * func_threads_map;
 };
 
 #endif	/* __HISTORY_H__ */

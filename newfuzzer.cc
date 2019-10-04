@@ -44,18 +44,18 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		thrd_last_read_act[thread_id] = read;
 
 		FuncNode * func_node = history->get_curr_func_node(tid);
-		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
 		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
 		FuncInst * read_inst = func_node->get_inst(read);
-
 		Predicate * selected_branch = selectBranch(tid, curr_pred, read_inst);
+
+		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
 		prune_writes(tid, selected_branch, rf_set, inst_act_map);
 	}
 
 	// No write satisfies the selected predicate, so pause this thread.
 	if ( rf_set->size() == 0 ) {
 		Thread * read_thread = execution->get_thread(tid);
-		model_print("the %d read action of thread %d is unsuccessful\n", read->get_seq_number(), read_thread->get_id());
+		model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
 
 		// reset thread pending action and revert sequence numbers
 		read_thread->set_pending(read);
@@ -63,6 +63,9 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		execution->restore_last_seq_num();
 
 		conditional_sleep(read_thread);
+
+		find_threads(read);
+
 		return -1;
 /*
 		SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
@@ -214,7 +217,7 @@ void NewFuzzer::conditional_sleep(Thread * thread)
 	paused_thread_set.push_back(thread);
 	paused_thread_table.put(thread, index);	// Update table
 
-	/*  */
+	/* Add the waiting condition to ModelHistory */
 	ModelAction * read = thread->get_pending();
 	thread_id_t tid = thread->get_id();
 	FuncNode * func_node = history->get_curr_func_node(tid);
@@ -236,8 +239,7 @@ Thread * NewFuzzer::selectThread(int * threadlist, int numthreads)
 {
 	if (numthreads == 0 && has_paused_threads()) {
 		wake_up_paused_threads(threadlist, &numthreads);
-		model_print("list size: %d\n", numthreads);
-		model_print("active t id: %d\n", threadlist[0]);
+		model_print("list size: %d, active t id: %d\n", numthreads, threadlist[0]);
 	}
 
 	int random_index = random() % numthreads;
@@ -285,6 +287,32 @@ void NewFuzzer::notify_paused_thread(Thread * thread)
 
 	thread_id_t tid = thread->get_id();
 	history->remove_waiting_write(tid);
+}
+
+/* Find threads that may write values that the pending read action is waiting for */
+void NewFuzzer::find_threads(ModelAction * pending_read)
+{
+	void * location = pending_read->get_location();
+	thread_id_t self_id = pending_read->get_tid();
+
+	SnapVector<FuncNode *> * func_node_list = history->getWrFuncNodes(location);
+	for (uint i = 0; i < func_node_list->size(); i++) {
+		FuncNode * target_node = (*func_node_list)[i];
+		model_print("node %s may write to loc %p\n", target_node->get_func_name(), location);
+
+		for (uint i = 1; i < execution->get_num_threads(); i++) {
+			thread_id_t tid = int_to_id(i);
+			if (tid == self_id)
+				continue;
+
+			FuncNode * node = history->get_curr_func_node(tid);
+			if (node == NULL)
+				continue;
+
+			int distance = node->compute_distance(target_node);
+			model_print("thread: %d; distance from node %d to node %d: %d\n", tid, node->get_func_id(), target_node->get_func_id(), distance);
+		}
+	}
 }
 
 bool NewFuzzer::shouldWait(const ModelAction * act)

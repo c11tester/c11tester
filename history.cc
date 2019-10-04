@@ -24,7 +24,6 @@ ModelHistory::ModelHistory() :
 	loc_waiting_writes_map = new HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0>();
 	thrd_waiting_write = new SnapVector<ConcretePredicate *>();
 	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>(128);
-	func_threads_map = new HashTable<uint32_t, SnapVector<thread_id_t> *, int, 0>(128);
 }
 
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
@@ -247,7 +246,7 @@ SnapVector<FuncNode *> * ModelHistory::getRdFuncNodes(void * location)
 	SnapVector<FuncNode *> * func_node_list = loc_rd_func_nodes_map->get(location);
 	if (func_node_list == NULL) {
 		func_node_list = new SnapVector<FuncNode *>();
-		loc_wr_func_nodes_map->put(location, func_node_list);
+		loc_rd_func_nodes_map->put(location, func_node_list);
 	}
 
 	return func_node_list;
@@ -395,25 +394,6 @@ bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr
 		return true;
 
 	return false;
-}
-
-void ModelHistory::update_func_threads_map(uint32_t func_id, thread_id_t tid)
-{
-	SnapVector<thread_id_t> * thread_ids = get_calling_threads(func_id);
-	thread_ids->push_back(tid);
-}
-
-/* Return a vector of thread_id's that have called this function before */
-SnapVector<thread_id_t> * ModelHistory::get_calling_threads(uint32_t func_id)
-{
-	SnapVector<thread_id_t> * thread_ids = func_threads_map->get(func_id);
-	if (thread_ids == NULL) {
-		/* Make sure the result can be iterated without checking nullity */
-		thread_ids = new SnapVector<thread_id_t>();
-		func_threads_map->put(func_id, thread_ids);
-	}
-
-	return thread_ids;
 }
 
 /* Reallocate some snapshotted memories when new executions start */

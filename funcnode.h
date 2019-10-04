@@ -5,6 +5,7 @@
 #include "classlist.h"
 #include "threads-model.h"
 
+#define MAX_DIST 10
 typedef ModelList<FuncInst *> func_inst_list_mt;
 
 typedef enum edge_type {
@@ -55,6 +56,7 @@ public:
 
 	void add_out_edge(FuncNode * other);
 	ModelList<FuncNode *> * get_out_edges() { return &out_edges; }
+	int compute_distance(FuncNode * target, int max_step = MAX_DIST);
 
 	void print_predicate_tree();
 	void print_val_loc_map();

@@ -640,6 +640,40 @@ void FuncNode::add_out_edge(FuncNode * other)
 	}
 }
 
+int FuncNode::compute_distance(FuncNode * target, int max_step)
+{
+	SnapList<FuncNode *> queue;
+	HashTable<FuncNode *, int, uintptr_t, 0> distances;
+
+	int dist = 0;
+	queue.push_back(this);
+	distances.put(this, dist);
+
+	while (!queue.empty()) {
+		FuncNode * curr = queue.front();
+		queue.pop_front();
+
+		if (curr == target)
+			return dist;
+		else if (max_step < dist)
+			return -1;
+
+		dist++;
+		ModelList<FuncNode *> * outEdges = curr->get_out_edges();
+		mllnode<FuncNode *> * it;
+		for (it = outEdges->begin(); it != NULL; it = it->getNext()) {
+			FuncNode * out_node = it->getVal();
+			if ( !distances.contains(out_node) ) {
+				queue.push_back(out_node);
+				distances.put(out_node, dist);
+			}
+		}
+	}
+
+	/* Target node is unreachable */
+	return -1;
+}
+
 void FuncNode::print_predicate_tree()
 {
 	model_print("digraph function_%s {\n", func_name);
