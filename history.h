@@ -1,7 +1,6 @@
 #ifndef __HISTORY_H__
 #define __HISTORY_H__
 
-#include "stl-model.h"
 #include "common.h"
 #include "classlist.h"
 #include "hashtable.h"
@@ -39,12 +38,15 @@ public:
 	void remove_waiting_write(thread_id_t tid);
 	void check_waiting_write(ModelAction * write_act);
 	SnapVector<ConcretePredicate *> * getThrdWaitingWrite() { return thrd_waiting_write; }
+	thrd_id_set_t * getWaitingFor(thread_id_t tid);
+	WaitObj * getWaitObj(thread_id_t tid);
 
 	SnapVector<inst_act_map_t *> * getThrdInstActMap(uint32_t func_id);
 
 	void set_new_exec_flag();
 	void dump_func_node_graph();
 	void print_func_node();
+	void print_waiting_threads();
 
 	MEMALLOC
 private:
@@ -68,9 +70,11 @@ private:
 	HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0> * loc_wr_func_nodes_map;
 
 	HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0> * loc_waiting_writes_map;
+	/* The write values each paused thread is waiting for */
 	SnapVector<ConcretePredicate *> * thrd_waiting_write;
+	SnapVector<WaitObj *> * thrd_wait_obj;
 
-	/* A run-time map from FuncInst to ModelAction per each FuncNode, per each thread.
+	/* A run-time map from FuncInst to ModelAction per each thread, per each FuncNode.
 	 * Manipulated by FuncNode, and needed by NewFuzzer */
 	HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0> * func_inst_act_maps;
 

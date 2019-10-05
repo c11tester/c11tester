@@ -5,6 +5,7 @@
 #include "funcinst.h"
 #include "common.h"
 #include "concretepredicate.h"
+#include "waitobj.h"
 
 #include "model.h"
 #include "execution.h"
@@ -23,6 +24,7 @@ ModelHistory::ModelHistory() :
 	loc_wr_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
 	loc_waiting_writes_map = new HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0>();
 	thrd_waiting_write = new SnapVector<ConcretePredicate *>();
+	thrd_wait_obj = new SnapVector<WaitObj *>();
 	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>(128);
 }
 
@@ -290,6 +292,8 @@ void ModelHistory::remove_waiting_write(thread_id_t tid)
 	void * location = concrete->get_location();
 	SnapVector<ConcretePredicate *> * concrete_preds = loc_waiting_writes_map->get(location);
 
+	/* Linear search should be fine because presumably not many ConcretePredicates
+	 * are at the same memory location */
 	for (uint i = 0; i < concrete_preds->size(); i++) {
 		ConcretePredicate * current = (*concrete_preds)[i];
 		if (concrete == current) {
@@ -358,6 +362,20 @@ void ModelHistory::check_waiting_write(ModelAction * write_act)
 		model_print("** thread %d is woken up\n", thread->get_id());
 		model->get_execution()->getFuzzer()->notify_paused_thread(thread);
 	}
+}
+
+WaitObj * ModelHistory::getWaitObj(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	int old_size = thrd_wait_obj->size();
+	if (old_size <= thread_id) {
+		thrd_wait_obj->resize(thread_id + 1);
+		for (int i = old_size; i < thread_id + 1; i++) {
+			(*thrd_wait_obj)[i] = new WaitObj( int_to_id(i) );
+		}
+	}
+
+	return (*thrd_wait_obj)[thread_id];
 }
 
 SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
@@ -436,5 +454,16 @@ void ModelHistory::print_func_node()
 			FuncInst *inst = it->getVal();
 			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
 		}
+	}
+}
+
+void ModelHistory::print_waiting_threads()
+{
+	ModelExecution * execution = model->get_execution();
+	for (unsigned int i = 0; i < execution->get_num_threads();i++) {
+		thread_id_t tid = int_to_id(i);
+		WaitObj * wait_obj = getWaitObj(tid);
+		wait_obj->print_waiting_for();
+		wait_obj->print_waited_by();
 	}
 }

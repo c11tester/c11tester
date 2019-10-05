@@ -6,6 +6,7 @@
 #include "funcinst.h"
 #include "predicate.h"
 #include "concretepredicate.h"
+#include "waitobj.h"
 
 #include "model.h"
 #include "schedule.h"
@@ -294,24 +295,40 @@ void NewFuzzer::find_threads(ModelAction * pending_read)
 {
 	void * location = pending_read->get_location();
 	thread_id_t self_id = pending_read->get_tid();
+	HashSet<thread_id_t, int, 0> waiting_for_threads(64);
 
 	SnapVector<FuncNode *> * func_node_list = history->getWrFuncNodes(location);
 	for (uint i = 0; i < func_node_list->size(); i++) {
 		FuncNode * target_node = (*func_node_list)[i];
-		model_print("node %s may write to loc %p\n", target_node->get_func_name(), location);
-
 		for (uint i = 1; i < execution->get_num_threads(); i++) {
 			thread_id_t tid = int_to_id(i);
 			if (tid == self_id)
 				continue;
 
 			FuncNode * node = history->get_curr_func_node(tid);
+			/* It is possible that thread tid is not in any FuncNode */
 			if (node == NULL)
 				continue;
 
 			int distance = node->compute_distance(target_node);
-			model_print("thread: %d; distance from node %d to node %d: %d\n", tid, node->get_func_id(), target_node->get_func_id(), distance);
+			if (distance != -1) {
+				waiting_for_threads.add(tid);
+				model_print("thread: %d; distance from node %d to node %d: %d\n", tid, node->get_func_id(), target_node->get_func_id(), distance);
+
+			}
+
 		}
+	}
+
+	/* Clear list first */
+	WaitObj * wait_obj = history->getWaitObj(self_id);
+	thrd_id_set_t * waiting_threads = wait_obj->getWaitingFor();
+	waiting_threads->reset();
+
+	HSIterator<thread_id_t, int, 0> * it = waiting_for_threads.iterator();
+	while (it->hasNext()) {
+		thread_id_t tid = it->next();
+		waiting_threads->add(tid);
 	}
 }
 

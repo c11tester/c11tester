@@ -6,7 +6,7 @@ OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
 	   snapshot.o malloc.o mymemory.o common.o mutex.o conditionvariable.o \
 	   context.o execution.o libannotate.o plugins.o pthread.o futex.o fuzzer.o \
 	   sleeps.o history.o funcnode.o funcinst.o predicate.o printf.o newfuzzer.o \
-	   concretepredicate.o
+	   concretepredicate.o waitobj.o
 
 CPPFLAGS += -Iinclude -I.
 LDFLAGS := -ldl -lrt -rdynamic -lpthread
