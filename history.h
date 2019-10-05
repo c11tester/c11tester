@@ -38,8 +38,10 @@ public:
 	void remove_waiting_write(thread_id_t tid);
 	void check_waiting_write(ModelAction * write_act);
 	SnapVector<ConcretePredicate *> * getThrdWaitingWrite() { return thrd_waiting_write; }
-	thrd_id_set_t * getWaitingFor(thread_id_t tid);
+
 	WaitObj * getWaitObj(thread_id_t tid);
+	void add_waiting_thread(thread_id_t self_id, thread_id_t waiting_for_id, int dist);
+	void remove_waiting_thread(thread_id_t self_id, thread_id_t waiting_for_id);
 
 	SnapVector<inst_act_map_t *> * getThrdInstActMap(uint32_t func_id);
 

@@ -7,12 +7,41 @@ WaitObj::WaitObj(thread_id_t tid) :
 	dist_table(32)
 {}
 
+void WaitObj::add_waiting_for(thread_id_t other, int dist)
+{
+	waiting_for.add(other);
+	dist_table.put(other, dist);
+}
+
+void WaitObj::add_waited_by(thread_id_t other)
+{
+	waited_by.add(other);
+}
+
+void WaitObj::remove_waiting_for(thread_id_t other)
+{
+	waiting_for.remove(other);
+	dist_table.remove(other);
+}
+
+void WaitObj::remove_waited_by(thread_id_t other)
+{
+	waited_by.remove(other);
+}
+
 int WaitObj::lookup_dist(thread_id_t other_id)
 {
 	if (dist_table.contains(other_id))
 		return dist_table.get(other_id);
 
 	return -1;
+}
+
+void WaitObj::reset()
+{
+	waiting_for.reset();
+	waited_by.reset();
+	dist_table.reset();
 }
 
 void WaitObj::print_waiting_for()

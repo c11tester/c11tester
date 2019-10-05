@@ -378,6 +378,28 @@ WaitObj * ModelHistory::getWaitObj(thread_id_t tid)
 	return (*thrd_wait_obj)[thread_id];
 }
 
+void ModelHistory::add_waiting_thread(thread_id_t self_id,
+		thread_id_t waiting_for_id, int dist)
+{
+	WaitObj * self_wait_obj = getWaitObj(self_id);
+	self_wait_obj->add_waiting_for(waiting_for_id, dist);
+
+	/* Update waited-by relation */
+	WaitObj * other_wait_obj = getWaitObj(waiting_for_id);
+	other_wait_obj->add_waited_by(self_id);
+}
+
+void ModelHistory::remove_waiting_thread(thread_id_t self_id, thread_id_t waiting_for_id)
+{
+	WaitObj * self_wait_obj = getWaitObj(self_id);
+	self_wait_obj->remove_waiting_for(waiting_for_id);
+
+	/* Update waited-by relation */
+	WaitObj * other_wait_obj = getWaitObj(waiting_for_id);
+	other_wait_obj->remove_waited_by(self_id);
+}
+
+
 SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
 {
 	ASSERT(func_id != 0);
@@ -464,6 +486,11 @@ void ModelHistory::print_waiting_threads()
 		thread_id_t tid = int_to_id(i);
 		WaitObj * wait_obj = getWaitObj(tid);
 		wait_obj->print_waiting_for();
+	}
+
+	for (unsigned int i = 0; i < execution->get_num_threads();i++) {
+		thread_id_t tid = int_to_id(i);
+		WaitObj * wait_obj = getWaitObj(tid);
 		wait_obj->print_waited_by();
 	}
 }

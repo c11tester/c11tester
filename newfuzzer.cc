@@ -295,7 +295,6 @@ void NewFuzzer::find_threads(ModelAction * pending_read)
 {
 	void * location = pending_read->get_location();
 	thread_id_t self_id = pending_read->get_tid();
-	HashSet<thread_id_t, int, 0> waiting_for_threads(64);
 
 	SnapVector<FuncNode *> * func_node_list = history->getWrFuncNodes(location);
 	for (uint i = 0; i < func_node_list->size(); i++) {
@@ -312,23 +311,12 @@ void NewFuzzer::find_threads(ModelAction * pending_read)
 
 			int distance = node->compute_distance(target_node);
 			if (distance != -1) {
-				waiting_for_threads.add(tid);
+				history->add_waiting_thread(self_id, tid, distance);
 				model_print("thread: %d; distance from node %d to node %d: %d\n", tid, node->get_func_id(), target_node->get_func_id(), distance);
 
 			}
 
 		}
-	}
-
-	/* Clear list first */
-	WaitObj * wait_obj = history->getWaitObj(self_id);
-	thrd_id_set_t * waiting_threads = wait_obj->getWaitingFor();
-	waiting_threads->reset();
-
-	HSIterator<thread_id_t, int, 0> * it = waiting_for_threads.iterator();
-	while (it->hasNext()) {
-		thread_id_t tid = it->next();
-		waiting_threads->add(tid);
 	}
 }
 

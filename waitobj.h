@@ -11,9 +11,16 @@ public:
 
 	thread_id_t get_tid() { return tid; }
 
+	void add_waiting_for(thread_id_t other, int dist);
+	void add_waited_by(thread_id_t other);
+	void remove_waiting_for(thread_id_t other);
+	void remove_waited_by(thread_id_t other);
+
 	thrd_id_set_t * getWaitingFor() { return &waiting_for; }
 	thrd_id_set_t * getWaitingBy() { return &waited_by; }
 	int lookup_dist(thread_id_t other_tid);
+
+	void reset();
 
 	void print_waiting_for();
 	void print_waited_by();
