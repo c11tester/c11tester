@@ -21,7 +21,7 @@ struct LinkNode {
 template<typename _Key, typename _KeyInt, int _Shift, void * (* _malloc)(size_t), void * (* _calloc)(size_t, size_t), void (*_free)(void *), unsigned int (*hash_function)(_Key), bool (*equals)(_Key, _Key)>
 class HashSet;
 
-template<typename _Key, typename _KeyInt, int _Shift, void * (* _malloc)(size_t), void * (* _calloc)(size_t, size_t), void (*_free)(void *), unsigned int (*hash_function)(_Key) = default_hash_function<_Key, _Shift, _KeyInt>, bool (*equals)(_Key, _Key) = default_equals<_Key> >
+template<typename _Key, typename _KeyInt, int _Shift, void * (* _malloc)(size_t) = snapshot_malloc, void * (* _calloc)(size_t, size_t) = snapshot_calloc, void (*_free)(void *) = snapshot_free, unsigned int (*hash_function)(_Key) = default_hash_function<_Key, _Shift, _KeyInt>, bool (*equals)(_Key, _Key) = default_equals<_Key> >
 class HSIterator {
 public:
 	HSIterator(LinkNode<_Key> *_curr, HashSet <_Key, _KeyInt, _Shift, _malloc, _calloc, _free, hash_function, equals> * _set) :

@@ -640,6 +640,10 @@ void FuncNode::add_out_edge(FuncNode * other)
 	}
 }
 
+/* Compute the distance between this FuncNode and the target node.
+ * Return -1 if the target node is unreachable or the actual distance
+ * is greater than max_step.
+ */
 int FuncNode::compute_distance(FuncNode * target, int max_step)
 {
 	SnapList<FuncNode *> queue;

@@ -9,7 +9,7 @@
 class ConcretePredicate {
 public:
 	ConcretePredicate(thread_id_t tid);
-	~ConcretePredicate();
+	~ConcretePredicate() {}
 
 	void add_expression(token_t token, uint64_t value, bool equality);
 	SnapVector<struct concrete_pred_expr> * getExpressions() { return &expressions; }
