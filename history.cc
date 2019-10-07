@@ -389,16 +389,20 @@ void ModelHistory::add_waiting_thread(thread_id_t self_id,
 	other_wait_obj->add_waited_by(self_id);
 }
 
-void ModelHistory::remove_waiting_thread(thread_id_t self_id, thread_id_t waiting_for_id)
+void ModelHistory::remove_waiting_thread(thread_id_t tid)
 {
-	WaitObj * self_wait_obj = getWaitObj(self_id);
-	self_wait_obj->remove_waiting_for(waiting_for_id);
+	WaitObj * self_wait_obj = getWaitObj(tid);
+	thrd_id_set_t * waiting_for = self_wait_obj->getWaitingFor();
 
-	/* Update waited-by relation */
-	WaitObj * other_wait_obj = getWaitObj(waiting_for_id);
-	other_wait_obj->remove_waited_by(self_id);
+	thrd_id_set_iter * iter = waiting_for->iterator();
+	while (iter->hasNext()) {
+		thread_id_t other_id = iter->next();
+		WaitObj * other_wait_obj = getWaitObj(other_id);
+		other_wait_obj->remove_waited_by(tid);
+	}
+
+	waiting_for->reset();
 }
-
 
 SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
 {

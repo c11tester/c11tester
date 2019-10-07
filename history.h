@@ -41,7 +41,7 @@ public:
 
 	WaitObj * getWaitObj(thread_id_t tid);
 	void add_waiting_thread(thread_id_t self_id, thread_id_t waiting_for_id, int dist);
-	void remove_waiting_thread(thread_id_t self_id, thread_id_t waiting_for_id);
+	void remove_waiting_thread(thread_id_t tid);
 
 	SnapVector<inst_act_map_t *> * getThrdInstActMap(uint32_t func_id);
 

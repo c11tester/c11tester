@@ -65,8 +65,6 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 		conditional_sleep(read_thread);
 
-		find_threads(read);
-
 		return -1;
 /*
 		SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
@@ -229,6 +227,9 @@ void NewFuzzer::conditional_sleep(Thread * thread)
 	concrete->set_location(read->get_location());
 
 	history->add_waiting_write(concrete);
+
+	/* history->add_waiting_thread is called in find_threads */
+	find_threads(read);
 }
 
 bool NewFuzzer::has_paused_threads()
@@ -240,7 +241,7 @@ Thread * NewFuzzer::selectThread(int * threadlist, int numthreads)
 {
 	if (numthreads == 0 && has_paused_threads()) {
 		wake_up_paused_threads(threadlist, &numthreads);
-		model_print("list size: %d, active t id: %d\n", numthreads, threadlist[0]);
+		//model_print("list size: %d, active t id: %d\n", numthreads, threadlist[0]);
 	}
 
 	int random_index = random() % numthreads;
@@ -266,6 +267,7 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 
 	thread_id_t tid = thread->get_id();
 	history->remove_waiting_write(tid);
+	history->remove_waiting_thread(tid);
 
 	model_print("thread %d is woken up\n", tid);
 	threadlist[*numthreads] = tid;
@@ -288,11 +290,14 @@ void NewFuzzer::notify_paused_thread(Thread * thread)
 
 	thread_id_t tid = thread->get_id();
 	history->remove_waiting_write(tid);
+	history->remove_waiting_thread(tid);
 }
 
 /* Find threads that may write values that the pending read action is waiting for */
 void NewFuzzer::find_threads(ModelAction * pending_read)
 {
+	ASSERT(pending_read->is_read());
+
 	void * location = pending_read->get_location();
 	thread_id_t self_id = pending_read->get_tid();
 
