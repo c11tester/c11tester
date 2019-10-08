@@ -26,9 +26,9 @@ public:
 	node_set_t * getTargetNodes(thread_id_t tid);
 	int lookup_dist(thread_id_t tid, FuncNode * target);
 	int lookup_dist(thread_id_t other_tid);
-	void reset();
+	void clear_waiting_for();
 
-	void print_waiting_for();
+	void print_waiting_for(bool verbose = false);
 	void print_waited_by();
 
 	SNAPSHOTALLOC

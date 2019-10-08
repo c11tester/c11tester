@@ -1,5 +1,6 @@
 #include "waitobj.h"
 #include "threads-model.h"
+#include "funcnode.h"
 
 WaitObj::WaitObj(thread_id_t tid) :
 	tid(tid),
@@ -40,6 +41,7 @@ void WaitObj::add_waited_by(thread_id_t other)
  * @param other The thread to be removed
  * @param node The target node
  * @return true if "other" is removed from waiting_for set
+ *         false if only a target node of "other" is removed
  */
 bool WaitObj::remove_waiting_for(thread_id_t other, FuncNode * node)
 {
@@ -49,7 +51,7 @@ bool WaitObj::remove_waiting_for(thread_id_t other, FuncNode * node)
 	node_set_t * target_nodes = getTargetNodes(other);
 	target_nodes->remove(node);
 
-	/* The thread has not nodes to reach */
+	/* The thread has no nodes to reach */
 	if (target_nodes->isEmpty()) {
 		waiting_for.remove(other);
 		return true;
@@ -102,7 +104,7 @@ node_set_t * WaitObj::getTargetNodes(thread_id_t tid)
 	return thrd_target_nodes[thread_id];
 }
 
-void WaitObj::reset()
+void WaitObj::clear_waiting_for()
 {
 	thrd_id_set_iter * iter = waiting_for.iterator();
 	while (iter->hasNext()) {
@@ -110,14 +112,14 @@ void WaitObj::reset()
 		int index = id_to_int(tid);
 		thrd_target_nodes[index]->reset();
 		/* thrd_dist_maps are not reset because distances
-		 * will be overwritten */
+		 * will be overwritten when node targets are added */
 	}
 
 	waiting_for.reset();
-	waited_by.reset();
+	/* waited_by relation should be kept */
 }
 
-void WaitObj::print_waiting_for()
+void WaitObj::print_waiting_for(bool verbose)
 {
 	if (waiting_for.getSize() == 0)
 		return;
@@ -126,10 +128,32 @@ void WaitObj::print_waiting_for()
 	thrd_id_set_iter * it = waiting_for.iterator();
 
 	while (it->hasNext()) {
-		thread_id_t thread_id = it->next();
-		model_print("%d ", thread_id);
+		thread_id_t waiting_for_id = it->next();
+		model_print("%d ", waiting_for_id);
 	}
 	model_print("\n");
+
+	if (verbose) {
+		/* Print out the distances from each thread to target nodes */
+		model_print("\t");
+		for (uint i = 0; i < thrd_target_nodes.size(); i++) {
+			dist_map_t * dist_map = getDistMap(i);
+			node_set_t * node_set = getTargetNodes(i);
+			node_set_iter * node_iter = node_set->iterator();
+
+			if (!node_set->isEmpty()) {
+				model_print("[thread %d](", int_to_id(i));
+
+				while (node_iter->hasNext()){
+					FuncNode * node = node_iter->next();
+					int dist = dist_map->get(node);
+					model_print("node %d: %d, ", node->get_func_id(), dist);
+				}
+				model_print(") ");
+			}
+		}
+		model_print("\n");
+	}
 }
 
 void WaitObj::print_waited_by()
