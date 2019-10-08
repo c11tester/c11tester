@@ -648,31 +648,35 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 {
 	if (target == NULL)
 		return -1;
+	else if (target == this)
+		return 0;
 
 	SnapList<FuncNode *> queue;
-	HashTable<FuncNode *, int, uintptr_t, 0> distances;
+	HashTable<FuncNode *, int, uintptr_t, 0> distances(128);
 
-	int dist = 0;
 	queue.push_back(this);
-	distances.put(this, dist);
+	distances.put(this, 0);
 
 	while (!queue.empty()) {
 		FuncNode * curr = queue.front();
 		queue.pop_front();
+		int dist = distances.get(curr);
 
-		if (max_step < dist)
+		if (max_step <= dist)
 			return -1;
-		else if (curr == target)
-			return dist;
 
-		dist++;
 		ModelList<FuncNode *> * outEdges = curr->get_out_edges();
 		mllnode<FuncNode *> * it;
 		for (it = outEdges->begin(); it != NULL; it = it->getNext()) {
 			FuncNode * out_node = it->getVal();
+
+			/* This node has not been visited before */
 			if ( !distances.contains(out_node) ) {
+				if (out_node == target)
+					return dist + 1;
+
 				queue.push_back(out_node);
-				distances.put(out_node, dist);
+				distances.put(out_node, dist + 1);
 			}
 		}
 	}
