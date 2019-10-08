@@ -30,8 +30,8 @@ ModelHistory::ModelHistory() :
 
 ModelHistory::~ModelHistory()
 {
-	// TODO: complete deconstructor
-	for (uint i = 0; i < thrd_wait_obj->size(); )
+	// TODO: complete deconstructor; maybe not needed
+	for (uint i = 0; i < thrd_wait_obj->size(); i++)
 		delete (*thrd_wait_obj)[i];
 }
 
@@ -399,6 +399,7 @@ void ModelHistory::add_waiting_thread(thread_id_t self_id,
 	other_wait_obj->add_waited_by(self_id);
 }
 
+/* Thread tid is woken up (or notified), so it is not waiting for others anymore */
 void ModelHistory::remove_waiting_thread(thread_id_t tid)
 {
 	WaitObj * self_wait_obj = getWaitObj(tid);
@@ -412,7 +413,30 @@ void ModelHistory::remove_waiting_thread(thread_id_t tid)
 		other_wait_obj->remove_waited_by(tid);
 	}
 
-	waiting_for->reset();
+	self_wait_obj->clear_waiting_for();
+}
+
+void ModelHistory::stop_waiting_for(thread_id_t self_id,
+	thread_id_t waiting_for_id, FuncNode * target_node)
+{
+	WaitObj * self_wait_obj = getWaitObj(self_id);
+	bool thread_removed = self_wait_obj->remove_waiting_for(waiting_for_id, target_node);
+
+	// model_print("\t%d gives up %d on node %d\n", self_id, waiting_for_id, target_node->get_func_id());
+
+	/* If thread self_id is not waiting for waiting_for_id anymore */
+	if (thread_removed) {
+		WaitObj * other_wait_obj = getWaitObj(waiting_for_id);
+		other_wait_obj->remove_waited_by(self_id);
+
+		thrd_id_set_t * self_waiting_for = self_wait_obj->getWaitingFor();
+		if ( self_waiting_for->isEmpty() ) {
+			// model_print("\tthread %d waits for nobody, wake up\n", self_id);
+			ModelExecution * execution = model->get_execution();
+			Thread * thread = execution->get_thread(self_id);
+			execution->getFuzzer()->notify_paused_thread(thread);
+		}
+	}
 }
 
 SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
@@ -462,22 +486,25 @@ void ModelHistory::monitor_waiting_thread(uint32_t func_id, thread_id_t tid)
 {
 	WaitObj * wait_obj = getWaitObj(tid);
 	thrd_id_set_t * waited_by = wait_obj->getWaitedBy();
+	FuncNode * curr_node = func_nodes[func_id];
 
 	/* For each thread waiting for tid */
-	thrd_id_set_iter * iter = waited_by->iterator();
-
-	while (iter->hasNext()) {
-		thread_id_t other_id = iter->next();
-		WaitObj * other_wait_obj = getWaitObj(other_id);
+	thrd_id_set_iter * tid_iter = waited_by->iterator();
+	while (tid_iter->hasNext()) {
+		thread_id_t waited_by_id = tid_iter->next();
+		WaitObj * other_wait_obj = getWaitObj(waited_by_id);
 
 		node_set_t * target_nodes = other_wait_obj->getTargetNodes(tid);
-		node_set_iter * iter = target_nodes->iterator();
-		while (iter->hasNext()) {
-			FuncNode * target = iter->next();
+		node_set_iter * node_iter = target_nodes->iterator();
+		while (node_iter->hasNext()) {
+			FuncNode * target = node_iter->next();
 			int old_dist = other_wait_obj->lookup_dist(tid, target);
+			int new_dist = curr_node->compute_distance(target, old_dist);
+
+			if (new_dist == -1) {
+				stop_waiting_for(waited_by_id, tid, target);
+			}
 		}
-		// TODO: Recompute distance from tmp to 'target' nodes
-		// FuncNode * tmp = func_nodes[func_id];
 	}
 }
 
