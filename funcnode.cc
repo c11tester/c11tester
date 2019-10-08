@@ -660,10 +660,10 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 		FuncNode * curr = queue.front();
 		queue.pop_front();
 
-		if (curr == target)
-			return dist;
-		else if (max_step < dist)
+		if (max_step < dist)
 			return -1;
+		else if (curr == target)
+			return dist;
 
 		dist++;
 		ModelList<FuncNode *> * outEdges = curr->get_out_edges();
