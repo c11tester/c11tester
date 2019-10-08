@@ -17,7 +17,7 @@ NewFuzzer::NewFuzzer() :
 	thrd_curr_pred(),
 	thrd_selected_child_branch(),
 	thrd_pruned_writes(),
-	paused_thread_set(),
+	paused_thread_list(),
 	paused_thread_table(128)
 {}
 
@@ -210,10 +210,10 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
  */
 void NewFuzzer::conditional_sleep(Thread * thread)
 {
-	int index = paused_thread_set.size();
+	int index = paused_thread_list.size();
 
 	model->getScheduler()->add_sleep(thread);
-	paused_thread_set.push_back(thread);
+	paused_thread_list.push_back(thread);
 	paused_thread_table.put(thread, index);	// Update table
 
 	/* Add the waiting condition to ModelHistory */
@@ -234,7 +234,7 @@ void NewFuzzer::conditional_sleep(Thread * thread)
 
 bool NewFuzzer::has_paused_threads()
 {
-	return paused_thread_set.size() != 0;
+	return paused_thread_list.size() != 0;
 }
 
 Thread * NewFuzzer::selectThread(int * threadlist, int numthreads)
@@ -255,13 +255,13 @@ Thread * NewFuzzer::selectThread(int * threadlist, int numthreads)
  */
 void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 {
-	int random_index = random() % paused_thread_set.size();
-	Thread * thread = paused_thread_set[random_index];
+	int random_index = random() % paused_thread_list.size();
+	Thread * thread = paused_thread_list[random_index];
 	model->getScheduler()->remove_sleep(thread);
 
-	Thread * last_thread = paused_thread_set.back();
-	paused_thread_set[random_index] = last_thread;
-	paused_thread_set.pop_back();
+	Thread * last_thread = paused_thread_list.back();
+	paused_thread_list[random_index] = last_thread;
+	paused_thread_list.pop_back();
 	paused_thread_table.put(last_thread, random_index);	// Update table
 	paused_thread_table.remove(thread);
 
@@ -282,9 +282,9 @@ void NewFuzzer::notify_paused_thread(Thread * thread)
 	int index = paused_thread_table.get(thread);
 	model->getScheduler()->remove_sleep(thread);
 
-	Thread * last_thread = paused_thread_set.back();
-	paused_thread_set[index] = last_thread;
-	paused_thread_set.pop_back();
+	Thread * last_thread = paused_thread_list.back();
+	paused_thread_list[index] = last_thread;
+	paused_thread_list.pop_back();
 	paused_thread_table.put(last_thread, index);	// Update table
 	paused_thread_table.remove(thread);
 
@@ -316,7 +316,7 @@ void NewFuzzer::find_threads(ModelAction * pending_read)
 
 			int distance = node->compute_distance(target_node);
 			if (distance != -1) {
-				history->add_waiting_thread(self_id, tid, distance);
+				history->add_waiting_thread(self_id, tid, target_node, distance);
 				model_print("thread: %d; distance from node %d to node %d: %d\n", tid, node->get_func_id(), target_node->get_func_id(), distance);
 
 			}

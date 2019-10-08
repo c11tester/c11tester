@@ -40,7 +40,7 @@ public:
 	SnapVector<ConcretePredicate *> * getThrdWaitingWrite() { return thrd_waiting_write; }
 
 	WaitObj * getWaitObj(thread_id_t tid);
-	void add_waiting_thread(thread_id_t self_id, thread_id_t waiting_for_id, int dist);
+	void add_waiting_thread(thread_id_t self_id, thread_id_t waiting_for_id, FuncNode * target_node, int dist);
 	void remove_waiting_thread(thread_id_t tid);
 
 	SnapVector<inst_act_map_t *> * getThrdInstActMap(uint32_t func_id);
@@ -76,11 +76,12 @@ private:
 	SnapVector<ConcretePredicate *> * thrd_waiting_write;
 	SnapVector<WaitObj *> * thrd_wait_obj;
 
-	/* A run-time map from FuncInst to ModelAction per each thread, per each FuncNode.
+	/* A run-time map from FuncInst to ModelAction per thread, per FuncNode.
 	 * Manipulated by FuncNode, and needed by NewFuzzer */
 	HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0> * func_inst_act_maps;
 
 	bool skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list);
+	void monitor_waiting_thread(uint32_t func_id, thread_id_t tid);
 };
 
 #endif	/* __HISTORY_H__ */

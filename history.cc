@@ -28,11 +28,19 @@ ModelHistory::ModelHistory() :
 	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>(128);
 }
 
+ModelHistory::~ModelHistory()
+{
+	// TODO: complete deconstructor
+	for (uint i = 0; i < thrd_wait_obj->size(); )
+		delete (*thrd_wait_obj)[i];
+}
+
 void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 {
 	//model_print("thread %d entering func %d\n", tid, func_id);
 	ModelExecution * execution = model->get_execution();
 	uint id = id_to_int(tid);
+
 	SnapVector<func_id_list_t> * thrd_func_list = execution->get_thrd_func_list();
 	SnapVector< SnapList<action_list_t *> *> *
 		thrd_func_act_lists = execution->get_thrd_func_act_lists();
@@ -72,6 +80,8 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		FuncNode * last_func_node = func_nodes[last_entered_func_id];
 		last_func_node->add_out_edge(func_node);
 	}
+
+	monitor_waiting_thread(func_id, tid);
 }
 
 /* @param func_id a non-zero value */
@@ -156,7 +166,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		uint64_t value = act->get_write_value();
 		update_write_history(location, value);
 
-		/* Update FuncNodes that may read from this location */
+		/* Notify FuncNodes that may read from this location */
 		SnapVector<FuncNode *> * func_node_list = getRdFuncNodes(location);
 		for (uint i = 0; i < func_node_list->size(); i++) {
 			FuncNode * func_node = (*func_node_list)[i];
@@ -379,10 +389,10 @@ WaitObj * ModelHistory::getWaitObj(thread_id_t tid)
 }
 
 void ModelHistory::add_waiting_thread(thread_id_t self_id,
-		thread_id_t waiting_for_id, int dist)
+	thread_id_t waiting_for_id, FuncNode * target_node, int dist)
 {
 	WaitObj * self_wait_obj = getWaitObj(self_id);
-	self_wait_obj->add_waiting_for(waiting_for_id, dist);
+	self_wait_obj->add_waiting_for(waiting_for_id, target_node, dist);
 
 	/* Update waited-by relation */
 	WaitObj * other_wait_obj = getWaitObj(waiting_for_id);
@@ -394,6 +404,7 @@ void ModelHistory::remove_waiting_thread(thread_id_t tid)
 	WaitObj * self_wait_obj = getWaitObj(tid);
 	thrd_id_set_t * waiting_for = self_wait_obj->getWaitingFor();
 
+	/* Remove tid from waited_by's */
 	thrd_id_set_iter * iter = waiting_for->iterator();
 	while (iter->hasNext()) {
 		thread_id_t other_id = iter->next();
@@ -438,6 +449,36 @@ bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr
 		return true;
 
 	return false;
+}
+
+/* Monitor thread tid and decide whether other threads (that are waiting for tid)
+ * should keep waiting for this thread or not. Shall only be called when a thread
+ * enters a function. 
+ *
+ * Heuristics: If the distance from the current FuncNode to some target node
+ * ever increases, stop waiting for this thread on this target node. 
+ */
+void ModelHistory::monitor_waiting_thread(uint32_t func_id, thread_id_t tid)
+{
+	WaitObj * wait_obj = getWaitObj(tid);
+	thrd_id_set_t * waited_by = wait_obj->getWaitedBy();
+
+	/* For each thread waiting for tid */
+	thrd_id_set_iter * iter = waited_by->iterator();
+
+	while (iter->hasNext()) {
+		thread_id_t other_id = iter->next();
+		WaitObj * other_wait_obj = getWaitObj(other_id);
+
+		node_set_t * target_nodes = other_wait_obj->getTargetNodes(tid);
+		node_set_iter * iter = target_nodes->iterator();
+		while (iter->hasNext()) {
+			FuncNode * target = iter->next();
+			int old_dist = other_wait_obj->lookup_dist(tid, target);
+		}
+		// TODO: Recompute distance from tmp to 'target' nodes
+		// FuncNode * tmp = func_nodes[func_id];
+	}
 }
 
 /* Reallocate some snapshotted memories when new executions start */

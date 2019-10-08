@@ -37,7 +37,7 @@ private:
 
 	/* The set of Threads put to sleep by NewFuzzer because no writes in rf_set satisfies the selected predicate. Only used by selectWrite.
 	 */
-	SnapVector<Thread *> paused_thread_set;
+	SnapVector<Thread *> paused_thread_list;
 	HashTable<Thread *, int, uintptr_t, 0> paused_thread_table;
 
 	void conditional_sleep(Thread * thread);

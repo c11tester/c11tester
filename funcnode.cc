@@ -646,6 +646,9 @@ void FuncNode::add_out_edge(FuncNode * other)
  */
 int FuncNode::compute_distance(FuncNode * target, int max_step)
 {
+	if (target == NULL)
+		return -1;
+
 	SnapList<FuncNode *> queue;
 	HashTable<FuncNode *, int, uintptr_t, 0> distances;
 
