@@ -7,7 +7,8 @@ WaitObj::WaitObj(thread_id_t tid) :
 	waiting_for(32),
 	waited_by(32),
 	thrd_dist_maps(),
-	thrd_target_nodes()
+	thrd_target_nodes(),
+	thrd_action_counters()
 {}
 
 WaitObj::~WaitObj()
@@ -43,7 +44,7 @@ void WaitObj::add_waited_by(thread_id_t other)
  * @return true if "other" is removed from waiting_for set
  *         false if only a target node of "other" is removed
  */
-bool WaitObj::remove_waiting_for(thread_id_t other, FuncNode * node)
+bool WaitObj::remove_waiting_for_node(thread_id_t other, FuncNode * node)
 {
 	dist_map_t * dist_map = getDistMap(other);
 	dist_map->remove(node);
@@ -60,6 +61,16 @@ bool WaitObj::remove_waiting_for(thread_id_t other, FuncNode * node)
 	return false;
 }
 
+/* Stop waiting for the thread */
+void WaitObj::remove_waiting_for(thread_id_t other)
+{
+	// TODO: clear dist_map or not?
+	waiting_for.remove(other);
+
+	node_set_t * target_nodes = getTargetNodes(other);
+	target_nodes->reset();
+}
+
 void WaitObj::remove_waited_by(thread_id_t other)
 {
 	waited_by.remove(other);
@@ -68,7 +79,11 @@ void WaitObj::remove_waited_by(thread_id_t other)
 int WaitObj::lookup_dist(thread_id_t tid, FuncNode * target)
 {
 	dist_map_t * map = getDistMap(tid);
-	if (map->contains(target))
+	node_set_t * node_set = getTargetNodes(tid);
+
+	/* thrd_dist_maps is not reset when clear_waiting_for is called,
+	 * so node_set should be checked */
+	if (node_set->contains(target) && map->contains(target))
 		return map->get(target);
 
 	return -1;
@@ -102,6 +117,45 @@ node_set_t * WaitObj::getTargetNodes(thread_id_t tid)
 	}
 
 	return thrd_target_nodes[thread_id];
+}
+
+/*
+SnapVector<thread_id_t> WaitObj::incr_waiting_for_counter()
+{
+	SnapVector<thread_id_t> expire_thrds;
+
+	thrd_id_set_iter * iter = waiting_for.iterator();
+	while (iter->hasNext()) {
+		thread_id_t waiting_for_id = iter->next();
+		bool expire = incr_counter(waiting_for_id);
+
+		if (expire) {
+			expire_thrds.push_back(waiting_for_id);
+		}
+	}
+
+	return expire_thrds;
+}*/
+
+/**
+ * Increment action counter for thread tid
+ * @return true if the counter for tid expires
+ */
+bool WaitObj::incr_counter(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+
+	/* thrd_action_counters.resize does not work here */
+	while (thrd_action_counters.size() <= (uint) thread_id) {
+		thrd_action_counters.push_back(0);
+	}
+
+	thrd_action_counters[thread_id]++;
+
+	if (thrd_action_counters[thread_id] > 1000)
+		return true;
+
+	return false;
 }
 
 void WaitObj::clear_waiting_for()
@@ -169,5 +223,4 @@ void WaitObj::print_waited_by()
 		model_print("%d ", thread_id);
 	}
 	model_print("\n");
-
 }

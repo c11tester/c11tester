@@ -81,6 +81,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		last_func_node->add_out_edge(func_node);
 	}
 
+	/* Monitor the statuses of threads waiting for tid */
 	monitor_waiting_thread(func_id, tid);
 }
 
@@ -147,20 +148,22 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 {
 	ModelExecution * execution = model->get_execution();
-	/* Return if thread i has not entered any function or has exited
-	   from all functions */
 	SnapVector<func_id_list_t> * thrd_func_list = execution->get_thrd_func_list();
 	SnapVector< SnapList<action_list_t *> *> *
 		thrd_func_act_lists = execution->get_thrd_func_act_lists();
 
-	uint32_t id = id_to_int(tid);
-	if ( thrd_func_list->size() <= id )
+	uint32_t thread_id = id_to_int(tid);
+	uint32_t func_id = (*thrd_func_list)[thread_id].back();
+
+	/* Return if thread tid has not entered any function that contains atomics */
+	if ( thrd_func_list->size() <= thread_id )
 		return;
 
-	/* Get the function id that thread i is currently in */
-	uint32_t func_id = (*thrd_func_list)[id].back();
-	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
+	/* Monitor the statuses of threads waiting for tid */
+	monitor_waiting_thread_counter(tid);
 
+	/* Every write action should be processed, including
+	 * nonatomic writes (which have no position) */
 	if (act->is_write()) {
 		void * location = act->get_location();
 		uint64_t value = act->get_write_value();
@@ -176,10 +179,13 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		check_waiting_write(act);
 	}
 
-	/* The following does not care about actions without a position */
+	/* The following does not care about actions that are not inside
+	 * any function that contains atomics or actions without a position */
 	if (func_id == 0 || act->get_position() == NULL)
 		return;
 
+	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[thread_id];
+	/* The list of actions that thread tid has taken in its current function */
 	action_list_t * curr_act_list = func_act_lists->back();
 	ASSERT(curr_act_list != NULL);
 
@@ -416,11 +422,11 @@ void ModelHistory::remove_waiting_thread(thread_id_t tid)
 	self_wait_obj->clear_waiting_for();
 }
 
-void ModelHistory::stop_waiting_for(thread_id_t self_id,
+void ModelHistory::stop_waiting_for_node(thread_id_t self_id,
 	thread_id_t waiting_for_id, FuncNode * target_node)
 {
 	WaitObj * self_wait_obj = getWaitObj(self_id);
-	bool thread_removed = self_wait_obj->remove_waiting_for(waiting_for_id, target_node);
+	bool thread_removed = self_wait_obj->remove_waiting_for_node(waiting_for_id, target_node);
 
 	// model_print("\t%d gives up %d on node %d\n", self_id, waiting_for_id, target_node->get_func_id());
 
@@ -502,8 +508,28 @@ void ModelHistory::monitor_waiting_thread(uint32_t func_id, thread_id_t tid)
 			int new_dist = curr_node->compute_distance(target, old_dist);
 
 			if (new_dist == -1) {
-				stop_waiting_for(waited_by_id, tid, target);
+				stop_waiting_for_node(waited_by_id, tid, target);
 			}
+		}
+	}
+}
+
+void monitor_waiting_thread_counter(thread_id_t tid)
+{
+	WaitObj * wait_obj = getWaitObj(tid);
+	thrd_id_set_t * waited_by = wait_obj->getWaitedBy();
+	SnapVector<thread_id_t> expire_threads;
+
+	// Thread tid has taken an action, update the counter for threads waiting for tid
+	thrd_id_set_iter * tid_iter = waited_by->iterator();
+	while (tid_iter->hasNext()) {
+		thread_id_t waited_by_id = tid_iter->next();
+		WaitObj * other_wait_obj = getWaitObj(waited_by_id);
+
+		bool expire = other_wait_obj->incr_counter(tid);
+		if (expire) {
+			// TODO: complete
+			expire_threads.push_back(tid);
 		}
 	}
 }
