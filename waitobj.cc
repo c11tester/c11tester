@@ -2,6 +2,8 @@
 #include "threads-model.h"
 #include "funcnode.h"
 
+#define COUNTER_THRESHOLD 1000
+
 WaitObj::WaitObj(thread_id_t tid) :
 	tid(tid),
 	waiting_for(32),
@@ -142,8 +144,10 @@ bool WaitObj::incr_counter(thread_id_t tid)
 	}
 
 	thrd_action_counters[thread_id]++;
-	if (thrd_action_counters[thread_id] > 1000)
+	if (thrd_action_counters[thread_id] > COUNTER_THRESHOLD) {
+		thrd_action_counters[thread_id] = 0;
 		return true;
+	}
 
 	return false;
 }

@@ -28,7 +28,8 @@ private:
 	ModelExecution * execution;
 
 	SnapVector<ModelAction *> thrd_last_read_act;
-	SnapVector<Predicate *> thrd_curr_pred;
+	SnapVector<FuncInst *> thrd_last_func_inst;
+
 	SnapVector<Predicate *> thrd_selected_child_branch;
 	SnapVector< SnapVector<ModelAction *> *> thrd_pruned_writes;
 
@@ -39,11 +40,12 @@ private:
 	 */
 	SnapVector<Thread *> paused_thread_list;
 	HashTable<Thread *, int, uintptr_t, 0> paused_thread_table;
+	HashTable<Predicate *, bool, uintptr_t, 0> failed_predicates;
 
 	void conditional_sleep(Thread * thread);
 	void wake_up_paused_threads(int * threadlist, int * numthreads);
 
-	void find_threads(ModelAction * pending_read);
+	bool find_threads(ModelAction * pending_read);
 };
 
 #endif /* end of __NEWFUZZER_H__ */
