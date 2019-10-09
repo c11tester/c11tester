@@ -153,8 +153,6 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		thrd_func_act_lists = execution->get_thrd_func_act_lists();
 
 	uint32_t thread_id = id_to_int(tid);
-	uint32_t func_id = (*thrd_func_list)[thread_id].back();
-
 	/* Return if thread tid has not entered any function that contains atomics */
 	if ( thrd_func_list->size() <= thread_id )
 		return;
@@ -179,23 +177,25 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		check_waiting_write(act);
 	}
 
+	uint32_t func_id = (*thrd_func_list)[thread_id].back();
+
 	/* The following does not care about actions that are not inside
 	 * any function that contains atomics or actions without a position */
 	if (func_id == 0 || act->get_position() == NULL)
 		return;
 
 	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[thread_id];
+
 	/* The list of actions that thread tid has taken in its current function */
 	action_list_t * curr_act_list = func_act_lists->back();
-	ASSERT(curr_act_list != NULL);
 
 	if (skip_action(act, curr_act_list))
 		return;
 
-	FuncNode * func_node = func_nodes[func_id];
-
 	/* Add to curr_inst_list */
 	curr_act_list->push_back(act);
+
+	FuncNode * func_node = func_nodes[func_id];
 	func_node->add_inst(act);
 
 	if (act->is_read()) {
@@ -460,6 +460,8 @@ SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
 
 bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list)
 {
+	ASSERT(curr_act_list != NULL);
+
 	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
 	modelclock_t curr_seq_number = act->get_seq_number();
 
@@ -514,7 +516,7 @@ void ModelHistory::monitor_waiting_thread(uint32_t func_id, thread_id_t tid)
 	}
 }
 
-void monitor_waiting_thread_counter(thread_id_t tid)
+void ModelHistory::monitor_waiting_thread_counter(thread_id_t tid)
 {
 	WaitObj * wait_obj = getWaitObj(tid);
 	thrd_id_set_t * waited_by = wait_obj->getWaitedBy();
@@ -528,8 +530,16 @@ void monitor_waiting_thread_counter(thread_id_t tid)
 
 		bool expire = other_wait_obj->incr_counter(tid);
 		if (expire) {
-			// TODO: complete
-			expire_threads.push_back(tid);
+			wait_obj->remove_waited_by(waited_by_id);
+			other_wait_obj->remove_waiting_for(tid);
+
+			thrd_id_set_t * other_waiting_for = other_wait_obj->getWaitingFor();
+			if ( other_waiting_for->isEmpty() ) {
+				// model_print("\tthread %d waits for nobody, wake up\n", self_id);
+				ModelExecution * execution = model->get_execution();
+				Thread * thread = execution->get_thread(waited_by_id);
+				execution->getFuzzer()->notify_paused_thread(thread);
+			}
 		}
 	}
 }

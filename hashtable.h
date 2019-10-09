@@ -284,6 +284,9 @@ public:
 		return size;
 	}
 
+	bool isEmpty() {
+		return size == 0;
+	}
 
 	/**
 	 * @brief Check whether the table contains a value for the given key

@@ -18,6 +18,7 @@ public:
 	void add_waiting_for(thread_id_t other, FuncNode * node, int dist);
 	void add_waited_by(thread_id_t other);
 	bool remove_waiting_for_node(thread_id_t other, FuncNode * node);
+	void remove_waiting_for(thread_id_t other);
 	void remove_waited_by(thread_id_t other);
 
 	thrd_id_set_t * getWaitingFor() { return &waiting_for; }
@@ -27,7 +28,6 @@ public:
 	int lookup_dist(thread_id_t tid, FuncNode * target);
 
 	bool incr_counter(thread_id_t tid);
-	// SnapVector<thread_id_t> incr_waiting_for_counter();
 
 	void clear_waiting_for();
 

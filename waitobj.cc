@@ -54,7 +54,10 @@ bool WaitObj::remove_waiting_for_node(thread_id_t other, FuncNode * node)
 
 	/* The thread has no nodes to reach */
 	if (target_nodes->isEmpty()) {
+		int index = id_to_int(other);
+		thrd_action_counters[index] = 0;
 		waiting_for.remove(other);
+
 		return true;
 	}
 
@@ -64,11 +67,17 @@ bool WaitObj::remove_waiting_for_node(thread_id_t other, FuncNode * node)
 /* Stop waiting for the thread */
 void WaitObj::remove_waiting_for(thread_id_t other)
 {
-	// TODO: clear dist_map or not?
 	waiting_for.remove(other);
+
+	// TODO: clear dist_map or not?
+	/* dist_map_t * dist_map = getDistMap(other);
+	   dist_map->reset(); */
 
 	node_set_t * target_nodes = getTargetNodes(other);
 	target_nodes->reset();
+
+	int index = id_to_int(other);
+	thrd_action_counters[index] = 0;
 }
 
 void WaitObj::remove_waited_by(thread_id_t other)
@@ -119,24 +128,6 @@ node_set_t * WaitObj::getTargetNodes(thread_id_t tid)
 	return thrd_target_nodes[thread_id];
 }
 
-/*
-SnapVector<thread_id_t> WaitObj::incr_waiting_for_counter()
-{
-	SnapVector<thread_id_t> expire_thrds;
-
-	thrd_id_set_iter * iter = waiting_for.iterator();
-	while (iter->hasNext()) {
-		thread_id_t waiting_for_id = iter->next();
-		bool expire = incr_counter(waiting_for_id);
-
-		if (expire) {
-			expire_thrds.push_back(waiting_for_id);
-		}
-	}
-
-	return expire_thrds;
-}*/
-
 /**
  * Increment action counter for thread tid
  * @return true if the counter for tid expires
@@ -151,7 +142,6 @@ bool WaitObj::incr_counter(thread_id_t tid)
 	}
 
 	thrd_action_counters[thread_id]++;
-
 	if (thrd_action_counters[thread_id] > 1000)
 		return true;
 
@@ -164,9 +154,14 @@ void WaitObj::clear_waiting_for()
 	while (iter->hasNext()) {
 		thread_id_t tid = iter->next();
 		int index = id_to_int(tid);
-		thrd_target_nodes[index]->reset();
+		thrd_action_counters[index] = 0;
+
 		/* thrd_dist_maps are not reset because distances
-		 * will be overwritten when node targets are added */
+		 * will be overwritten when node targets are added
+		 * thrd_dist_maps[index]->reset(); */
+
+		node_set_t * target_nodes = getTargetNodes(tid);
+		target_nodes->reset();
 	}
 
 	waiting_for.reset();
