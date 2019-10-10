@@ -63,7 +63,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	// No write satisfies the selected predicate, so pause this thread.
 	while ( rf_set->size() == 0 ) {
 		Thread * read_thread = execution->get_thread(tid);
-		model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
+		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
 
 		if (find_threads(read)) {
 			// reset thread pending action and revert sequence numbers
@@ -179,29 +179,35 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 	bool pruned = false;
 	uint index = 0;
 
-	ConcretePredicate * concrete_pred = pred->evaluate(inst_act_map, tid);
-	SnapVector<struct concrete_pred_expr> * concrete_exprs = concrete_pred->getExpressions();
-
 	while ( index < rf_set->size() ) {
 		ModelAction * write_act = (*rf_set)[index];
 		uint64_t write_val = write_act->get_write_value();
 		bool satisfy_predicate = true;
 
-		for (uint i = 0; i < concrete_exprs->size(); i++) {
-			struct concrete_pred_expr concrete = (*concrete_exprs)[i];
+		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
+		while (pred_expr_it->hasNext()) {
+			struct pred_expr * expression = pred_expr_it->next();
 			bool equality;
 
-			switch (concrete.token) {
+			switch (expression->token) {
 				case NOPREDICATE:
 					return false;
 				case EQUALITY:
-					equality = (write_val == concrete.value);
-					if (equality != concrete.equality)
+					FuncInst * to_be_compared;
+					ModelAction * last_act;
+					uint64_t last_read;
+
+					to_be_compared = expression->func_inst;
+					last_act = inst_act_map->get(to_be_compared);
+					last_read = last_act->get_reads_from_value();
+
+					equality = (write_val == last_read);
+					if (equality != expression->value)
 						satisfy_predicate = false;
 					break;
 				case NULLITY:
 					equality = ((void*)write_val == NULL);
-                                        if (equality != concrete.equality)
+                                        if (equality != expression->value)
                                                 satisfy_predicate = false;
                                         break;
 				default:
@@ -222,8 +228,6 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 		} else
 			index++;
 	}
-
-	delete concrete_pred;
 
 	return pruned;
 }
@@ -291,7 +295,7 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 	history->remove_waiting_write(tid);
 	history->remove_waiting_thread(tid);
 
-	model_print("thread %d is woken up\n", tid);
+	//model_print("thread %d is woken up\n", tid);
 	threadlist[*numthreads] = tid;
 	(*numthreads)++;
 }
@@ -343,7 +347,7 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
 			if (distance != -1) {
 				history->add_waiting_thread(self_id, tid, target_node, distance);
 				finds_waiting_for = true;
-				model_print("thread: %d; distance from node %d to node %d: %d\n", tid, node->get_func_id(), target_node->get_func_id(), distance);
+				//model_print("thread: %d; distance from node %d to node %d: %d\n", tid, node->get_func_id(), target_node->get_func_id(), distance);
 			}
 		}
 	}

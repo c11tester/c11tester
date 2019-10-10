@@ -316,7 +316,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> * inst_act_map,
 	SnapVector<Predicate *> * unset_predicates)
 {
-	/* check if a branch with func_inst and corresponding predicate exists */
+	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
 	ModelVector<Predicate *> * branches = (*curr_pred)->get_children();
 	for (uint i = 0; i < branches->size(); i++) {
@@ -327,6 +327,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 		/* Check against predicate expressions */
 		bool predicate_correct = true;
 		PredExprSet * pred_expressions = branch->get_pred_expressions();
+		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 
 		/* Only read and rmw actions my have unset predicate expressions */
 		if (pred_expressions->getSize() == 0) {
@@ -334,27 +335,33 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 			unset_predicates->push_back(branch);
 		}
 
-		ConcretePredicate * concrete_pred = branch->evaluate(inst_act_map, next_act->get_tid());
-		SnapVector<struct concrete_pred_expr> * concrete_exprs = concrete_pred->getExpressions();
-		for (uint i = 0; i < concrete_exprs->size(); i++) {
-			struct concrete_pred_expr concrete = (*concrete_exprs)[i];
-			uint64_t next_read;
+		while (pred_expr_it->hasNext()) {
+			pred_expr * pred_expression = pred_expr_it->next();
+			uint64_t last_read, next_read;
 			bool equality;
 
-			switch (concrete.token) {
+			switch(pred_expression->token) {
 				case NOPREDICATE:
 					predicate_correct = true;
 					break;
 				case EQUALITY:
+					FuncInst * to_be_compared;
+					ModelAction * last_act;
+
+					to_be_compared = pred_expression->func_inst;
+					last_act = inst_act_map->get(to_be_compared);
+
+					last_read = last_act->get_reads_from_value();
 					next_read = next_act->get_reads_from_value();
-					equality = (next_read == concrete.value);
-					if (equality != concrete.equality)
+					equality = (last_read == next_read);
+					if (equality != pred_expression->value)
 						predicate_correct = false;
+
 					break;
 				case NULLITY:
 					next_read = next_act->get_reads_from_value();
 					equality = ((void*)next_read == NULL);
-					if (equality != concrete.equality)
+					if (equality != pred_expression->value)
 						predicate_correct = false;
 					break;
 				default:
@@ -363,7 +370,6 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 					break;
 			}
 		}
-		delete concrete_pred;
 
 		if (predicate_correct) {
 			*curr_pred = branch;
