@@ -28,7 +28,7 @@ public:
 	FuncNode * get_curr_func_node(thread_id_t tid);
 
 	void update_write_history(void * location, uint64_t write_val);
-	HashTable<void *, value_set_t *, uintptr_t, 4> * getWriteHistory() { return write_history; }
+	HashTable<void *, value_set_t *, uintptr_t, 0> * getWriteHistory() { return write_history; }
 	void update_loc_rd_func_nodes_map(void * location, FuncNode * node);
 	void update_loc_wr_func_nodes_map(void * location, FuncNode * node);
 	SnapVector<FuncNode *> * getRdFuncNodes(void * location);
@@ -64,7 +64,7 @@ private:
 	ModelVector<FuncNode *> func_nodes;
 
 	/* Map a location to a set of values that have been written to it */
-	HashTable<void *, value_set_t *, uintptr_t, 4> * write_history;
+	HashTable<void *, value_set_t *, uintptr_t, 0> * write_history;
 
 	/* Map a location to FuncNodes that may read from it */
 	HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0> * loc_rd_func_nodes_map;

@@ -19,7 +19,7 @@ ModelHistory::ModelHistory() :
 	func_nodes()
 {
 	/* The following are snapshot data structures */
-	write_history = new HashTable<void *, value_set_t *, uintptr_t, 4>();
+	write_history = new HashTable<void *, value_set_t *, uintptr_t, 0>();
 	loc_rd_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
 	loc_wr_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
 	loc_waiting_writes_map = new HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0>();
@@ -330,7 +330,6 @@ void ModelHistory::check_waiting_write(ModelAction * write_act)
 	void * location = write_act->get_location();
 	uint64_t value = write_act->get_write_value();
 	SnapVector<ConcretePredicate *> * concrete_preds = loc_waiting_writes_map->get(location);
-	SnapVector<ConcretePredicate *> to_remove = SnapVector<ConcretePredicate *>();
 	if (concrete_preds == NULL)
 		return;
 
@@ -362,21 +361,15 @@ void ModelHistory::check_waiting_write(ModelAction * write_act)
 		}
 
 		if (satisfy_predicate) {
-			to_remove.push_back(concrete_pred);
+			/* Wake up threads */
+			thread_id_t tid = concrete_pred->get_tid();
+			Thread * thread = model->get_thread(tid);
+
+			//model_print("** thread %d is woken up\n", thread->get_id());
+			model->get_execution()->getFuzzer()->notify_paused_thread(thread);
 		}
 
 		index++;
-	}
-
-	for (uint i = 0; i < to_remove.size(); i++) {
-		ConcretePredicate * concrete_pred = to_remove[i];
-
-		/* Wake up threads */
-		thread_id_t tid = concrete_pred->get_tid();
-		Thread * thread = model->get_thread(tid);
-
-		model_print("** thread %d is woken up\n", thread->get_id());
-		model->get_execution()->getFuzzer()->notify_paused_thread(thread);
 	}
 }
 
@@ -520,7 +513,6 @@ void ModelHistory::monitor_waiting_thread_counter(thread_id_t tid)
 {
 	WaitObj * wait_obj = getWaitObj(tid);
 	thrd_id_set_t * waited_by = wait_obj->getWaitedBy();
-	SnapVector<thread_id_t> expire_threads;
 
 	// Thread tid has taken an action, update the counter for threads waiting for tid
 	thrd_id_set_iter * tid_iter = waited_by->iterator();
@@ -530,6 +522,7 @@ void ModelHistory::monitor_waiting_thread_counter(thread_id_t tid)
 
 		bool expire = other_wait_obj->incr_counter(tid);
 		if (expire) {
+//			model_print("thread %d stops waiting for thread %d\n", waited_by_id, tid);
 			wait_obj->remove_waited_by(waited_by_id);
 			other_wait_obj->remove_waiting_for(tid);
 

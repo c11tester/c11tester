@@ -139,7 +139,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 	if (act_list == NULL || act_list->size() == 0)
 		return;
 
-	HashTable<void *, value_set_t *, uintptr_t, 4> * write_history = history->getWriteHistory();
+	HashTable<void *, value_set_t *, uintptr_t, 0> * write_history = history->getWriteHistory();
 
 	/* build inst_list from act_list for later processing */
 	func_inst_list_t inst_list;
