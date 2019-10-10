@@ -39,6 +39,9 @@ public:
 	void set_execution_number(int new_number) { execution_number = new_number; }
 	int get_execution_number() { return execution_number; }
 
+	void set_associated_act(ModelAction * act, uint32_t marker);
+	ModelAction * get_associated_act(uint32_t marker);
+
 	void print();
 
 	MEMALLOC
@@ -60,6 +63,9 @@ private:
 
 	bool single_location;
 	int execution_number;
+
+	ModelAction * associated_act;
+	uint32_t marker;
 
 	/* Currently not in use. May remove this field later
 	 *

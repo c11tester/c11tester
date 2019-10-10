@@ -10,6 +10,7 @@
 FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
 	exit_count(0),
+	marker(1),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
@@ -163,7 +164,6 @@ void FuncNode::update_tree(action_list_t * act_list)
 				write_locations->add(loc);
 				history->update_loc_wr_func_nodes_map(loc, this);
 			}
-
 		}
 
 		if (act->is_read()) {
@@ -233,6 +233,8 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 	if (act_list == NULL || act_list->size() == 0)
 		return;
 
+	incr_marker();
+
 	/* Map a FuncInst to the its predicate */
 	HashTable<FuncInst *, Predicate *, uintptr_t, 0> inst_pred_map(128);
 
@@ -242,16 +244,16 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 
 	/* Only need to store the locations of read actions */
 	HashTable<void *, ModelAction *, uintptr_t, 0> loc_act_map(128);
-	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map(128);
 
 	sllnode<ModelAction *> *it = act_list->begin();
 	Predicate * curr_pred = predicate_tree_entry;
 	while (it != NULL) {
 		ModelAction * next_act = it->getVal();
 		FuncInst * next_inst = get_inst(next_act);
+		next_inst->set_associated_act(next_act, marker);
 
 		SnapVector<Predicate *> unset_predicates = SnapVector<Predicate *>();
-		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &inst_act_map, &unset_predicates);
+		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &unset_predicates);
 
 		// A branch with unset predicate expression is detected
 		if (!branch_found && unset_predicates.size() != 0) {
@@ -299,7 +301,6 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			loc_act_map.put(next_act->get_location(), next_act);
 		}
 
-		inst_act_map.put(next_inst, next_act);
 		inst_pred_map.put(next_inst, curr_pred);
 		if (!inst_id_map.contains(next_inst))
 			inst_id_map.put(next_inst, inst_counter++);
@@ -312,9 +313,8 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
  * contains next_inst and the correct predicate. 
  * @return true if branch found, false otherwise.
  */
-bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act,
-	HashTable<FuncInst *, ModelAction *, uintptr_t, 0> * inst_act_map,
-	SnapVector<Predicate *> * unset_predicates)
+bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
+	ModelAction * next_act, SnapVector<Predicate *> * unset_predicates)
 {
 	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
@@ -349,7 +349,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst, Model
 					ModelAction * last_act;
 
 					to_be_compared = pred_expression->func_inst;
-					last_act = inst_act_map->get(to_be_compared);
+					last_act = to_be_compared->get_associated_act(marker);
 
 					last_read = last_act->get_reads_from_value();
 					next_read = next_act->get_reads_from_value();

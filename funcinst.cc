@@ -3,7 +3,8 @@
 
 FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
 	single_location(true),
-	execution_number(model->get_execution_number())
+	execution_number(model->get_execution_number()),
+	marker(0)	/* The marker for FuncNode starts from 1 */
 {
 	ASSERT(act);
 	ASSERT(func_node);
@@ -44,6 +45,20 @@ bool FuncInst::add_succ(FuncInst * other)
 
 	successors.push_back(other);
 	return true;
+}
+
+void FuncInst::set_associated_act(ModelAction * act, uint32_t marker)
+{
+	associated_act = act;
+	this->marker = marker;
+}
+
+ModelAction * FuncInst::get_associated_act(uint32_t marker)
+{
+	if (marker == this->marker)
+		return associated_act;
+	else
+		return NULL;
 }
 
 /*

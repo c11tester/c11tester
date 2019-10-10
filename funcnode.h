@@ -34,7 +34,7 @@ public:
 	void update_tree(action_list_t * act_list);
 	void update_inst_tree(func_inst_list_t * inst_list);
 	void update_predicate_tree(action_list_t * act_list);
-	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, HashTable<FuncInst *, ModelAction *, uintptr_t, 0> * inst_act_map, SnapVector<Predicate *> * unset_predicates);
+	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, SnapVector<Predicate *> * unset_predicates);
 
 	void incr_exit_count() { exit_count++; }
 	uint32_t get_exit_count() { return exit_count; }
@@ -70,6 +70,9 @@ private:
 	Predicate * predicate_tree_entry;	// a dummy node whose children are the real entries
 
 	uint32_t exit_count;
+	uint32_t marker;
+
+	void incr_marker() { marker++; }
 
 	/* Use source line number as the key of hashtable, to check if
 	 * atomic operation with this line number has been added or not
