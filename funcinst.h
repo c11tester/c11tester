@@ -65,7 +65,7 @@ private:
 	int execution_number;
 
 	ModelAction * associated_act;
-	uint32_t marker;
+	uint32_t action_marker;
 
 	/* Currently not in use. May remove this field later
 	 *

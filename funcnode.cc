@@ -306,6 +306,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			inst_id_map.put(next_inst, inst_counter++);
 
 		it = it->getNext();
+		curr_pred->incr_count();
 	}
 }
 

@@ -6,6 +6,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
 	func_inst(func_inst),
 	entry_predicate(is_entry),
 	does_write(false),
+	exploration_count(0),
 	pred_expressions(16),
 	children(),
 	parent(NULL),
@@ -129,6 +130,7 @@ void Predicate::print_predicate()
 	if (does_write) {
 		model_print("Does write\n");
 	}
+	model_print("Count: %d\n", exploration_count);
 	model_print("\"];\n");
 }
 

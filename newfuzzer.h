@@ -35,6 +35,7 @@ private:
 
 	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map);
 	Predicate * selectBranch(thread_id_t tid, Predicate * curr_pred, FuncInst * read_inst);
+	int choose_index(SnapVector<Predicate *> * branches, uint32_t numerator);
 
 	/* The set of Threads put to sleep by NewFuzzer because no writes in rf_set satisfies the selected predicate. Only used by selectWrite.
 	 */

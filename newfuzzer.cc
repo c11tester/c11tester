@@ -77,6 +77,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 			return -1;
 		} else {
 			Predicate * selected_branch = get_selected_child_branch(tid);
+//			selected_branch->incr_count();
 			failed_predicates.put(selected_branch, true);
 
 			SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
@@ -119,11 +120,16 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 
 	ModelVector<Predicate *> * children = curr_pred->get_children();
 	SnapVector<Predicate *> branches;
+	uint32_t numerator = 1;
 
 	for (uint i = 0; i < children->size(); i++) {
 		Predicate * child = (*children)[i];
 		if (child->get_func_inst() == read_inst && !failed_predicates.contains(child)) {
 			branches.push_back(child);
+
+			// max of (exploration counts + 1)
+			if (child->get_count() + 1 > numerator)
+				numerator = child->get_count() + 1;
 		}
 	}
 
@@ -134,11 +140,59 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 	}
 
 	// randomly select a branch
-	int random_index = random() % branches.size();
-	Predicate * random_branch = branches[ random_index ];
+	// int random_index = random() % branches.size();
+	// Predicate * random_branch = branches[ random_index ];
+
+	int index = choose_index(&branches, numerator);
+	Predicate * random_branch = branches[ index ];
 	thrd_selected_child_branch[thread_id] = random_branch;
 
 	return random_branch;
+}
+
+/**
+ * @brief Select a branch from the given predicate branches based
+ * on their exploration counts.
+ *
+ * Let b_1, ..., b_n be branches with exploration counts c_1, ..., c_n
+ * M := max(c_1, ..., c_n) + 1
+ * Factor f_i := M / (c_i + 1)
+ * The probability p_i that branch b_i is selected:
+ *	p_i := f_i / (f_1 + ... + f_n)
+ *	     = \fraction{ 1/(c_i + 1) }{ 1/(c_1 + 1) + ... + 1/(c_n + 1) }
+ *
+ * Note: (1) c_i + 1 is used because counts may be 0.
+ *	 (2) The numerator of f_i is chosen to reduce the effect of underflow
+ *	
+ * @param numerator is M defined above
+ */
+int NewFuzzer::choose_index(SnapVector<Predicate *> * branches, uint32_t numerator)
+{
+	if (branches->size() == 1)
+		return 0;
+
+	double total_factor = 0;
+	SnapVector<double> factors = SnapVector<double>( branches->size() );
+	for (uint i = 0; i < branches->size(); i++) {
+		Predicate * branch = (*branches)[i];
+		double factor = (double) numerator / (branch->get_count() + 1);
+		total_factor += factor;
+		factors[i] = factor;
+	}
+
+	double prob = (double) random() / RAND_MAX;
+	double prob_sum = 0;
+	int index = 0;
+
+	for (uint i = 0; i < factors.size(); i++) {
+		prob_sum += (double) factors[i] / total_factor;
+		if (prob_sum > prob) {
+			index = i;
+			break;
+		}
+	}
+
+	return index;
 }
 
 Predicate * NewFuzzer::get_selected_child_branch(thread_id_t tid)

@@ -341,7 +341,7 @@ void ModelHistory::check_waiting_write(ModelAction * write_act)
 		/* Check if the written value satisfies every predicate expression */
 		for (uint i = 0; i < concrete_exprs->size(); i++) {
 			struct concrete_pred_expr concrete = (*concrete_exprs)[i];
-			bool equality;
+			bool equality = false;
 			switch (concrete.token) {
 				case EQUALITY:
 					equality = (value == concrete.value);
