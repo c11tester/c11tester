@@ -12,7 +12,7 @@ typedef HSIterator<struct pred_expr *, uintptr_t, 0, model_malloc, model_calloc,
 
 class Predicate {
 public:
-	Predicate(FuncInst * func_inst, bool is_entry = false);
+	Predicate(FuncInst * func_inst, bool is_entry = false, bool is_exit = false);
 	~Predicate();
 
 	FuncInst * get_func_inst() { return func_inst; }
@@ -21,11 +21,13 @@ public:
 	void add_predicate_expr(token_t token, FuncInst * func_inst, bool value);
 	void add_child(Predicate * child);
 	void set_parent(Predicate * parent_pred) { parent = parent_pred; }
+	void set_exit(Predicate * exit_pred) { exit = exit_pred; }
 	void add_backedge(Predicate * back_pred) { backedges.add(back_pred); }
 	void copy_predicate_expr(Predicate * other);
 
 	ModelVector<Predicate *> * get_children() { return &children; }
 	Predicate * get_parent() { return parent; }
+	Predicate * get_exit() { return exit; }
 	PredSet * get_backedges() { return &backedges; }
 
 	bool is_entry_predicate() { return entry_predicate; }
@@ -47,6 +49,7 @@ public:
 private:
 	FuncInst * func_inst;
 	bool entry_predicate;
+	bool exit_predicate;
 	bool does_write;
 	uint32_t exploration_count;
 
@@ -56,6 +59,7 @@ private:
 
 	/* Only a single parent may exist */
 	Predicate * parent;
+	Predicate * exit;
 
 	/* May have multiple back edges, e.g. nested loops */
 	PredSet backedges;

@@ -67,7 +67,9 @@ private:
 	uint32_t func_id;
 	const char * func_name;
 	ModelHistory * history;
-	Predicate * predicate_tree_entry;	// a dummy node whose children are the real entries
+	Predicate * predicate_tree_entry;	// A dummy node whose children are the real entries
+	Predicate * predicate_tree_exit;	// A dummy node
+
 
 	uint32_t exit_count;
 	uint32_t marker;

@@ -20,6 +20,7 @@ FuncNode::FuncNode(ModelHistory * history) :
 {
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
+	predicate_tree_exit = new Predicate(NULL, false, true);
 
 	// Memories that are reclaimed after each execution
 	action_list_buffer = new SnapList<action_list_t *>();
@@ -281,7 +282,6 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 
 				curr_pred->add_backedge(back_pred);
 				curr_pred = back_pred;
-
 				continue;
 			}
 		}
@@ -308,6 +308,8 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		it = it->getNext();
 		curr_pred->incr_count();
 	}
+
+	curr_pred->set_exit(predicate_tree_exit);
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -696,6 +698,7 @@ void FuncNode::print_predicate_tree()
 {
 	model_print("digraph function_%s {\n", func_name);
 	predicate_tree_entry->print_pred_subtree();
+	predicate_tree_exit->print_predicate();
 	model_print("}\n");	// end of graph
 }
 

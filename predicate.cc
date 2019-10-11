@@ -2,14 +2,16 @@
 #include "predicate.h"
 #include "concretepredicate.h"
 
-Predicate::Predicate(FuncInst * func_inst, bool is_entry) :
+Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	func_inst(func_inst),
 	entry_predicate(is_entry),
+	exit_predicate(is_exit),
 	does_write(false),
 	exploration_count(0),
 	pred_expressions(16),
 	children(),
 	parent(NULL),
+	exit(NULL),
 	backedges(16)
 {}
 
@@ -102,6 +104,11 @@ void Predicate::print_predicate()
 		return;
 	}
 
+	if (exit_predicate) {
+		model_print("exit node\"];\n");
+		return;
+	}
+
 	func_inst->print();
 
 	PredExprSetIter * it = pred_expressions.iterator();
@@ -147,5 +154,9 @@ void Predicate::print_pred_subtree()
 	while (it->hasNext()) {
 		Predicate * backedge = it->next();
 		model_print("\"%p\" -> \"%p\"[style=dashed, color=grey]\n", this, backedge);
+	}
+
+	if (exit) {
+		model_print("\"%p\" -> \"%p\"[style=dashed, color=red]\n", this, exit);
 	}
 }
