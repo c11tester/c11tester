@@ -39,8 +39,10 @@ public:
 
 	ConcretePredicate * evaluate(inst_act_map_t * inst_act_map, thread_id_t tid);
 
-	uint32_t get_count() { return exploration_count; }
-	void incr_count() { exploration_count++; }
+	uint32_t get_expl_count() { return exploration_count; }
+	uint32_t get_fail_count() { return failure_count; }
+	void incr_expl_count() { exploration_count++; }
+	void incr_fail_count() { failure_count++; }
 
 	void print_predicate();
 	void print_pred_subtree();
@@ -52,6 +54,7 @@ private:
 	bool exit_predicate;
 	bool does_write;
 	uint32_t exploration_count;
+	uint32_t failure_count;
 
 	/* May have multiple predicate expressions */
 	PredExprSet pred_expressions;

@@ -8,6 +8,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	exit_predicate(is_exit),
 	does_write(false),
 	exploration_count(0),
+	failure_count(0),
 	pred_expressions(16),
 	children(),
 	parent(NULL),

@@ -72,12 +72,11 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 			execution->restore_last_seq_num();
 
 			conditional_sleep(read_thread);
-
 			// Returning -1 stops the while loop of ModelExecution::process_read
 			return -1;
 		} else {
 			Predicate * selected_branch = get_selected_child_branch(tid);
-//			selected_branch->incr_count();
+			selected_branch->incr_fail_count();
 			failed_predicates.put(selected_branch, true);
 
 			SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
@@ -128,8 +127,8 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 			branches.push_back(child);
 
 			// max of (exploration counts + 1)
-			if (child->get_count() + 1 > numerator)
-				numerator = child->get_count() + 1;
+			if (child->get_expl_count() + 1 > numerator)
+				numerator = child->get_expl_count() + 1;
 		}
 	}
 
@@ -172,12 +171,12 @@ int NewFuzzer::choose_index(SnapVector<Predicate *> * branches, uint32_t numerat
 		return 0;
 
 	double total_factor = 0;
-	SnapVector<double> factors = SnapVector<double>( branches->size() );
+	SnapVector<double> factors = SnapVector<double>( branches->size() + 1 );
 	for (uint i = 0; i < branches->size(); i++) {
 		Predicate * branch = (*branches)[i];
-		double factor = (double) numerator / (branch->get_count() + 1);
+		double factor = (double) numerator / (branch->get_expl_count() + 2 * branch->get_fail_count() + 1);
 		total_factor += factor;
-		factors[i] = factor;
+		factors.push_back(factor);
 	}
 
 	double prob = (double) random() / RAND_MAX;
@@ -185,9 +184,9 @@ int NewFuzzer::choose_index(SnapVector<Predicate *> * branches, uint32_t numerat
 	int index = 0;
 
 	for (uint i = 0; i < factors.size(); i++) {
-		prob_sum += (double) factors[i] / total_factor;
+		index = i;
+		prob_sum += (double) (factors[i] / total_factor);
 		if (prob_sum > prob) {
-			index = i;
 			break;
 		}
 	}
@@ -352,6 +351,10 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 	//model_print("thread %d is woken up\n", tid);
 	threadlist[*numthreads] = tid;
 	(*numthreads)++;
+
+	Predicate * selected_branch = get_selected_child_branch(tid);
+	selected_branch->incr_fail_count();
+	model_print("thread %d is woken up\n", tid);
 }
 
 /* Wake up conditional sleeping threads if the desired write is available */
@@ -371,6 +374,8 @@ void NewFuzzer::notify_paused_thread(Thread * thread)
 	thread_id_t tid = thread->get_id();
 	history->remove_waiting_write(tid);
 	history->remove_waiting_thread(tid);
+
+	model_print("** thread %d is woken up\n", tid);
 }
 
 /* Find threads that may write values that the pending read action is waiting for
