@@ -10,6 +10,11 @@ typedef enum predicate_token {
 	NOPREDICATE, EQUALITY, NULLITY
 } token_t;
 
+typedef enum predicate_sleep_result {
+	SLEEP_FAIL_TYPE1, SLEEP_FAIL_TYPE2, SLEEP_FAIL_TYPE3,
+	SLEEP_SUCCESS
+} sleep_result_t;
+
 /* If token is EQUALITY, then the predicate asserts whether
  * this load should read the same value as the last value
  * read at memory location specified in predicate_expr.
