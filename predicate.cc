@@ -9,6 +9,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	does_write(false),
 	exploration_count(0),
 	failure_count(0),
+	sleep_score(0),
 	pred_expressions(16),
 	children(),
 	parent(NULL),
@@ -95,6 +96,32 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 	}
 
 	return concrete;
+}
+
+void Predicate::incr_expl_count()
+{
+	exploration_count++;
+}
+
+void Predicate::incr_fail_count()
+{
+	failure_count++;
+}
+
+void Predicate::incr_sleep_score(uint32_t amount)
+{
+	if (sleep_score + amount > 100)
+		sleep_score = 100;
+	else
+		sleep_score += amount;
+}
+
+void Predicate::decr_sleep_score(uint32_t amount)
+{
+	if (sleep_score > amount)
+		sleep_score -= amount;
+	else
+		sleep_score = 0;
 }
 
 void Predicate::print_predicate()

@@ -77,8 +77,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 			return -1;
 		} else {
 			Predicate * selected_branch = get_selected_child_branch(tid);
-			selected_branch->incr_fail_count();
-			failed_predicates.put(selected_branch, true);
+			update_predicate_score(selected_branch, 1);
 
 			SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
 			for (uint i = 0; i < pruned_writes->size(); i++) {
@@ -357,7 +356,8 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 	(*numthreads)++;
 
 	Predicate * selected_branch = get_selected_child_branch(tid);
-	selected_branch->incr_fail_count();
+	update_predicate_score(selected_branch, 3);
+
 	model_print("thread %d is woken up\n", tid);
 }
 
@@ -378,6 +378,9 @@ void NewFuzzer::notify_paused_thread(Thread * thread)
 	thread_id_t tid = thread->get_id();
 	history->remove_waiting_write(tid);
 	history->remove_waiting_thread(tid);
+
+	Predicate * selected_branch = get_selected_child_branch(tid);
+	update_predicate_score(selected_branch, 4);
 
 	model_print("** thread %d is woken up\n", tid);
 }
@@ -416,6 +419,33 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
 	}
 
 	return finds_waiting_for;
+}
+
+/* Update predicate counts and scores (asynchronous) when the read value is not available
+ *
+ * @param type
+ *        type 1: find_threads return false
+ *        type 2: find_threads return true, but the fuzzer decides that that thread shall not sleep based on sleep score
+ *        type 3: threads are put to sleep but woken up before the waited value appears
+ *        type 4: threads are put to sleep and the waited vaule appears (success)
+ */
+void NewFuzzer::update_predicate_score(Predicate * predicate, int type)
+{
+	switch (type) {
+		case 1:
+			predicate->incr_fail_count();
+
+			/* Do not choose this predicate when reselecting a new branch */
+			failed_predicates.put(predicate, true);
+		case 2:
+			predicate->incr_fail_count();
+			predicate->decr_sleep_score(1);
+		case 3:
+			predicate->incr_fail_count();
+			predicate->incr_sleep_score(10);
+		case 4:
+			predicate->decr_sleep_score(10);
+	}
 }
 
 bool NewFuzzer::shouldWait(const ModelAction * act)

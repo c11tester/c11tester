@@ -41,8 +41,11 @@ public:
 
 	uint32_t get_expl_count() { return exploration_count; }
 	uint32_t get_fail_count() { return failure_count; }
-	void incr_expl_count() { exploration_count++; }
-	void incr_fail_count() { failure_count++; }
+	uint32_t get_scleep_score() { return sleep_score; }
+	void incr_expl_count();
+	void incr_fail_count();
+	void incr_sleep_score(uint32_t amount);
+	void decr_sleep_score(uint32_t amount);
 
 	void print_predicate();
 	void print_pred_subtree();
@@ -53,8 +56,10 @@ private:
 	bool entry_predicate;
 	bool exit_predicate;
 	bool does_write;
+
 	uint32_t exploration_count;
 	uint32_t failure_count;
+	uint32_t sleep_score;	/* 0 <= sleep_score <= 100 */
 
 	/* May have multiple predicate expressions */
 	PredExprSet pred_expressions;

@@ -47,6 +47,7 @@ private:
 	void wake_up_paused_threads(int * threadlist, int * numthreads);
 
 	bool find_threads(ModelAction * pending_read);
+	void update_predicate_score(Predicate * predicate, int type);
 };
 
 #endif /* end of __NEWFUZZER_H__ */
