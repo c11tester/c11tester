@@ -64,9 +64,17 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	// No write satisfies the selected predicate, so pause this thread.
 	while ( rf_set->size() == 0 ) {
 		Thread * read_thread = execution->get_thread(tid);
+		Predicate * selected_branch = get_selected_child_branch(tid);
+		bool should_reselect_predicate = false;
 		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
 
-		if (find_threads(read)) {
+		if (!find_threads(read)) {
+			update_predicate_score(selected_branch, SLEEP_FAIL_TYPE1);
+			should_reselect_predicate = true;
+		} else if (!should_conditional_sleep(selected_branch)) {
+			update_predicate_score(selected_branch, SLEEP_FAIL_TYPE2);
+			should_reselect_predicate = true;
+		} else {
 			// reset thread pending action and revert sequence numbers
 			read_thread->set_pending(read);
 			read->reset_seq_number();
@@ -75,10 +83,9 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 			conditional_sleep(read_thread);
 			// Returning -1 stops the while loop of ModelExecution::process_read
 			return -1;
-		} else {
-			Predicate * selected_branch = get_selected_child_branch(tid);
-			update_predicate_score(selected_branch, 1);
+		}
 
+		if (should_reselect_predicate) {
 			SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
 			for (uint i = 0; i < pruned_writes->size(); i++) {
 				rf_set->push_back( (*pruned_writes)[i] );
@@ -315,6 +322,11 @@ void NewFuzzer::conditional_sleep(Thread * thread)
 	/* history->add_waiting_thread is already called in find_threads */
 }
 
+bool NewFuzzer::should_conditional_sleep(Predicate *)
+{
+	return true;
+}
+
 bool NewFuzzer::has_paused_threads()
 {
 	return paused_thread_list.size() != 0;
@@ -356,7 +368,7 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 	(*numthreads)++;
 
 	Predicate * selected_branch = get_selected_child_branch(tid);
-	update_predicate_score(selected_branch, 3);
+	update_predicate_score(selected_branch, SLEEP_FAIL_TYPE3);
 
 	model_print("thread %d is woken up\n", tid);
 }
@@ -380,7 +392,7 @@ void NewFuzzer::notify_paused_thread(Thread * thread)
 	history->remove_waiting_thread(tid);
 
 	Predicate * selected_branch = get_selected_child_branch(tid);
-	update_predicate_score(selected_branch, 4);
+	update_predicate_score(selected_branch, SLEEP_SUCCESS);
 
 	model_print("** thread %d is woken up\n", tid);
 }
@@ -429,22 +441,30 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
  *        type 3: threads are put to sleep but woken up before the waited value appears
  *        type 4: threads are put to sleep and the waited vaule appears (success)
  */
-void NewFuzzer::update_predicate_score(Predicate * predicate, int type)
+void NewFuzzer::update_predicate_score(Predicate * predicate, sleep_result_t type)
 {
 	switch (type) {
-		case 1:
+		case SLEEP_FAIL_TYPE1:
 			predicate->incr_fail_count();
 
 			/* Do not choose this predicate when reselecting a new branch */
 			failed_predicates.put(predicate, true);
-		case 2:
+			break;
+		case SLEEP_FAIL_TYPE2:
 			predicate->incr_fail_count();
 			predicate->decr_sleep_score(1);
-		case 3:
+			failed_predicates.put(predicate, true);
+			break;
+		case SLEEP_FAIL_TYPE3:
 			predicate->incr_fail_count();
 			predicate->incr_sleep_score(10);
-		case 4:
+			break;
+		case SLEEP_SUCCESS:
 			predicate->decr_sleep_score(10);
+			break;
+		default:
+			model_print("unknown predicate result type.\n");
+			break;
 	}
 }
 

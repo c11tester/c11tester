@@ -5,6 +5,7 @@
 #include "classlist.h"
 #include "mymemory.h"
 #include "stl-model.h"
+#include "predicatetypes.h"
 
 class NewFuzzer : public Fuzzer {
 public:
@@ -44,10 +45,11 @@ private:
 	HashTable<Predicate *, bool, uintptr_t, 0> failed_predicates;
 
 	void conditional_sleep(Thread * thread);
+	bool should_conditional_sleep(Predicate * predicate);
 	void wake_up_paused_threads(int * threadlist, int * numthreads);
 
 	bool find_threads(ModelAction * pending_read);
-	void update_predicate_score(Predicate * predicate, int type);
+	void update_predicate_score(Predicate * predicate, sleep_result_t type);
 };
 
 #endif /* end of __NEWFUZZER_H__ */
