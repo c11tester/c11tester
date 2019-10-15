@@ -200,11 +200,6 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	if (act->is_read()) {
 		func_node->update_inst_act_map(tid, act);
-
-		// Update predicate tree position
-		Fuzzer * fuzzer = execution->getFuzzer();
-		Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
-		func_node->set_predicate_tree_position(tid, selected_branch);
 	}
 }
 
@@ -569,6 +564,8 @@ void ModelHistory::print_func_node()
 	for (uint32_t i = 1; i < func_nodes.size(); i++) {
 		FuncNode * func_node = func_nodes[i];
 
+		func_node->print_predicate_tree();
+/*
 		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
 		model_print("function %s has entry actions\n", func_node->get_func_name());
 
@@ -577,6 +574,7 @@ void ModelHistory::print_func_node()
 			FuncInst *inst = it->getVal();
 			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
 		}
+		*/
 	}
 }
 

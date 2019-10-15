@@ -138,7 +138,7 @@ void Predicate::print_predicate()
 	if (does_write) {
 		model_print("Does write\n");
 	}
-	model_print("Count: %d\n", exploration_count);
+	model_print("Count: %d, failed count: %d\n", exploration_count, failure_count);
 	model_print("\"];\n");
 }
 

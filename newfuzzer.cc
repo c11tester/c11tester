@@ -47,6 +47,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	if (read != thrd_last_read_act[thread_id]) {
 		FuncNode * func_node = history->get_curr_func_node(tid);
 		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
+
 		FuncInst * read_inst = func_node->get_inst(read);
 		Predicate * selected_branch = selectBranch(tid, curr_pred, read_inst);
 
@@ -146,6 +147,10 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 	Predicate * random_branch = branches[ index ];
 	thrd_selected_child_branch[thread_id] = random_branch;
 
+	// Update predicate tree position
+	FuncNode * func_node = history->get_curr_func_node(tid);
+	func_node->set_predicate_tree_position(tid, random_branch);
+
 	return random_branch;
 }
 
@@ -174,7 +179,7 @@ int NewFuzzer::choose_index(SnapVector<Predicate *> * branches, uint32_t numerat
 	SnapVector<double> factors = SnapVector<double>( branches->size() + 1 );
 	for (uint i = 0; i < branches->size(); i++) {
 		Predicate * branch = (*branches)[i];
-		double factor = (double) numerator / (branch->get_expl_count() + 2 * branch->get_fail_count() + 1);
+		double factor = (double) numerator / (branch->get_expl_count() + 5 * branch->get_fail_count() + 1);
 		total_factor += factor;
 		factors.push_back(factor);
 	}
@@ -348,7 +353,6 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 	history->remove_waiting_write(tid);
 	history->remove_waiting_thread(tid);
 
-	//model_print("thread %d is woken up\n", tid);
 	threadlist[*numthreads] = tid;
 	(*numthreads)++;
 

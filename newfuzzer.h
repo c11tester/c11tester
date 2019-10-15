@@ -10,7 +10,6 @@ class NewFuzzer : public Fuzzer {
 public:
 	NewFuzzer();
 	int selectWrite(ModelAction *read, SnapVector<ModelAction *>* rf_set);
-	Predicate * get_selected_child_branch(thread_id_t tid);
 	bool has_paused_threads();
 	void notify_paused_thread(Thread * thread);
 
@@ -33,6 +32,7 @@ private:
 	SnapVector<Predicate *> thrd_selected_child_branch;
 	SnapVector< SnapVector<ModelAction *> *> thrd_pruned_writes;
 
+	Predicate * get_selected_child_branch(thread_id_t tid);
 	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map);
 	Predicate * selectBranch(thread_id_t tid, Predicate * curr_pred, FuncInst * read_inst);
 	int choose_index(SnapVector<Predicate *> * branches, uint32_t numerator);
