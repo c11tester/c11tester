@@ -48,7 +48,7 @@ private:
 	bool should_conditional_sleep(Predicate * predicate);
 	void wake_up_paused_threads(int * threadlist, int * numthreads);
 
-	bool find_threads(ModelAction * pending_read);
+	bool find_threads(ModelAction * pending_read, bool should_sleep);
 	void update_predicate_score(Predicate * predicate, sleep_result_t type);
 };
 

@@ -41,7 +41,7 @@ public:
 
 	uint32_t get_expl_count() { return exploration_count; }
 	uint32_t get_fail_count() { return failure_count; }
-	uint32_t get_scleep_score() { return sleep_score; }
+	uint32_t get_sleep_score() { return sleep_score; }
 	void incr_expl_count();
 	void incr_fail_count();
 	void incr_sleep_score(uint32_t amount);
