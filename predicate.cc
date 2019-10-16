@@ -9,7 +9,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	does_write(false),
 	exploration_count(0),
 	failure_count(0),
-	sleep_score(0),
+	sleep_score(100),
 	pred_expressions(16),
 	children(),
 	parent(NULL),
@@ -139,11 +139,10 @@ void Predicate::print_predicate()
 
 	func_inst->print();
 
-	PredExprSetIter * it = pred_expressions.iterator();
-
 	if (pred_expressions.getSize() == 0)
 		model_print("predicate unset\n");
 
+	PredExprSetIter * it = pred_expressions.iterator();
 	while (it->hasNext()) {
 		struct pred_expr * expr = it->next();
 		FuncInst * inst = expr->func_inst;

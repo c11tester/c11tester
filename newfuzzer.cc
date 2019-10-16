@@ -19,7 +19,8 @@ NewFuzzer::NewFuzzer() :
 	thrd_pruned_writes(),
 	paused_thread_list(),
 	paused_thread_table(128),
-	failed_predicates(32)
+	failed_predicates(32),
+	dist_info_vec()
 {}
 
 /**
@@ -67,26 +68,30 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		Predicate * selected_branch = get_selected_child_branch(tid);
 		bool should_sleep = should_conditional_sleep(selected_branch);
 		bool should_reselect_predicate = false;
+		dist_info_vec.clear();
 
 		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
 
-		if ( find_threads(read, should_sleep) ) {
-			if (should_sleep) {
-				// reset thread pending action and revert sequence numbers
-				read_thread->set_pending(read);
-				read->reset_seq_number();
-				execution->restore_last_seq_num();
-
-				conditional_sleep(read_thread);
-				// Returning -1 stops the while loop of ModelExecution::process_read
-				return -1;
-			} else {
-				update_predicate_score(selected_branch, SLEEP_FAIL_TYPE2);
-				should_reselect_predicate = true;
-			}
-		} else {
+		if (!find_threads(read)) {
 			update_predicate_score(selected_branch, SLEEP_FAIL_TYPE1);
 			should_reselect_predicate = true;
+		} else if (!should_sleep) {
+			update_predicate_score(selected_branch, SLEEP_FAIL_TYPE2);
+			should_reselect_predicate = true;
+		} else {
+			for (uint i = 0; i < dist_info_vec.size(); i++) {
+				struct node_dist_info info = dist_info_vec[i];
+				history->add_waiting_thread(tid, info.tid, info.target, info.dist);
+			}
+
+			// reset thread pending action and revert sequence numbers
+			read_thread->set_pending(read);
+			read->reset_seq_number();
+			execution->restore_last_seq_num();
+
+			conditional_sleep(read_thread);
+			// Returning -1 stops the while loop of ModelExecution::process_read
+			return -1;	
 		}
 
 		if (should_reselect_predicate) {
@@ -330,16 +335,16 @@ void NewFuzzer::conditional_sleep(Thread * thread)
  * Decides whether a thread should condition sleep based on
  * the sleep score of the chosen predicate.
  *
- * sleep_score = 100: never sleeps
- * sleep_score = 0: always sleeps
+ * sleep_score = 0: never sleeps
+ * sleep_score = 100: always sleeps
  **/
 bool NewFuzzer::should_conditional_sleep(Predicate * predicate)
 {
 	int sleep_score = predicate->get_sleep_score();
 	int random_num = random() % 100;
 
-	/* should sleep if random_num falls within [sleep_score, 100] */
-	if (random_num >= sleep_score)
+	/* should sleep if random_num falls within [0, sleep_score) */
+	if (random_num < sleep_score)
 		return true;
 
 	return false;
@@ -416,12 +421,11 @@ void NewFuzzer::notify_paused_thread(Thread * thread)
 }
 
 /* Find threads that may write values that the pending read action is waiting for.
- * Side effect: waiting threads are added if should_sleep is true
+ * Side effect: waiting thread related info are stored in dist_info_vec
  *
- * @param should_sleep Indicate whether waiting threads should be added or not
  * @return True if any thread is found
  */
-bool NewFuzzer::find_threads(ModelAction * pending_read, bool should_sleep)
+bool NewFuzzer::find_threads(ModelAction * pending_read)
 {
 	ASSERT(pending_read->is_read());
 
@@ -447,9 +451,7 @@ bool NewFuzzer::find_threads(ModelAction * pending_read, bool should_sleep)
 				finds_waiting_for = true;
 				//model_print("thread: %d; distance from node %d to node %d: %d\n", tid, node->get_func_id(), target_node->get_func_id(), distance);
 
-				if (should_sleep) {
-					history->add_waiting_thread(self_id, tid, target_node, distance);
-				}
+				dist_info_vec.push_back(node_dist_info(tid, target_node, distance));
 			}
 		}
 	}
@@ -476,15 +478,15 @@ void NewFuzzer::update_predicate_score(Predicate * predicate, sleep_result_t typ
 			break;
 		case SLEEP_FAIL_TYPE2:
 			predicate->incr_fail_count();
-			predicate->decr_sleep_score(1);
+			predicate->incr_sleep_score(1);
 			failed_predicates.put(predicate, true);
 			break;
 		case SLEEP_FAIL_TYPE3:
 			predicate->incr_fail_count();
-			predicate->incr_sleep_score(10);
+			predicate->decr_sleep_score(10);
 			break;
 		case SLEEP_SUCCESS:
-			predicate->decr_sleep_score(10);
+			predicate->incr_sleep_score(10);
 			break;
 		default:
 			model_print("unknown predicate result type.\n");

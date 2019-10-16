@@ -7,6 +7,20 @@
 #include "stl-model.h"
 #include "predicatetypes.h"
 
+struct node_dist_info {
+	node_dist_info(thread_id_t tid, FuncNode * node, int distance) : 
+		tid(tid),
+		target(node),
+		dist(distance)
+	{}
+
+	thread_id_t tid;
+	FuncNode * target;
+	int dist;
+
+	SNAPSHOTALLOC
+};
+
 class NewFuzzer : public Fuzzer {
 public:
 	NewFuzzer();
@@ -44,11 +58,13 @@ private:
 	HashTable<Thread *, int, uintptr_t, 0> paused_thread_table;
 	HashTable<Predicate *, bool, uintptr_t, 0> failed_predicates;
 
+	SnapVector<struct node_dist_info> dist_info_vec;
+
 	void conditional_sleep(Thread * thread);
 	bool should_conditional_sleep(Predicate * predicate);
 	void wake_up_paused_threads(int * threadlist, int * numthreads);
 
-	bool find_threads(ModelAction * pending_read, bool should_sleep);
+	bool find_threads(ModelAction * pending_read);
 	void update_predicate_score(Predicate * predicate, sleep_result_t type);
 };
 
