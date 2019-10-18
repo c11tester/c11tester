@@ -148,15 +148,15 @@ private:
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */
-	HashTable<const void *, action_list_t *, uintptr_t, 4> obj_map;
+	HashTable<const void *, action_list_t *, uintptr_t, 2> obj_map;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */
-	HashTable<const void *, action_list_t *, uintptr_t, 4> condvar_waiters_map;
+	HashTable<const void *, action_list_t *, uintptr_t, 2> condvar_waiters_map;
 
-	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_thrd_map;
+	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> obj_thrd_map;
 
-	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 4> obj_wr_thrd_map;
+	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> obj_wr_thrd_map;
 
 	HashTable<const void *, ModelAction *, uintptr_t, 4> obj_last_sc_map;
 

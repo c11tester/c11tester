@@ -92,7 +92,7 @@ int ModelExecution::get_execution_number() const
 	return model->get_execution_number();
 }
 
-static action_list_t * get_safe_ptr_action(HashTable<const void *, action_list_t *, uintptr_t, 4> * hash, void * ptr)
+static action_list_t * get_safe_ptr_action(HashTable<const void *, action_list_t *, uintptr_t, 2> * hash, void * ptr)
 {
 	action_list_t *tmp = hash->get(ptr);
 	if (tmp == NULL) {
@@ -102,7 +102,7 @@ static action_list_t * get_safe_ptr_action(HashTable<const void *, action_list_t
 	return tmp;
 }
 
-static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 4> * hash, void * ptr)
+static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> * hash, void * ptr)
 {
 	SnapVector<action_list_t> *tmp = hash->get(ptr);
 	if (tmp == NULL) {

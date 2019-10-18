@@ -4,7 +4,6 @@
 #include "history.h"
 #include "funcnode.h"
 #include "funcinst.h"
-#include "predicate.h"
 #include "concretepredicate.h"
 #include "waitobj.h"
 
@@ -48,11 +47,11 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	if (read != thrd_last_read_act[thread_id]) {
 		FuncNode * func_node = history->get_curr_func_node(tid);
 		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
-
 		FuncInst * read_inst = func_node->get_inst(read);
-		Predicate * selected_branch = selectBranch(tid, curr_pred, read_inst);
-
 		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
+
+		check_store_visibility(curr_pred, read_inst, inst_act_map, rf_set);
+		Predicate * selected_branch = selectBranch(tid, curr_pred, read_inst);
 		prune_writes(tid, selected_branch, rf_set, inst_act_map);
 
 		if (!failed_predicates.isEmpty())
@@ -64,13 +63,15 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 	// No write satisfies the selected predicate, so pause this thread.
 	while ( rf_set->size() == 0 ) {
-		Thread * read_thread = execution->get_thread(tid);
 		Predicate * selected_branch = get_selected_child_branch(tid);
-		bool should_sleep = should_conditional_sleep(selected_branch);
-		bool should_reselect_predicate = false;
-		dist_info_vec.clear();
 
 		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
+
+/*--
+		Thread * read_thread = execution->get_thread(tid);
+		bool should_reselect_predicate = true;
+		bool should_sleep = should_conditional_sleep(selected_branch);
+		dist_info_vec.clear();
 
 		if (!find_threads(read)) {
 			update_predicate_score(selected_branch, SLEEP_FAIL_TYPE1);
@@ -93,24 +94,23 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 			// Returning -1 stops the while loop of ModelExecution::process_read
 			return -1;	
 		}
+*/
 
-		if (should_reselect_predicate) {
-			SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
-			for (uint i = 0; i < pruned_writes->size(); i++) {
-				rf_set->push_back( (*pruned_writes)[i] );
-			}
-
-			// Reselect a predicate and prune writes
-			Predicate * curr_pred = selected_branch->get_parent();
-			FuncInst * read_inst = thrd_last_func_inst[thread_id];
-			selected_branch = selectBranch(tid, curr_pred, read_inst);
-
-			FuncNode * func_node = history->get_curr_func_node(tid);
-			inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
-			prune_writes(tid, selected_branch, rf_set, inst_act_map);
-
-			ASSERT(selected_branch);
+		SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
+		for (uint i = 0; i < pruned_writes->size(); i++) {
+			rf_set->push_back( (*pruned_writes)[i] );
 		}
+
+		// Reselect a predicate and prune writes
+		Predicate * curr_pred = selected_branch->get_parent();
+		FuncInst * read_inst = thrd_last_func_inst[thread_id];
+		selected_branch = selectBranch(tid, curr_pred, read_inst);
+
+		FuncNode * func_node = history->get_curr_func_node(tid);
+		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
+		prune_writes(tid, selected_branch, rf_set, inst_act_map);
+
+		ASSERT(selected_branch);
 	}
 
 	ASSERT(rf_set->size() != 0);
@@ -118,6 +118,56 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 	return random_index;
 }
+
+void NewFuzzer::check_store_visibility(Predicate * curr_pred, FuncInst * read_inst,
+	inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
+{
+	ASSERT(!rf_set->empty());
+	if (curr_pred == NULL || read_inst == NULL)
+		return;
+
+	ModelVector<Predicate *> * children = curr_pred->get_children();
+	SnapVector<Predicate *> branches;
+
+	/* The children predicates may have different FuncInsts */
+	for (uint i = 0; i < children->size(); i++) {
+		Predicate * child = (*children)[i];
+		if (child->get_func_inst() == read_inst) {
+			branches.push_back(child);
+		}
+	}
+
+	/* Predicate children have not been generated */
+	if (branches.empty())
+		return;
+
+	/* Iterate over all predicate children */
+	for (uint i = 0; i < branches.size(); i++) {
+		Predicate * branch = branches[i];
+		PredExprSet * pred_expressions = branch->get_pred_expressions();
+
+		/* Do not check unset predicates */
+		if (pred_expressions->isEmpty())
+			continue;
+
+		branch->incr_total_checking_count();
+
+		/* Iterate over all write actions */
+		for (uint j = 0; j < rf_set->size(); j++) {
+			ModelAction * write_act = (*rf_set)[j];
+			uint64_t write_val = write_act->get_write_value();
+			bool dummy = true;
+			bool satisfy_predicate = check_predicate_expressions(pred_expressions, inst_act_map, write_val, &dummy);
+
+			/* If one write value satisfies the predicate, go to check the next predicate */
+			if (satisfy_predicate) {
+				branch->incr_store_visible_count();
+				break;
+			}
+		}
+	}
+}
+
 
 /* Select a random branch from the children of curr_pred 
  * @return The selected branch
@@ -135,16 +185,16 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 
 	ModelVector<Predicate *> * children = curr_pred->get_children();
 	SnapVector<Predicate *> branches;
-	uint32_t numerator = 1;
 
 	for (uint i = 0; i < children->size(); i++) {
 		Predicate * child = (*children)[i];
 		if (child->get_func_inst() == read_inst && !failed_predicates.contains(child)) {
 			branches.push_back(child);
 
-			// max of (exploration counts + 1)
+			/*-- max of (exploration counts + 1)
 			if (child->get_expl_count() + 1 > numerator)
 				numerator = child->get_expl_count() + 1;
+			*/
 		}
 	}
 
@@ -154,11 +204,7 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 		return NULL;
 	}
 
-	// randomly select a branch
-	// int random_index = random() % branches.size();
-	// Predicate * random_branch = branches[ random_index ];
-
-	int index = choose_index(&branches, numerator);
+	int index = choose_index(&branches, 0);
 	Predicate * random_branch = branches[ index ];
 	thrd_selected_child_branch[thread_id] = random_branch;
 
@@ -187,6 +233,8 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
  */
 int NewFuzzer::choose_index(SnapVector<Predicate *> * branches, uint32_t numerator)
 {
+	return random() % branches->size();
+/*--
 	if (branches->size() == 1)
 		return 0;
 
@@ -212,6 +260,7 @@ int NewFuzzer::choose_index(SnapVector<Predicate *> * branches, uint32_t numerat
 	}
 
 	return index;
+*/
 }
 
 Predicate * NewFuzzer::get_selected_child_branch(thread_id_t tid)
@@ -255,42 +304,11 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 	while ( index < rf_set->size() ) {
 		ModelAction * write_act = (*rf_set)[index];
 		uint64_t write_val = write_act->get_write_value();
-		bool satisfy_predicate = true;
+		bool no_predicate = false;
+		bool satisfy_predicate = check_predicate_expressions(pred_expressions, inst_act_map, write_val, &no_predicate);
 
-		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
-		while (pred_expr_it->hasNext()) {
-			struct pred_expr * expression = pred_expr_it->next();
-			bool equality;
-
-			switch (expression->token) {
-				case NOPREDICATE:
-					return false;
-				case EQUALITY:
-					FuncInst * to_be_compared;
-					ModelAction * last_act;
-					uint64_t last_read;
-
-					to_be_compared = expression->func_inst;
-					last_act = inst_act_map->get(to_be_compared);
-					last_read = last_act->get_reads_from_value();
-
-					equality = (write_val == last_read);
-					if (equality != expression->value)
-						satisfy_predicate = false;
-					break;
-				case NULLITY:
-					equality = ((void*)write_val == NULL);
-					if (equality != expression->value)
-						satisfy_predicate = false;
-					break;
-				default:
-					model_print("unknown predicate token\n");
-					break;
-			}
-
-			if (!satisfy_predicate)
-				break;
-		}
+		if (no_predicate)
+			return false;
 
 		if (!satisfy_predicate) {
 			ASSERT(rf_set != NULL);
@@ -340,14 +358,17 @@ void NewFuzzer::conditional_sleep(Thread * thread)
  **/
 bool NewFuzzer::should_conditional_sleep(Predicate * predicate)
 {
+	return false;
+	/*
 	int sleep_score = predicate->get_sleep_score();
 	int random_num = random() % 100;
 
-	/* should sleep if random_num falls within [0, sleep_score) */
+	// should sleep if random_num falls within [0, sleep_score)
 	if (random_num < sleep_score)
 		return true;
 
 	return false;
+	*/
 }
 
 bool NewFuzzer::has_paused_threads()
@@ -390,8 +411,10 @@ void NewFuzzer::wake_up_paused_threads(int * threadlist, int * numthreads)
 	threadlist[*numthreads] = tid;
 	(*numthreads)++;
 
+/*--
 	Predicate * selected_branch = get_selected_child_branch(tid);
 	update_predicate_score(selected_branch, SLEEP_FAIL_TYPE3);
+*/
 
 	model_print("thread %d is woken up\n", tid);
 }
@@ -414,8 +437,10 @@ void NewFuzzer::notify_paused_thread(Thread * thread)
 	history->remove_waiting_write(tid);
 	history->remove_waiting_thread(tid);
 
+/*--
 	Predicate * selected_branch = get_selected_child_branch(tid);
 	update_predicate_score(selected_branch, SLEEP_SUCCESS);
+*/
 
 	model_print("** thread %d is woken up\n", tid);
 }
@@ -467,13 +492,15 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
  *        type 3: threads are put to sleep but woken up before the waited value appears
  *        type 4: threads are put to sleep and the waited vaule appears (success)
  */
+
+/*--
 void NewFuzzer::update_predicate_score(Predicate * predicate, sleep_result_t type)
 {
 	switch (type) {
 		case SLEEP_FAIL_TYPE1:
 			predicate->incr_fail_count();
 
-			/* Do not choose this predicate when reselecting a new branch */
+			// Do not choose this predicate when reselecting a new branch
 			failed_predicates.put(predicate, true);
 			break;
 		case SLEEP_FAIL_TYPE2:
@@ -492,6 +519,51 @@ void NewFuzzer::update_predicate_score(Predicate * predicate, sleep_result_t typ
 			model_print("unknown predicate result type.\n");
 			break;
 	}
+}
+*/
+
+bool NewFuzzer::check_predicate_expressions(PredExprSet * pred_expressions,
+	inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate)
+{
+	bool satisfy_predicate = true;
+
+	PredExprSetIter * pred_expr_it = pred_expressions->iterator();
+	while (pred_expr_it->hasNext()) {
+		struct pred_expr * expression = pred_expr_it->next();
+		bool equality;
+
+		switch (expression->token) {
+			case NOPREDICATE:
+				*no_predicate = true;
+				break;
+			case EQUALITY:
+				FuncInst * to_be_compared;
+				ModelAction * last_act;
+				uint64_t last_read;
+
+				to_be_compared = expression->func_inst;
+				last_act = inst_act_map->get(to_be_compared);
+				last_read = last_act->get_reads_from_value();
+
+				equality = (write_val == last_read);
+				if (equality != expression->value)
+					satisfy_predicate = false;
+				break;
+			case NULLITY:
+				equality = ((void*)write_val == NULL);
+				if (equality != expression->value)
+					satisfy_predicate = false;
+				break;
+			default:
+				model_print("unknown predicate token\n");
+				break;
+		}
+
+		if (!satisfy_predicate)
+			break;
+	}
+
+	return satisfy_predicate;
 }
 
 bool NewFuzzer::shouldWait(const ModelAction * act)
