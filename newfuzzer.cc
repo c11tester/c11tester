@@ -127,44 +127,36 @@ void NewFuzzer::check_store_visibility(Predicate * curr_pred, FuncInst * read_in
 		return;
 
 	ModelVector<Predicate *> * children = curr_pred->get_children();
-	SnapVector<Predicate *> branches;
-
-	/* The children predicates may have different FuncInsts */
-	for (uint i = 0; i < children->size(); i++) {
-		Predicate * child = (*children)[i];
-		if (child->get_func_inst() == read_inst) {
-			branches.push_back(child);
-		}
-	}
-
-	/* Predicate children have not been generated */
-	if (branches.empty())
-		return;
 
 	/* Iterate over all predicate children */
-	for (uint i = 0; i < branches.size(); i++) {
-		Predicate * branch = branches[i];
-		PredExprSet * pred_expressions = branch->get_pred_expressions();
+	for (uint i = 0; i < children->size(); i++) {
+		Predicate * branch = (*children)[i];
 
-		/* Do not check unset predicates */
-		if (pred_expressions->isEmpty())
-			continue;
+		/* The children predicates may have different FuncInsts */
+		if (branch->get_func_inst() == read_inst) {
+			PredExprSet * pred_expressions = branch->get_pred_expressions();
 
-		branch->incr_total_checking_count();
+			/* Do not check unset predicates */
+			if (pred_expressions->isEmpty())
+				continue;
 
-		/* Iterate over all write actions */
-		for (uint j = 0; j < rf_set->size(); j++) {
-			ModelAction * write_act = (*rf_set)[j];
-			uint64_t write_val = write_act->get_write_value();
-			bool dummy = true;
-			bool satisfy_predicate = check_predicate_expressions(pred_expressions, inst_act_map, write_val, &dummy);
+			branch->incr_total_checking_count();
 
-			/* If one write value satisfies the predicate, go to check the next predicate */
-			if (satisfy_predicate) {
-				branch->incr_store_visible_count();
-				break;
+			/* Iterate over all write actions */
+			for (uint j = 0; j < rf_set->size(); j++) {
+				ModelAction * write_act = (*rf_set)[j];
+				uint64_t write_val = write_act->get_write_value();
+				bool dummy = true;
+				bool satisfy_predicate = check_predicate_expressions(pred_expressions, inst_act_map, write_val, &dummy);
+
+				/* If one write value satisfies the predicate, go to check the next predicate */
+				if (satisfy_predicate) {
+					branch->incr_store_visible_count();
+					break;
+				}
 			}
 		}
+
 	}
 }
 
