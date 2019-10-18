@@ -53,9 +53,11 @@ typedef enum action_type {
 	THREAD_JOIN,	// < A thread join action
 	THREAD_FINISH,	// < A thread completion action
 	THREADONLY_FINISH,	// < A thread completion action
+	THREAD_SLEEP,	// < A sleep operation
+
 	PTHREAD_CREATE,	// < A pthread creation action
 	PTHREAD_JOIN,	// < A pthread join action
-	THREAD_SLEEP,	// < A sleep operation
+
 	ATOMIC_UNINIT,	// < Represents an uninitialized atomic
 	NONATOMIC_WRITE,	// < Represents a non-atomic store
 	ATOMIC_INIT,	// < Initialization of an atomic object (e.g., atomic_init())
@@ -70,6 +72,7 @@ typedef enum action_type {
 	ATOMIC_LOCK,	// < A lock action
 	ATOMIC_TRYLOCK,	// < A trylock action
 	ATOMIC_UNLOCK,	// < An unlock action
+
 	ATOMIC_NOTIFY_ONE,	// < A notify_one action
 	ATOMIC_NOTIFY_ALL,	// < A notify all action
 	ATOMIC_WAIT,	// < A wait action

@@ -174,9 +174,12 @@ void ModelExecution::wake_up_sleeping_actions(ModelAction *curr)
 	for (unsigned int i = 0;i < get_num_threads();i++) {
 		Thread *thr = get_thread(int_to_id(i));
 		if (scheduler->is_sleep_set(thr)) {
-			if (should_wake_up(curr, thr))
+			if (should_wake_up(curr, thr)) {
 				/* Remove this thread from sleep set */
 				scheduler->remove_sleep(thr);
+				if (thr->get_pending()->is_sleep())
+					thr->set_pending(NULL);
+			}
 		}
 	}
 }
@@ -565,6 +568,12 @@ void ModelExecution::process_thread_action(ModelAction *curr)
 	case THREAD_START: {
 		break;
 	}
+	case THREAD_SLEEP: {
+		Thread *th = get_thread(curr);
+		th->set_pending(curr);
+		scheduler->add_sleep(th);
+		break;
+	}
 	default:
 		break;
 	}
@@ -702,7 +711,7 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	wake_up_sleeping_actions(curr);
 
 	/* Add uninitialized actions to lists */
-	if (!second_part_of_rmw && curr->get_type() != NOOP)
+	if (!second_part_of_rmw)
 		add_uninit_action_to_lists(curr);
 
 	SnapVector<ModelAction *> * rf_set = NULL;
@@ -711,15 +720,19 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 		rf_set = build_may_read_from(curr);
 
 	if (curr->is_read() && !second_part_of_rmw) {
-		bool success = process_read(curr, rf_set);
+		process_read(curr, rf_set);
+		delete rf_set;
+
+/*		bool success = process_read(curr, rf_set);
 		delete rf_set;
 		if (!success)
 			return curr;	// Do not add action to lists
+*/
 	} else
 		ASSERT(rf_set == NULL);
 
 	/* Add the action to lists */
-	if (!second_part_of_rmw && curr->get_type() != NOOP)
+	if (!second_part_of_rmw)
 		add_action_to_lists(curr);
 
 	if (curr->is_write())

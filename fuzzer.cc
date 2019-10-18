@@ -36,5 +36,5 @@ bool Fuzzer::shouldWake(const ModelAction *sleep) {
 	clock_gettime(CLOCK_MONOTONIC, &currtime);
 	uint64_t lcurrtime = currtime.tv_sec * 1000000000 + currtime.tv_nsec;
 
-	return ((sleep->get_time()+sleep->get_value()) >= lcurrtime);
+	return ((sleep->get_time()+sleep->get_value()) < lcurrtime);
 }
