@@ -2,12 +2,13 @@
 #define __FUNCNODE_H__
 
 #include "hashset.h"
+#include "hashfunction.h"
 #include "classlist.h"
 #include "threads-model.h"
 
 #define MAX_DIST 10
-typedef ModelList<FuncInst *> func_inst_list_mt;
 
+typedef ModelList<FuncInst *> func_inst_list_mt;
 typedef enum edge_type {
 	IN_EDGE, OUT_EDGE, BI_EDGE
 } edge_type_t;
@@ -101,7 +102,7 @@ private:
 	loc_set_t * write_locations;
 
 	/* Keeps track of locations that have the same values written to */
-	HashTable<uint64_t, loc_set_t *, uint64_t, 0> * val_loc_map;
+	HashTable<uint64_t, loc_set_t *, uint64_t, 0, snapshot_malloc, snapshot_calloc, snapshot_free, int64_hash> * val_loc_map;
 
 	/* Keeps track of locations that may share the same value as key, deduced from val_loc_map */
 	HashTable<void *, loc_set_t *, uintptr_t, 0> * loc_may_equal_map;

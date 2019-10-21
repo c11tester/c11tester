@@ -22,11 +22,11 @@ FuncNode::FuncNode(ModelHistory * history) :
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
 	predicate_tree_exit = new Predicate(NULL, false, true);
 
-	// Memories that are reclaimed after each execution
+	/* Snapshot data structures below */
 	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	write_locations = new loc_set_t();
-	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
+	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0, snapshot_malloc, snapshot_calloc, snapshot_free, int64_hash>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
 
 	//values_may_read_from = new value_set_t();
@@ -38,7 +38,7 @@ void FuncNode::set_new_exec_flag()
 	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	write_locations = new loc_set_t();
-	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0>();
+	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0, snapshot_malloc, snapshot_calloc, snapshot_free, int64_hash>();
 	loc_may_equal_map = new HashTable<void *, loc_set_t *, uintptr_t, 0>();
 
 	//values_may_read_from = new value_set_t();
@@ -306,7 +306,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			inst_id_map.put(next_inst, inst_counter++);
 
 		it = it->getNext();
-		curr_pred->incr_expl_count();
+		/*-- curr_pred->incr_expl_count(); */
 	}
 
 	curr_pred->set_exit(predicate_tree_exit);
