@@ -300,6 +300,15 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 		rf_set->push_back(nonatomicstore);
 	}
 
+	// Remove writes that violate read modification order
+	for (uint i = 0; i < rf_set->size(); i++) {
+		ModelAction * rf = (*rf_set)[i];
+		if (!r_modification_order(curr, rf, NULL, NULL, true)) {
+			(*rf_set)[i] = rf_set->back();
+			rf_set->pop_back();
+		}
+	}
+
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
 		if (index == -1)	// no feasible write exists
@@ -812,10 +821,12 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
  *
  * @param curr The current action. Must be a read.
  * @param rf The ModelAction or Promise that curr reads from. Must be a write.
+ * @param check_only Only check if the current action satisfies read 
+ *        modification order or not, without modifiying priorsetand canprune
  * @return True if modification order edges were added; false otherwise
  */
 
-bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> * priorset, bool * canprune)
+bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> * priorset, bool * canprune, bool check_only)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;
@@ -868,7 +879,8 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 						*act < *last_sc_fence_thread_local) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
-					priorset->push_back(act);
+					if (!check_only)
+						priorset->push_back(act);
 					break;
 				}
 				/* C++, Section 29.3 statement 4 */
@@ -876,7 +888,8 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 								 *act < *last_sc_fence_local) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
-					priorset->push_back(act);
+					if (!check_only)
+						priorset->push_back(act);
 					break;
 				}
 				/* C++, Section 29.3 statement 6 */
@@ -884,7 +897,8 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 								 *act < *last_sc_fence_thread_before) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
-					priorset->push_back(act);
+					if (!check_only)
+						priorset->push_back(act);
 					break;
 				}
 			}
@@ -903,17 +917,20 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 				if (act->is_write()) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
-					priorset->push_back(act);
+					if (!check_only)
+						priorset->push_back(act);
 				} else {
 					const ModelAction *prevrf = act->get_reads_from();
 					if (!prevrf->equals(rf)) {
 						if (mo_graph->checkReachable(rf, prevrf))
 							return false;
-						priorset->push_back(prevrf);
+						if (!check_only)
+							priorset->push_back(prevrf);
 					} else {
 						if (act->get_tid() == curr->get_tid()) {
 							//Can prune curr from obj list
-							*canprune = true;
+							if (!check_only)
+								*canprune = true;
 						}
 					}
 				}
