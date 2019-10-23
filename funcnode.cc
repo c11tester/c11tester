@@ -64,6 +64,7 @@ void FuncNode::add_inst(ModelAction *act)
 	if ( func_inst_map.contains(position) ) {
 		FuncInst * inst = func_inst_map.get(position);
 
+		/* TODO: The assertion fails when encountering volatile variables that use ++ or -- syntax, i.e. read and write have the same position */
 		ASSERT(inst->get_type() == act->get_type());
 		int curr_execution_number = model->get_execution_number();
 
@@ -306,7 +307,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			inst_id_map.put(next_inst, inst_counter++);
 
 		it = it->getNext();
-		/*-- curr_pred->incr_expl_count(); */
+		curr_pred->incr_expl_count();
 	}
 
 	curr_pred->set_exit(predicate_tree_exit);

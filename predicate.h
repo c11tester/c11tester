@@ -40,12 +40,12 @@ public:
 	ConcretePredicate * evaluate(inst_act_map_t * inst_act_map, thread_id_t tid);
 
 	uint32_t get_expl_count() { return exploration_count; }
-	uint32_t get_fail_count() { return failure_count; }
-	uint32_t get_sleep_score() { return sleep_score; }
-	void incr_expl_count();
-	void incr_fail_count();
-	void incr_sleep_score(uint32_t amount);
-	void decr_sleep_score(uint32_t amount);
+	uint32_t get_store_visible_count() { return store_visible_count; }
+	uint32_t get_total_checking_count() { return total_checking_count; }
+
+	void incr_expl_count() { exploration_count++; }
+	void incr_store_visible_count() { store_visible_count++; }
+	void incr_total_checking_count() { total_checking_count++; }
 
 	void print_predicate();
 	void print_pred_subtree();
@@ -58,8 +58,8 @@ private:
 	bool does_write;
 
 	uint32_t exploration_count;
-	uint32_t failure_count;
-	uint32_t sleep_score;	/* 0 <= sleep_score <= 100 */
+	uint32_t store_visible_count;
+	uint32_t total_checking_count;	/* The number of times the store visibility is checked */
 
 	/* May have multiple predicate expressions */
 	PredExprSet pred_expressions;

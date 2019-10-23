@@ -8,8 +8,8 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	exit_predicate(is_exit),
 	does_write(false),
 	exploration_count(0),
-	failure_count(0),
-	sleep_score(100),
+	store_visible_count(0),
+	total_checking_count(0),
 	pred_expressions(16),
 	children(),
 	parent(NULL),
@@ -98,32 +98,6 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 	return concrete;
 }
 
-void Predicate::incr_expl_count()
-{
-	exploration_count++;
-}
-
-void Predicate::incr_fail_count()
-{
-	failure_count++;
-}
-
-void Predicate::incr_sleep_score(uint32_t amount)
-{
-	if (sleep_score + amount > 100)
-		sleep_score = 100;
-	else
-		sleep_score += amount;
-}
-
-void Predicate::decr_sleep_score(uint32_t amount)
-{
-	if (sleep_score > amount)
-		sleep_score -= amount;
-	else
-		sleep_score = 0;
-}
-
 void Predicate::print_predicate()
 {
 	model_print("\"%p\" [shape=box, label=\"\n", this);
@@ -164,7 +138,10 @@ void Predicate::print_predicate()
 	if (does_write) {
 		model_print("Does write\n");
 	}
-	model_print("Count: %d, failed count: %d\n", exploration_count, failure_count);
+
+	double prob = (double) store_visible_count / total_checking_count;
+	model_print("Total checks: %d, visible count: %d; prob: %f\n", total_checking_count, store_visible_count, prob);
+	model_print("Exploration count: %d", exploration_count);
 	model_print("\"];\n");
 }
 
