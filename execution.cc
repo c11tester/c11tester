@@ -821,8 +821,9 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
  *
  * @param curr The current action. Must be a read.
  * @param rf The ModelAction or Promise that curr reads from. Must be a write.
- * @param check_only Only check if the current action satisfies read 
- *        modification order or not, without modifiying priorsetand canprune
+ * @param check_only If true, then only check whether the current action satisfies
+ *        read modification order or not, without modifiying priorset and canprune.
+ *        False by default.
  * @return True if modification order edges were added; false otherwise
  */
 

@@ -25,8 +25,8 @@ public:
 	bool add_pred(FuncInst * other);
 	bool add_succ(FuncInst * other);
 
-	//FuncInst * search_in_collision(ModelAction *act);
-	//func_inst_list_mt * get_collisions() { return &collisions; }
+	FuncInst * search_in_collision(ModelAction *act);
+	void add_to_collision(FuncInst * inst);
 
 	func_inst_list_mt * get_preds() { return &predecessors; }
 	func_inst_list_mt * get_succs() { return &successors; }
@@ -67,12 +67,13 @@ private:
 	ModelAction * associated_act;
 	uint32_t action_marker;
 
-	/* Currently not in use. May remove this field later
-	 *
-	 * collisions store a list of FuncInsts with the same position
-	 * but different action types. For example, CAS is broken down
-	 * as three different atomic operations in cmodelint.cc */
-	// func_inst_list_mt collisions;
+	/**
+	 * Collisions store a list of FuncInsts with the same position
+	 * but different action types. For example,
+	 * <code>volatile int x; x++;</code> produces read and write
+	 * actions with the same position.
+	 */
+	func_inst_list_mt collisions;
 
 	func_inst_list_mt predecessors;
 	func_inst_list_mt successors;

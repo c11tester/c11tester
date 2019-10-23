@@ -3,7 +3,7 @@
 
 FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
 	single_location(true),
-	execution_number(model->get_execution_number()),
+	execution_number(0),
 	action_marker(0)	/* The marker for FuncNode starts from 1 */
 {
 	ASSERT(act);
@@ -61,7 +61,7 @@ ModelAction * FuncInst::get_associated_act(uint32_t marker)
 		return NULL;
 }
 
-/*
+/* Search the FuncInst that has the same type as act in the collision list */
 FuncInst * FuncInst::search_in_collision(ModelAction *act)
 {
 	action_type type = act->get_type();
@@ -74,7 +74,11 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 	}
 	return NULL;
 }
-*/
+
+void FuncInst::add_to_collision(FuncInst * inst)
+{
+	collisions.push_back(inst);
+}
 
 /* Note: is_read() is equivalent to ModelAction::is_read() */
 bool FuncInst::is_read() const

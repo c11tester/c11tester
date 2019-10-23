@@ -25,6 +25,7 @@ public:
 	void set_new_exec_flag();
 
 	void add_inst(ModelAction *act);
+	FuncInst * create_new_inst(ModelAction *act);
 	FuncInst * get_inst(ModelAction *act);
 
 	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncInstMap() { return &func_inst_map; }

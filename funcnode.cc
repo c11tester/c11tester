@@ -46,9 +46,6 @@ void FuncNode::set_new_exec_flag()
 
 /* Check whether FuncInst with the same type, position, and location
  * as act has been added to func_inst_map or not. If not, add it.
- *
- * Note: currently, actions with the same position are filtered out by process_action,
- * so the collision list of FuncInst is not used. May remove it later. 
  */
 void FuncNode::add_inst(ModelAction *act)
 {
@@ -61,30 +58,53 @@ void FuncNode::add_inst(ModelAction *act)
 	if (position == NULL)
 		return;
 
-	if ( func_inst_map.contains(position) ) {
-		FuncInst * inst = func_inst_map.get(position);
+	FuncInst * func_inst = func_inst_map.get(position);
 
-		/* TODO: The assertion fails when encountering volatile variables that use ++ or -- syntax, i.e. read and write have the same position */
-		ASSERT(inst->get_type() == act->get_type());
-		int curr_execution_number = model->get_execution_number();
-
-		/* Reset locations when new executions start */
-		if (inst->get_execution_number() != curr_execution_number) {
-			inst->set_location(act->get_location());
-			inst->set_execution_number(curr_execution_number);
-		}
-
-		if (inst->get_location() != act->get_location())
-			inst->not_single_location();
-
+	/* This position has not been inserted into hashtable before */
+	if (func_inst == NULL) {
+		func_inst = create_new_inst(act);
+		func_inst_map.put(position, func_inst);
 		return;
 	}
 
-	FuncInst * func_inst = new FuncInst(act, this);
+	/* Volatile variables that use ++ or -- syntax may result in read and write actions with the same position */
+	if (func_inst->get_type() != act->get_type()) {
+		FuncInst * collision_inst = func_inst->search_in_collision(act);
 
-	func_inst_map.put(position, func_inst);
-	inst_list.push_back(func_inst);
+		if (collision_inst == NULL) {
+			collision_inst = create_new_inst(act);
+			func_inst->add_to_collision(collision_inst);
+			return;
+		} else {
+			func_inst = collision_inst;
+		}
+	}
+
+	ASSERT(func_inst->get_type() == act->get_type());
+	int curr_execution_number = model->get_execution_number();
+
+	/* Reset locations when new executions start */
+	if (func_inst->get_execution_number() != curr_execution_number) {
+		func_inst->set_location(act->get_location());
+		func_inst->set_execution_number(curr_execution_number);
+	}
+
+	/* Mark the memory location of such inst as not unique */
+	if (func_inst->get_location() != act->get_location())
+		func_inst->not_single_location();
 }
+
+FuncInst * FuncNode::create_new_inst(ModelAction * act)
+{
+	FuncInst * func_inst = new FuncInst(act, this);
+	int exec_num = model->get_execution_number();
+	func_inst->set_execution_number(exec_num);
+
+	inst_list.push_back(func_inst);
+
+	return func_inst;
+}
+
 
 /* Get the FuncInst with the same type, position, and location
  * as act
@@ -108,14 +128,18 @@ FuncInst * FuncNode::get_inst(ModelAction *act)
 	action_type inst_type = inst->get_type();
 	action_type act_type = act->get_type();
 
-	// else if branch: an RMWRCAS action is converted to a RMW or READ action
-	if (inst_type == act_type)
+	if (inst_type == act_type) {
 		return inst;
+	}
+	/* RMWRCAS actions are converted to RMW or READ actions */
 	else if (inst_type == ATOMIC_RMWRCAS &&
-			(act_type == ATOMIC_RMW || act_type == ATOMIC_READ))
+			(act_type == ATOMIC_RMW || act_type == ATOMIC_READ)) {
 		return inst;
-
-	return NULL;
+	}
+	/* Return the FuncInst in the collision list */
+	else {
+		return inst->search_in_collision(act);
+	}
 }
 
 
