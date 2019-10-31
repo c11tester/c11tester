@@ -81,7 +81,7 @@ void CycleGraph::addNodeEdge(CycleNode *fromnode, CycleNode *tonode, bool forcee
 
 	/* Propagate clock vector changes */
 	if (tonode->cv->merge(fromnode->cv)) {
-		queue->push_back(fromnode);
+		queue->push_back(tonode);
 		while(!queue->empty()) {
 			const CycleNode *node = queue->back();
 			queue->pop_back();
