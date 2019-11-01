@@ -413,7 +413,7 @@ void ModelChecker::run()
 			for (unsigned int i = 0;i < get_num_threads();i++) {
 				thread_id_t tid = int_to_id(i);
 				Thread *thr = get_thread(tid);
-				if (!thr->is_model_thread() && !thr->is_complete() && (!thr->get_pending())) {
+				if (!thr->is_model_thread() && !thr->is_complete() && !thr->get_pending()) {
 					switch_from_master(thr);
 					if (thr->is_waiting_on(thr))
 						assert_bug("Deadlock detected (thread %u)", i);
@@ -459,6 +459,11 @@ void ModelChecker::run()
 				t = get_next_thread();
 			if (!t || t->is_model_thread())
 				break;
+			if (t->just_woken_up()) {
+				t->set_wakeup_state(false);
+				t->set_pending(NULL);
+				continue;	// Allow this thread to stash the next pending action
+			}
 
 			/* Consume the next action for a Thread */
 			ModelAction *curr = t->get_pending();

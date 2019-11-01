@@ -161,6 +161,7 @@ bool ModelExecution::should_wake_up(const ModelAction *curr, const Thread *threa
 		if (fence_release && *(get_last_action(thread->get_id())) < *fence_release)
 			return true;
 	}
+	/* The sleep is literally sleeping */
 	if (asleep->is_sleep()) {
 		if (fuzzer->shouldWake(asleep))
 			return true;
@@ -178,7 +179,7 @@ void ModelExecution::wake_up_sleeping_actions(ModelAction *curr)
 				/* Remove this thread from sleep set */
 				scheduler->remove_sleep(thr);
 				if (thr->get_pending()->is_sleep())
-					thr->set_pending(NULL);
+					thr->set_wakeup_state(true);
 			}
 		}
 	}
@@ -827,7 +828,8 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
  * @return True if modification order edges were added; false otherwise
  */
 
-bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> * priorset, bool * canprune, bool check_only)
+bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf,
+	SnapVector<const ModelAction *> * priorset, bool * canprune, bool check_only)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;

@@ -93,6 +93,9 @@ public:
 	 *  @see Thread::pending */
 	void set_pending(ModelAction *act) { pending = act; }
 
+	bool just_woken_up() { return wakeup_state; }
+	void set_wakeup_state(bool state) { wakeup_state = state; }
+
 	Thread * waiting_on() const;
 	bool is_waiting_on(const Thread *t) const;
 
@@ -143,6 +146,9 @@ private:
 	 * and location are.
 	 */
 	ModelAction *pending;
+
+	/** @brief True if this thread was just woken up */
+	bool wakeup_state;
 
 	void (*start_routine)(void *);
 	void *(*pstart_routine)(void *);

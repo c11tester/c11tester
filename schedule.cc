@@ -108,7 +108,7 @@ bool Scheduler::is_sleep_set(const Thread *t) const
 /**
  * @brief Check if execution is stuck with no enabled threads and some sleeping
  * thread
- * @return True if no threads are enabled an some thread is in the sleep set;
+ * @return True if no threads are enabled and some thread is in the sleep set;
  * false otherwise
  */
 bool Scheduler::all_threads_sleeping() const
@@ -202,16 +202,31 @@ void Scheduler::wake(Thread *t)
 Thread * Scheduler::select_next_thread()
 {
 	int avail_threads = 0;
-	int thread_list[enabled_len];
-	for (int i = 0;i< enabled_len;i++) {
+	int sleep_threads = 0;
+	int thread_list[enabled_len], sleep_list[enabled_len];
+	Thread * thread;
+
+	for (int i = 0; i < enabled_len; i++) {
 		if (enabled[i] == THREAD_ENABLED)
 			thread_list[avail_threads++] = i;
+		else if (enabled[i] == THREAD_SLEEP_SET)
+			sleep_list[sleep_threads++] = i;
 	}
 
-	if (avail_threads == 0 && !execution->getFuzzer()->has_paused_threads())
-		return NULL;	// No threads available
+	if (avail_threads == 0 && !execution->getFuzzer()->has_paused_threads()) {
+		if (sleep_threads != 0) {
+			// No threads available, but some threads sleeping. Wake up one of them
+			thread = execution->getFuzzer()->selectThread(sleep_list, sleep_threads);
+			remove_sleep(thread);
+			thread->set_wakeup_state(true);
+		} else {
+			return NULL;	// No threads available and no threads sleeping.
+		}
+	} else {
+		// Some threads are available
+		thread = execution->getFuzzer()->selectThread(thread_list, avail_threads);
+	}
 
-	Thread * thread = execution->getFuzzer()->selectThread(thread_list, avail_threads);
 	curr_thread_index = id_to_int(thread->get_id());
 	return thread;
 }
