@@ -462,6 +462,7 @@ void ModelChecker::run()
 			if (t->just_woken_up()) {
 				t->set_wakeup_state(false);
 				t->set_pending(NULL);
+				t = NULL;
 				continue;	// Allow this thread to stash the next pending action
 			}
 
