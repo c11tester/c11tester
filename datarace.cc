@@ -256,6 +256,9 @@ void raceCheckWrite(thread_id_t thread, void *location)
 	uint64_t *shadow = lookupAddressEntry(location);
 	uint64_t shadowval = *shadow;
 	ClockVector *currClock = get_execution()->get_cv(thread);
+	if (currClock == NULL)
+		return;
+
 	struct DataRace * race = NULL;
 	/* Do full record */
 	if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
@@ -424,6 +427,9 @@ void raceCheckRead(thread_id_t thread, const void *location)
 	uint64_t *shadow = lookupAddressEntry(location);
 	uint64_t shadowval = *shadow;
 	ClockVector *currClock = get_execution()->get_cv(thread);
+	if (currClock == NULL)
+		return;
+
 	struct DataRace * race = NULL;
 
 	/* Do full record */
