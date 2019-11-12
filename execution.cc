@@ -73,8 +73,8 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	/* Initialize a model-checker thread, for special ModelActions */
 	model_thread = new Thread(get_next_id());
 	add_thread(model_thread);
-	scheduler->register_engine(this);
 	fuzzer->register_engine(m->get_history(), this);
+	scheduler->register_engine(this);
 }
 
 /** @brief Destructor */
