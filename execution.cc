@@ -282,7 +282,7 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
 	add_normal_write_to_lists(act);
 	add_write_to_lists(act);
 	w_modification_order(act);
-	model->get_history()->process_action(act, act->get_tid());
+//	model->get_history()->process_action(act, act->get_tid());
 	return act;
 }
 
@@ -302,13 +302,14 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 	}
 
 	// Remove writes that violate read modification order
+	/*
 	for (uint i = 0; i < rf_set->size(); i++) {
 		ModelAction * rf = (*rf_set)[i];
 		if (!r_modification_order(curr, rf, NULL, NULL, true)) {
 			(*rf_set)[i] = rf_set->back();
 			rf_set->pop_back();
 		}
-	}
+	}*/
 
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
@@ -1757,7 +1758,7 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	ASSERT(curr);
 
 	/* Process this action in ModelHistory for records */
-	model->get_history()->process_action( curr, curr->get_tid() );
+//	model->get_history()->process_action( curr, curr->get_tid() );
 
 	if (curr_thrd->is_blocked() || curr_thrd->is_complete())
 		scheduler->remove_thread(curr_thrd);

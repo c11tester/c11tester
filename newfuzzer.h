@@ -55,17 +55,17 @@ private:
 
 	/* The set of Threads put to sleep by NewFuzzer because no writes in rf_set satisfies the selected predicate. Only used by selectWrite.
 	 */
-	SnapVector<Thread *> paused_thread_list;
-	HashTable<Thread *, int, uintptr_t, 0> paused_thread_table;
+	SnapVector<Thread *> paused_thread_list;	//-- (not in use)
+	HashTable<Thread *, int, uintptr_t, 0> paused_thread_table;	//--
 	HashTable<Predicate *, bool, uintptr_t, 0> failed_predicates;
 
-	SnapVector<struct node_dist_info> dist_info_vec;
+	SnapVector<struct node_dist_info> dist_info_vec;	//--
 
-	void conditional_sleep(Thread * thread);
+	void conditional_sleep(Thread * thread);	//--
 	bool should_conditional_sleep(Predicate * predicate);
-	void wake_up_paused_threads(int * threadlist, int * numthreads);
+	void wake_up_paused_threads(int * threadlist, int * numthreads);	//--
 
-	bool find_threads(ModelAction * pending_read);
+	bool find_threads(ModelAction * pending_read);	//--
 	/*-- void update_predicate_score(Predicate * predicate, sleep_result_t type); */
 
 	bool check_predicate_expressions(PredExprSet * pred_expressions, inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate);

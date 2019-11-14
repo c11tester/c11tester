@@ -33,7 +33,7 @@ void NewFuzzer::register_engine(ModelHistory * history, ModelExecution *executio
 
 int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set)
 {
-//	return random() % rf_set->size();
+	return random() % rf_set->size();
 
 	thread_id_t tid = read->get_tid();
 	int thread_id = id_to_int(tid);
@@ -66,35 +66,6 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		Predicate * selected_branch = get_selected_child_branch(tid);
 
 		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
-
-/*--
-		Thread * read_thread = execution->get_thread(tid);
-		bool should_reselect_predicate = true;
-		bool should_sleep = should_conditional_sleep(selected_branch);
-		dist_info_vec.clear();
-
-		if (!find_threads(read)) {
-			update_predicate_score(selected_branch, SLEEP_FAIL_TYPE1);
-			should_reselect_predicate = true;
-		} else if (!should_sleep) {
-			update_predicate_score(selected_branch, SLEEP_FAIL_TYPE2);
-			should_reselect_predicate = true;
-		} else {
-			for (uint i = 0; i < dist_info_vec.size(); i++) {
-				struct node_dist_info info = dist_info_vec[i];
-				history->add_waiting_thread(tid, info.tid, info.target, info.dist);
-			}
-
-			// reset thread pending action and revert sequence numbers
-			read_thread->set_pending(read);
-			read->reset_seq_number();
-			execution->restore_last_seq_num();
-
-			conditional_sleep(read_thread);
-			// Returning -1 stops the while loop of ModelExecution::process_read
-			return -1;	
-		}
-*/
 
 		SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
 		for (uint i = 0; i < pruned_writes->size(); i++) {
@@ -182,11 +153,6 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 		Predicate * child = (*children)[i];
 		if (child->get_func_inst() == read_inst && !failed_predicates.contains(child)) {
 			branches.push_back(child);
-
-			/*-- max of (exploration counts + 1)
-			if (child->get_expl_count() + 1 > numerator)
-				numerator = child->get_expl_count() + 1;
-			*/
 		}
 	}
 
