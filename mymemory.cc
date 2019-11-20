@@ -11,6 +11,7 @@
 #include "common.h"
 #include "threads-model.h"
 #include "model.h"
+#include "datarace.h"
 
 #define REQUESTS_BEFORE_ALLOC 1024
 
@@ -234,10 +235,12 @@ void * calloc(size_t num, size_t size)
 	if (user_snapshot_space) {
 		void *tmp = mspace_calloc(user_snapshot_space, num, size);
 		ASSERT(tmp);
+		recordCalloc(tmp, num*size);
 		return tmp;
 	} else {
 		void *tmp = HandleEarlyAllocationRequest(size * num);
 		memset(tmp, 0, size * num);
+		recordCalloc(tmp, num*size);
 		return tmp;
 	}
 }

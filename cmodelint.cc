@@ -113,7 +113,7 @@ VOLATILELOAD(64)
 		*((volatile uint ## size ## _t *)obj) = val;            \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                         \
-			recordWrite(tid, (void *)(((char *)obj)+i));          \
+			atomraceCheckWrite(tid, (void *)(((char *)obj)+i));          \
 		}                                                       \
 	}
 
@@ -130,7 +130,7 @@ VOLATILESTORE(64)
 		*((volatile uint ## size ## _t *)obj) = val;                                 \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
-			recordWrite(tid, (void *)(((char *)obj)+i));          \
+			atomraceCheckWrite(tid, (void *)(((char *)obj)+i));          \
 		}                                                       \
 	}
 
@@ -143,8 +143,13 @@ CDSATOMICINT(64)
 #define CDSATOMICLOAD(size)                                             \
 	uint ## size ## _t cds_atomic_load ## size(void * obj, int atomic_index, const char * position) { \
 		ensureModel();                                                      \
-		return (uint ## size ## _t)model->switch_to_master( \
+		uint ## size ## _t val = (uint ## size ## _t)model->switch_to_master( \
 			new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)); \
+		thread_id_t tid = thread_current()->get_id();           \
+		for(int i=0;i < size / 8;i++) {                         \
+			atomraceCheckRead(tid, (void *)(((char *)obj)+i));    \
+		}                                                       \
+		return val; \
 	}
 
 CDSATOMICLOAD(8)
@@ -160,7 +165,7 @@ CDSATOMICLOAD(64)
 		*((volatile uint ## size ## _t *)obj) = val;                     \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
-			recordWrite(tid, (void *)(((char *)obj)+i));          \
+			atomraceCheckWrite(tid, (void *)(((char *)obj)+i));          \
 		}                                                       \
 	}
 
@@ -180,9 +185,10 @@ CDSATOMICSTORE(64)
 		*((volatile uint ## size ## _t *)addr) = _copy;                  \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
+			atomraceCheckRead(tid,  (void *)(((char *)addr)+i));  \
 			recordWrite(tid, (void *)(((char *)addr)+i));         \
 		}                                                       \
-		return _old;                                                          \
+		return _old;                                            \
 	})
 
 // cds atomic exchange
@@ -336,45 +342,45 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
 void cds_func_entry(const char * funcName) {
 	ensureModel();
 	/*
-	Thread * th = thread_current();
-	uint32_t func_id;
+	   Thread * th = thread_current();
+	   uint32_t func_id;
 
-	ModelHistory *history = model->get_history();
-	if ( !history->getFuncMap()->contains(funcName) ) {
-		// add func id to func map
-		func_id = history->get_func_counter();
-		history->incr_func_counter();
-		history->getFuncMap()->put(funcName, func_id);
+	   ModelHistory *history = model->get_history();
+	   if ( !history->getFuncMap()->contains(funcName) ) {
+	        // add func id to func map
+	        func_id = history->get_func_counter();
+	        history->incr_func_counter();
+	        history->getFuncMap()->put(funcName, func_id);
 
-		// add func id to reverse func map
-		ModelVector<const char *> * func_map_rev = history->getFuncMapRev();
-		if ( func_map_rev->size() <= func_id )
-			func_map_rev->resize( func_id + 1 );
-		func_map_rev->at(func_id) = funcName;
-	} else {
-		func_id = history->getFuncMap()->get(funcName);
-	}
+	        // add func id to reverse func map
+	        ModelVector<const char *> * func_map_rev = history->getFuncMapRev();
+	        if ( func_map_rev->size() <= func_id )
+	                func_map_rev->resize( func_id + 1 );
+	        func_map_rev->at(func_id) = funcName;
+	   } else {
+	        func_id = history->getFuncMap()->get(funcName);
+	   }
 
-	history->enter_function(func_id, th->get_id());
-*/
+	   history->enter_function(func_id, th->get_id());
+	 */
 }
 
 void cds_func_exit(const char * funcName) {
 	ensureModel();
 
 /*	Thread * th = thread_current();
-	uint32_t func_id;
+        uint32_t func_id;
 
-	ModelHistory *history = model->get_history();
-	func_id = history->getFuncMap()->get(funcName);
+        ModelHistory *history = model->get_history();
+        func_id = history->getFuncMap()->get(funcName);
 
-	 * func_id not found; this could happen in the case where a function calls cds_func_entry
-	 * when the model has been defined yet, but then an atomic inside the function initializes
-	 * the model. And then cds_func_exit is called upon the function exiting.
-	 *
-	if (func_id == 0)
-		return;
+ * func_id not found; this could happen in the case where a function calls cds_func_entry
+ * when the model has been defined yet, but then an atomic inside the function initializes
+ * the model. And then cds_func_exit is called upon the function exiting.
+ *
+        if (func_id == 0)
+                return;
 
-	history->exit_function(func_id, th->get_id());
-*/
+        history->exit_function(func_id, th->get_id());
+ */
 }

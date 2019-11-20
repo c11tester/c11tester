@@ -318,6 +318,123 @@ Exit:
 	}
 }
 
+
+/** This function does race detection for a write on an expanded record. */
+struct DataRace * atomfullRaceCheckWrite(thread_id_t thread, void *location, uint64_t *shadow, ClockVector *currClock)
+{
+	struct RaceRecord *record = (struct RaceRecord *)(*shadow);
+	struct DataRace * race = NULL;
+
+	if (record->isAtomic)
+		goto Exit;
+
+	/* Check for datarace against last read. */
+
+	for (int i = 0;i < record->numReads;i++) {
+		modelclock_t readClock = record->readClock[i];
+		thread_id_t readThread = record->thread[i];
+
+		/* Note that readClock can't actuall be zero here, so it could be
+		         optimized. */
+
+		if (clock_may_race(currClock, thread, readClock, readThread)) {
+			/* We have a datarace */
+			race = reportDataRace(readThread, readClock, false, get_execution()->get_parent_action(thread), true, location);
+			goto Exit;
+		}
+	}
+
+	/* Check for datarace against last write. */
+
+	{
+		modelclock_t writeClock = record->writeClock;
+		thread_id_t writeThread = record->writeThread;
+
+		if (clock_may_race(currClock, thread, writeClock, writeThread)) {
+			/* We have a datarace */
+			race = reportDataRace(writeThread, writeClock, true, get_execution()->get_parent_action(thread), true, location);
+			goto Exit;
+		}
+	}
+Exit:
+	record->numReads = 0;
+	record->writeThread = thread;
+	record->isAtomic = 1;
+	modelclock_t ourClock = currClock->getClock(thread);
+	record->writeClock = ourClock;
+	return race;
+}
+
+/** This function does race detection on a write. */
+void atomraceCheckWrite(thread_id_t thread, void *location)
+{
+	uint64_t *shadow = lookupAddressEntry(location);
+	uint64_t shadowval = *shadow;
+	ClockVector *currClock = get_execution()->get_cv(thread);
+	if (currClock == NULL)
+		return;
+
+	struct DataRace * race = NULL;
+	/* Do full record */
+	if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+		race = atomfullRaceCheckWrite(thread, location, shadow, currClock);
+		goto Exit;
+	}
+
+	{
+		int threadid = id_to_int(thread);
+		modelclock_t ourClock = currClock->getClock(thread);
+
+		/* Thread ID is too large or clock is too large. */
+		if (threadid > MAXTHREADID || ourClock > MAXWRITEVECTOR) {
+			expandRecord(shadow);
+			race = atomfullRaceCheckWrite(thread, location, shadow, currClock);
+			goto Exit;
+		}
+
+		/* Can't race with atomic */
+		if (shadowval & ATOMICMASK)
+			goto ShadowExit;
+
+		{
+			/* Check for datarace against last read. */
+
+			modelclock_t readClock = READVECTOR(shadowval);
+			thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
+
+			if (clock_may_race(currClock, thread, readClock, readThread)) {
+				/* We have a datarace */
+				race = reportDataRace(readThread, readClock, false, get_execution()->get_parent_action(thread), true, location);
+				goto ShadowExit;
+			}
+		}
+
+		{
+			/* Check for datarace against last write. */
+
+			modelclock_t writeClock = WRITEVECTOR(shadowval);
+			thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
+
+			if (clock_may_race(currClock, thread, writeClock, writeThread)) {
+				/* We have a datarace */
+				race = reportDataRace(writeThread, writeClock, true, get_execution()->get_parent_action(thread), true, location);
+				goto ShadowExit;
+			}
+		}
+
+ShadowExit:
+		*shadow = ENCODEOP(0, 0, threadid, ourClock) | ATOMICMASK;
+	}
+
+Exit:
+	if (race) {
+		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
+		if (raceset->add(race))
+			assert_race(race);
+		else model_free(race);
+	}
+}
+
 /** This function does race detection for a write on an expanded record. */
 void fullRecordWrite(thread_id_t thread, void *location, uint64_t *shadow, ClockVector *currClock) {
 	struct RaceRecord *record = (struct RaceRecord *)(*shadow);
@@ -326,6 +443,16 @@ void fullRecordWrite(thread_id_t thread, void *location, uint64_t *shadow, Clock
 	modelclock_t ourClock = currClock->getClock(thread);
 	record->writeClock = ourClock;
 	record->isAtomic = 1;
+}
+
+/** This function does race detection for a write on an expanded record. */
+void fullRecordWriteNonAtomic(thread_id_t thread, void *location, uint64_t *shadow, ClockVector *currClock) {
+	struct RaceRecord *record = (struct RaceRecord *)(*shadow);
+	record->numReads = 0;
+	record->writeThread = thread;
+	modelclock_t ourClock = currClock->getClock(thread);
+	record->writeClock = ourClock;
+	record->isAtomic = 0;
 }
 
 /** This function just updates metadata on atomic write. */
@@ -350,6 +477,34 @@ void recordWrite(thread_id_t thread, void *location) {
 	}
 
 	*shadow = ENCODEOP(0, 0, threadid, ourClock) | ATOMICMASK;
+}
+
+/** This function just updates metadata on atomic write. */
+void recordCalloc(void *location, size_t size) {
+	thread_id_t thread = thread_current()->get_id();
+	for(;size != 0;size--) {
+		uint64_t *shadow = lookupAddressEntry(location);
+		uint64_t shadowval = *shadow;
+		ClockVector *currClock = get_execution()->get_cv(thread);
+		/* Do full record */
+		if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+			fullRecordWriteNonAtomic(thread, location, shadow, currClock);
+			return;
+		}
+
+		int threadid = id_to_int(thread);
+		modelclock_t ourClock = currClock->getClock(thread);
+
+		/* Thread ID is too large or clock is too large. */
+		if (threadid > MAXTHREADID || ourClock > MAXWRITEVECTOR) {
+			expandRecord(shadow);
+			fullRecordWriteNonAtomic(thread, location, shadow, currClock);
+			return;
+		}
+
+		*shadow = ENCODEOP(0, 0, threadid, ourClock);
+		location = (void *)(((char *) location) + 1);
+	}
 }
 
 
@@ -474,6 +629,69 @@ ShadowExit:
 		}
 
 		*shadow = ENCODEOP(threadid, ourClock, id_to_int(writeThread), writeClock) | (shadowval & ATOMICMASK);
+	}
+Exit:
+	if (race) {
+		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
+		if (raceset->add(race))
+			assert_race(race);
+		else model_free(race);
+	}
+}
+
+
+/** This function does race detection on a read for an expanded record. */
+struct DataRace * atomfullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
+{
+	struct RaceRecord *record = (struct RaceRecord *) (*shadow);
+	struct DataRace * race = NULL;
+	/* Check for datarace against last write. */
+	if (record->isAtomic)
+		return NULL;
+
+	modelclock_t writeClock = record->writeClock;
+	thread_id_t writeThread = record->writeThread;
+
+	if (clock_may_race(currClock, thread, writeClock, writeThread)) {
+		/* We have a datarace */
+		race = reportDataRace(writeThread, writeClock, true, get_execution()->get_parent_action(thread), false, location);
+	}
+	return race;
+}
+
+/** This function does race detection on a read. */
+void atomraceCheckRead(thread_id_t thread, const void *location)
+{
+	uint64_t *shadow = lookupAddressEntry(location);
+	uint64_t shadowval = *shadow;
+	ClockVector *currClock = get_execution()->get_cv(thread);
+	if (currClock == NULL)
+		return;
+
+	struct DataRace * race = NULL;
+
+	/* Do full record */
+	if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+		race = atomfullRaceCheckRead(thread, location, shadow, currClock);
+		goto Exit;
+	}
+
+	if (shadowval && ATOMICMASK)
+		return;
+
+	{
+		/* Check for datarace against last write. */
+
+		modelclock_t writeClock = WRITEVECTOR(shadowval);
+		thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
+
+		if (clock_may_race(currClock, thread, writeClock, writeThread)) {
+			/* We have a datarace */
+			race = reportDataRace(writeThread, writeClock, true, get_execution()->get_parent_action(thread), false, location);
+			goto Exit;
+		}
+
+
 	}
 Exit:
 	if (race) {
