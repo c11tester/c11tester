@@ -205,12 +205,15 @@ static void * user_malloc(size_t size)
  */
 void *malloc(size_t size)
 {
+	void *tmp;
 	if (user_snapshot_space) {
 		/* Only perform user allocations from user context */
 		ASSERT(!model || thread_current());
-		return user_malloc(size);
+		tmp = user_malloc(size);
 	} else
-		return HandleEarlyAllocationRequest(size);
+		tmp = HandleEarlyAllocationRequest(size);
+	recordCalloc(tmp, size);
+	return tmp;
 }
 
 /** @brief Snapshotting free implementation for user programs */
@@ -225,6 +228,7 @@ void free(void * ptr)
 void *realloc(void *ptr, size_t size)
 {
 	void *tmp = mspace_realloc(user_snapshot_space, ptr, size);
+	recordCalloc(tmp, size);
 	ASSERT(tmp);
 	return tmp;
 }
@@ -235,12 +239,12 @@ void * calloc(size_t num, size_t size)
 	if (user_snapshot_space) {
 		void *tmp = mspace_calloc(user_snapshot_space, num, size);
 		ASSERT(tmp);
-		recordCalloc(tmp, num*size);
+		recordAlloc(tmp, num*size);
 		return tmp;
 	} else {
 		void *tmp = HandleEarlyAllocationRequest(size * num);
 		memset(tmp, 0, size * num);
-		recordCalloc(tmp, num*size);
+		recordAlloc(tmp, num*size);
 		return tmp;
 	}
 }

@@ -676,7 +676,7 @@ void atomraceCheckRead(thread_id_t thread, const void *location)
 		goto Exit;
 	}
 
-	if (shadowval && ATOMICMASK)
+	if (shadowval & ATOMICMASK)
 		return;
 
 	{
