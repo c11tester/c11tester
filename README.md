@@ -242,6 +242,18 @@ Copyright &copy; 2013 and 2019 Regents of the University of California. All righ
 C11Tester is distributed under the GPL v2. See the LICENSE file for details.
 
 
+Acknowledgments
+---------------
+
+This material is based upon work supported by the National Science
+Foundation under Grant Numbers 1740210 and 1319786 and Google Research 
+awards.
+
+Any opinions, findings, and conclusions or recommendations expressed in
+this material are those of the author(s) and do not necessarily reflect
+the views of the National Science Foundation.
+
+
 References
 ----------
 
