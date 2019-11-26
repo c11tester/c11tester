@@ -52,6 +52,12 @@ int pthread_detach(pthread_t t) {
 	return 0;
 }
 
+/* Take care of both pthread_yield and c++ thread yield */
+int sched_yield() {
+	model->switch_to_master(new ModelAction(THREAD_YIELD, std::memory_order_seq_cst, thread_current(), VALUE_NONE));
+	return 0;
+}
+
 void pthread_exit(void *value_ptr) {
 	Thread * th = thread_current();
 	th->set_pthread_return(value_ptr);
