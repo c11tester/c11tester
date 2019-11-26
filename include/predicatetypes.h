@@ -60,5 +60,5 @@ struct concrete_pred_expr {
 	SNAPSHOTALLOC
 };
 
-#endif  /* __PREDICATE_TYPES_H__ */
+#endif	/* __PREDICATE_TYPES_H__ */
 

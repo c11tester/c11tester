@@ -24,4 +24,4 @@ private:
 	SnapVector<struct concrete_pred_expr> expressions;
 };
 
-#endif /* __CONCRETE_PREDICATE_H */
+#endif	/* __CONCRETE_PREDICATE_H */

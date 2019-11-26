@@ -31,7 +31,7 @@ ModelHistory::ModelHistory() :
 ModelHistory::~ModelHistory()
 {
 	// TODO: complete deconstructor; maybe not needed
-	for (uint i = 0; i < thrd_wait_obj->size(); i++)
+	for (uint i = 0;i < thrd_wait_obj->size();i++)
 		delete (*thrd_wait_obj)[i];
 }
 
@@ -51,7 +51,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		thrd_func_list->resize( id + 1 );
 		thrd_func_act_lists->resize( id + 1 );
 
-		for (uint i = oldsize; i < id + 1; i++) {
+		for (uint i = oldsize;i < id + 1;i++) {
 			// push 0 as a dummy function id to a void seg fault
 			new (&(*thrd_func_list)[i]) func_id_list_t();
 			(*thrd_func_list)[i].push_back(0);
@@ -104,7 +104,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 
 		action_list_t * curr_act_list = func_act_lists->back();
 
-		/* defer the processing of curr_act_list until the function has exits a few times 
+		/* defer the processing of curr_act_list until the function has exits a few times
 		 * (currently twice) so that more information can be gathered to infer nullity predicates.
 		 */
 		func_node->incr_exit_count();
@@ -136,7 +136,7 @@ void ModelHistory::resize_func_nodes(uint32_t new_size)
 	if ( old_size < new_size )
 		func_nodes.resize(new_size);
 
-	for (uint32_t id = old_size; id < new_size; id++) {
+	for (uint32_t id = old_size;id < new_size;id++) {
 		const char * func_name = func_map_rev[id];
 		FuncNode * func_node = new FuncNode(this);
 		func_node->set_func_id(id);
@@ -169,7 +169,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 		/* Notify FuncNodes that may read from this location */
 		SnapVector<FuncNode *> * func_node_list = getRdFuncNodes(location);
-		for (uint i = 0; i < func_node_list->size(); i++) {
+		for (uint i = 0;i < func_node_list->size();i++) {
 			FuncNode * func_node = (*func_node_list)[i];
 			func_node->add_to_val_loc_map(value, location);
 		}
@@ -305,7 +305,7 @@ void ModelHistory::remove_waiting_write(thread_id_t tid)
 
 	/* Linear search should be fine because presumably not many ConcretePredicates
 	 * are at the same memory location */
-	for (uint i = 0; i < concrete_preds->size(); i++) {
+	for (uint i = 0;i < concrete_preds->size();i++) {
 		ConcretePredicate * current = (*concrete_preds)[i];
 		if (concrete == current) {
 			(*concrete_preds)[i] = concrete_preds->back();
@@ -334,19 +334,19 @@ void ModelHistory::check_waiting_write(ModelAction * write_act)
 		SnapVector<struct concrete_pred_expr> * concrete_exprs = concrete_pred->getExpressions();
 		bool satisfy_predicate = true;
 		/* Check if the written value satisfies every predicate expression */
-		for (uint i = 0; i < concrete_exprs->size(); i++) {
+		for (uint i = 0;i < concrete_exprs->size();i++) {
 			struct concrete_pred_expr concrete = (*concrete_exprs)[i];
 			bool equality = false;
 			switch (concrete.token) {
-				case EQUALITY:
-					equality = (value == concrete.value);
-					break;
-				case NULLITY:
-					equality = ((void*)value == NULL);
-					break;
-				default:
-					model_print("unknown predicate token");
-					break;
+			case EQUALITY:
+				equality = (value == concrete.value);
+				break;
+			case NULLITY:
+				equality = ((void*)value == NULL);
+				break;
+			default:
+				model_print("unknown predicate token");
+				break;
 			}
 
 			if (equality != concrete.equality) {
@@ -374,7 +374,7 @@ WaitObj * ModelHistory::getWaitObj(thread_id_t tid)
 	int old_size = thrd_wait_obj->size();
 	if (old_size <= thread_id) {
 		thrd_wait_obj->resize(thread_id + 1);
-		for (int i = old_size; i < thread_id + 1; i++) {
+		for (int i = old_size;i < thread_id + 1;i++) {
 			(*thrd_wait_obj)[i] = new WaitObj( int_to_id(i) );
 		}
 	}
@@ -383,7 +383,7 @@ WaitObj * ModelHistory::getWaitObj(thread_id_t tid)
 }
 
 void ModelHistory::add_waiting_thread(thread_id_t self_id,
-	thread_id_t waiting_for_id, FuncNode * target_node, int dist)
+																			thread_id_t waiting_for_id, FuncNode * target_node, int dist)
 {
 	WaitObj * self_wait_obj = getWaitObj(self_id);
 	self_wait_obj->add_waiting_for(waiting_for_id, target_node, dist);
@@ -411,7 +411,7 @@ void ModelHistory::remove_waiting_thread(thread_id_t tid)
 }
 
 void ModelHistory::stop_waiting_for_node(thread_id_t self_id,
-	thread_id_t waiting_for_id, FuncNode * target_node)
+																				 thread_id_t waiting_for_id, FuncNode * target_node)
 {
 	WaitObj * self_wait_obj = getWaitObj(self_id);
 	bool thread_removed = self_wait_obj->remove_waiting_for_node(waiting_for_id, target_node);
@@ -473,10 +473,10 @@ bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr
 
 /* Monitor thread tid and decide whether other threads (that are waiting for tid)
  * should keep waiting for this thread or not. Shall only be called when a thread
- * enters a function. 
+ * enters a function.
  *
  * Heuristics: If the distance from the current FuncNode to some target node
- * ever increases, stop waiting for this thread on this target node. 
+ * ever increases, stop waiting for this thread on this target node.
  */
 void ModelHistory::monitor_waiting_thread(uint32_t func_id, thread_id_t tid)
 {
@@ -535,7 +535,7 @@ void ModelHistory::monitor_waiting_thread_counter(thread_id_t tid)
 /* Reallocate some snapshotted memories when new executions start */
 void ModelHistory::set_new_exec_flag()
 {
-	for (uint i = 1; i < func_nodes.size(); i++) {
+	for (uint i = 1;i < func_nodes.size();i++) {
 		FuncNode * func_node = func_nodes[i];
 		func_node->set_new_exec_flag();
 	}
@@ -544,13 +544,13 @@ void ModelHistory::set_new_exec_flag()
 void ModelHistory::dump_func_node_graph()
 {
 	model_print("digraph func_node_graph {\n");
-	for (uint i = 1; i < func_nodes.size(); i++) {
+	for (uint i = 1;i < func_nodes.size();i++) {
 		FuncNode * node = func_nodes[i];
 		ModelList<FuncNode *> * out_edges = node->get_out_edges();
 
 		model_print("\"%p\" [label=\"%s\"]\n", node, node->get_func_name());
 		mllnode<FuncNode *> * it;
-		for (it = out_edges->begin(); it != NULL; it = it->getNext()) {
+		for (it = out_edges->begin();it != NULL;it = it->getNext()) {
 			FuncNode * other = it->getVal();
 			model_print("\"%p\" -> \"%p\"\n", node, other);
 		}
@@ -561,33 +561,33 @@ void ModelHistory::dump_func_node_graph()
 void ModelHistory::print_func_node()
 {
 	/* function id starts with 1 */
-	for (uint32_t i = 1; i < func_nodes.size(); i++) {
+	for (uint32_t i = 1;i < func_nodes.size();i++) {
 		FuncNode * func_node = func_nodes[i];
 
 		func_node->print_predicate_tree();
 /*
-		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
-		model_print("function %s has entry actions\n", func_node->get_func_name());
+                func_inst_list_mt * entry_insts = func_node->get_entry_insts();
+                model_print("function %s has entry actions\n", func_node->get_func_name());
 
-		mllnode<FuncInst*>* it;
-		for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
-			FuncInst *inst = it->getVal();
-			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
-		}
-		*/
+                mllnode<FuncInst*>* it;
+                for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
+                        FuncInst *inst = it->getVal();
+                        model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
+                }
+ */
 	}
 }
 
 void ModelHistory::print_waiting_threads()
 {
 	ModelExecution * execution = model->get_execution();
-	for (unsigned int i = 0; i < execution->get_num_threads();i++) {
+	for (unsigned int i = 0;i < execution->get_num_threads();i++) {
 		thread_id_t tid = int_to_id(i);
 		WaitObj * wait_obj = getWaitObj(tid);
 		wait_obj->print_waiting_for();
 	}
 
-	for (unsigned int i = 0; i < execution->get_num_threads();i++) {
+	for (unsigned int i = 0;i < execution->get_num_threads();i++) {
 		thread_id_t tid = int_to_id(i);
 		WaitObj * wait_obj = getWaitObj(tid);
 		wait_obj->print_waited_by();

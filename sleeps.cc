@@ -13,13 +13,13 @@ unsigned int sleep(unsigned int seconds)
 {
 	/* https://code.woboq.org/userspace/glibc/sysdeps/posix/sleep.c.html */
 	const unsigned int max
-	= (unsigned int) (((unsigned long int) (~((time_t) 0))) >> 1);
+		= (unsigned int) (((unsigned long int) (~((time_t) 0))) >> 1);
 
 	struct timespec ts = { 0, 0 };
 	do {
 		if (sizeof (ts.tv_sec) <= sizeof (seconds)) {
 			/* Since SECONDS is unsigned assigning the value to .tv_sec can
-			 overflow it.  In this case we have to wait in steps.  */
+			   overflow it.  In this case we have to wait in steps.  */
 			ts.tv_sec += MIN (seconds, max);
 			seconds -= (unsigned int) ts.tv_sec;
 		} else {

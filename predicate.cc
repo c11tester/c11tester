@@ -27,7 +27,7 @@ Predicate::~Predicate()
 
 unsigned int pred_expr_hash(struct pred_expr * expr)
 {
-        return (unsigned int)((uintptr_t)expr);
+	return (unsigned int)((uintptr_t)expr);
 }
 
 bool pred_expr_equal(struct pred_expr * p1, struct pred_expr * p2)
@@ -76,20 +76,20 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 		uint64_t value = 0;
 
 		switch(ptr->token) {
-			case NOPREDICATE:
-				break;
-			case EQUALITY:
-				FuncInst * to_be_compared;
-				ModelAction * last_act;
+		case NOPREDICATE:
+			break;
+		case EQUALITY:
+			FuncInst * to_be_compared;
+			ModelAction * last_act;
 
-				to_be_compared = ptr->func_inst;
-				last_act = inst_act_map->get(to_be_compared);
-				value = last_act->get_reads_from_value();
-				break;
-			case NULLITY:
-				break;
-			default:
-				break;
+			to_be_compared = ptr->func_inst;
+			last_act = inst_act_map->get(to_be_compared);
+			value = last_act->get_reads_from_value();
+			break;
+		case NULLITY:
+			break;
+		default:
+			break;
 		}
 
 		concrete->add_expression(ptr->token, value, ptr->value);
@@ -121,17 +121,17 @@ void Predicate::print_predicate()
 		struct pred_expr * expr = it->next();
 		FuncInst * inst = expr->func_inst;
 		switch (expr->token) {
-			case NOPREDICATE:
-				break;
-			case EQUALITY:
-				model_print("predicate token: equality, position: %s, value: %d\n", inst->get_position(), expr->value);
-				break;
-			case NULLITY:
-				model_print("predicate token: nullity, value: %d\n", expr->value);
-				break;
-			default:
-				model_print("unknown predicate token\n");
-				break;
+		case NOPREDICATE:
+			break;
+		case EQUALITY:
+			model_print("predicate token: equality, position: %s, value: %d\n", inst->get_position(), expr->value);
+			break;
+		case NULLITY:
+			model_print("predicate token: nullity, value: %d\n", expr->value);
+			break;
+		default:
+			model_print("unknown predicate token\n");
+			break;
 		}
 	}
 
@@ -148,7 +148,7 @@ void Predicate::print_predicate()
 void Predicate::print_pred_subtree()
 {
 	print_predicate();
-	for (uint i = 0; i < children.size(); i++) {
+	for (uint i = 0;i < children.size();i++) {
 		Predicate * child = children[i];
 		child->print_pred_subtree();
 		model_print("\"%p\" -> \"%p\"\n", this, child);

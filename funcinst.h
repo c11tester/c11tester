@@ -49,7 +49,7 @@ private:
 	const char * position;
 
 	/* Atomic operations with the same source line number may act at different
-	 * memory locations, such as the next field of the head pointer in ms-queue. 
+	 * memory locations, such as the next field of the head pointer in ms-queue.
 	 * location only stores the memory location when this FuncInst was constructed.
 	 */
 	void * location;

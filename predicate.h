@@ -73,4 +73,4 @@ private:
 	PredSet backedges;
 };
 
-#endif /* __PREDICATE_H__ */
+#endif	/* __PREDICATE_H__ */

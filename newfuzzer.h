@@ -8,7 +8,7 @@
 #include "predicate.h"
 
 struct node_dist_info {
-	node_dist_info(thread_id_t tid, FuncNode * node, int distance) : 
+	node_dist_info(thread_id_t tid, FuncNode * node, int distance) :
 		tid(tid),
 		target(node),
 		dist(distance)
@@ -71,4 +71,4 @@ private:
 	bool check_predicate_expressions(PredExprSet * pred_expressions, inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate);
 };
 
-#endif /* end of __NEWFUZZER_H__ */
+#endif	/* end of __NEWFUZZER_H__ */

@@ -15,7 +15,7 @@
 #include <errno.h>
 
 int pthread_create(pthread_t *t, const pthread_attr_t * attr,
-	 pthread_start_t start_routine, void * arg) {
+									 pthread_start_t start_routine, void * arg) {
 	if (!model) {
 		snapshot_system_init(10000, 1024, 1024, 40000);
 		model = new ModelChecker();
@@ -133,7 +133,7 @@ int pthread_mutex_unlock(pthread_mutex_t *p_mutex) {
 }
 
 int pthread_mutex_timedlock (pthread_mutex_t *__restrict p_mutex,
-	 const struct timespec *__restrict abstime) {
+														 const struct timespec *__restrict abstime) {
 // timedlock just gives the option of giving up the lock, so return and let the scheduler decide which thread goes next
 
 	if (!model) {
@@ -194,7 +194,7 @@ int pthread_cond_wait(pthread_cond_t *p_cond, pthread_mutex_t *p_mutex) {
 }
 
 int pthread_cond_timedwait(pthread_cond_t *p_cond,
-	pthread_mutex_t *p_mutex, const struct timespec *abstime) {
+													 pthread_mutex_t *p_mutex, const struct timespec *abstime) {
 	ModelExecution *execution = model->get_execution();
 
 	if ( !execution->getCondMap()->contains(p_cond) )

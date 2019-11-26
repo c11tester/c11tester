@@ -67,7 +67,7 @@ FuncInst * FuncInst::search_in_collision(ModelAction *act)
 	action_type type = act->get_type();
 
 	mllnode<FuncInst*> * it;
-	for (it = collisions.begin(); it != NULL; it = it->getNext()) {
+	for (it = collisions.begin();it != NULL;it = it->getNext()) {
 		FuncInst * inst = it->getVal();
 		if (inst->get_type() == type)
 			return inst;

@@ -120,4 +120,4 @@ private:
 	ModelList<FuncNode *> out_edges;
 };
 
-#endif /* __FUNCNODE_H__ */
+#endif	/* __FUNCNODE_H__ */

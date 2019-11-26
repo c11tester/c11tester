@@ -206,7 +206,7 @@ Thread * Scheduler::select_next_thread()
 	int thread_list[enabled_len], sleep_list[enabled_len];
 	Thread * thread;
 
-	for (int i = 0; i < enabled_len; i++) {
+	for (int i = 0;i < enabled_len;i++) {
 		if (enabled[i] == THREAD_ENABLED)
 			thread_list[avail_threads++] = i;
 		else if (enabled[i] == THREAD_SLEEP_SET)

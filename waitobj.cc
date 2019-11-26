@@ -15,10 +15,10 @@ WaitObj::WaitObj(thread_id_t tid) :
 
 WaitObj::~WaitObj()
 {
-	for (uint i = 0; i < thrd_dist_maps.size(); i++)
+	for (uint i = 0;i < thrd_dist_maps.size();i++)
 		delete thrd_dist_maps[i];
 
-	for (uint i = 0; i < thrd_target_nodes.size(); i++)
+	for (uint i = 0;i < thrd_target_nodes.size();i++)
 		delete thrd_target_nodes[i];
 }
 
@@ -107,7 +107,7 @@ dist_map_t * WaitObj::getDistMap(thread_id_t tid)
 
 	if (old_size <= thread_id) {
 		thrd_dist_maps.resize(thread_id + 1);
-		for (int i = old_size; i < thread_id + 1; i++) {
+		for (int i = old_size;i < thread_id + 1;i++) {
 			thrd_dist_maps[i] = new dist_map_t(16);
 		}
 	}
@@ -122,7 +122,7 @@ node_set_t * WaitObj::getTargetNodes(thread_id_t tid)
 
 	if (old_size <= thread_id) {
 		thrd_target_nodes.resize(thread_id + 1);
-		for (int i = old_size; i < thread_id + 1; i++) {
+		for (int i = old_size;i < thread_id + 1;i++) {
 			thrd_target_nodes[i] = new node_set_t(16);
 		}
 	}
@@ -189,7 +189,7 @@ void WaitObj::print_waiting_for(bool verbose)
 	if (verbose) {
 		/* Print out the distances from each thread to target nodes */
 		model_print("\t");
-		for (uint i = 0; i < thrd_target_nodes.size(); i++) {
+		for (uint i = 0;i < thrd_target_nodes.size();i++) {
 			dist_map_t * dist_map = getDistMap(i);
 			node_set_t * node_set = getTargetNodes(i);
 			node_set_iter * node_iter = node_set->iterator();
@@ -197,7 +197,7 @@ void WaitObj::print_waiting_for(bool verbose)
 			if (!node_set->isEmpty()) {
 				model_print("[thread %d](", int_to_id(i));
 
-				while (node_iter->hasNext()){
+				while (node_iter->hasNext()) {
 					FuncNode * node = node_iter->next();
 					int dist = dist_map->get(node);
 					model_print("node %d: %d, ", node->get_func_id(), dist);
