@@ -130,7 +130,7 @@ Thread * ModelChecker::get_next_thread()
  * @param msg Descriptive message for the bug (do not include newline char)
  * @return True if bug is immediately-feasible
  */
-bool ModelChecker::assert_bug(const char *msg, ...)
+void ModelChecker::assert_bug(const char *msg, ...)
 {
 	char str[800];
 
@@ -139,7 +139,7 @@ bool ModelChecker::assert_bug(const char *msg, ...)
 	vsnprintf(str, sizeof(str), msg, ap);
 	va_end(ap);
 
-	return execution->assert_bug(str);
+	execution->assert_bug(str);
 }
 
 /**
@@ -150,8 +150,8 @@ bool ModelChecker::assert_bug(const char *msg, ...)
 void ModelChecker::assert_user_bug(const char *msg)
 {
 	/* If feasible bug, bail out now */
-	if (assert_bug(msg))
-		switch_to_master(NULL);
+	assert_bug(msg);
+	switch_to_master(NULL);
 }
 
 /** @brief Print bug report listing for this execution (if any bugs exist) */

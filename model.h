@@ -56,7 +56,7 @@ public:
 	void switch_from_master(Thread *thread);
 	uint64_t switch_to_master(ModelAction *act);
 
-	bool assert_bug(const char *msg, ...);
+	void assert_bug(const char *msg, ...);
 
 	void assert_user_bug(const char *msg);
 

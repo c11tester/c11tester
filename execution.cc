@@ -183,11 +183,10 @@ void ModelExecution::wake_up_sleeping_actions(ModelAction *curr)
 	}
 }
 
-bool ModelExecution::assert_bug(const char *msg)
+void ModelExecution::assert_bug(const char *msg)
 {
 	priv->bugs.push_back(new bug_message(msg));
-
-	return false;
+	set_assert();
 }
 
 /** @return True, if any bugs have been reported for this execution */
