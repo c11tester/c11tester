@@ -28,7 +28,6 @@ struct model_snapshot_members {
 		next_thread_id(INITIAL_THREAD_ID),
 		used_sequence_numbers(0),
 		bugs(),
-		bad_synchronization(false),
 		asserted(false)
 	{ }
 
@@ -42,7 +41,6 @@ struct model_snapshot_members {
 	modelclock_t used_sequence_numbers;
 	SnapVector<bug_message *> bugs;
 	/** @brief Incorrectly-ordered synchronization was made */
-	bool bad_synchronization;
 	bool asserted;
 
 	SNAPSHOTALLOC
@@ -185,21 +183,10 @@ void ModelExecution::wake_up_sleeping_actions(ModelAction *curr)
 	}
 }
 
-/** @brief Alert the model-checker that an incorrectly-ordered
- * synchronization was made */
-void ModelExecution::set_bad_synchronization()
-{
-	priv->bad_synchronization = true;
-}
-
 bool ModelExecution::assert_bug(const char *msg)
 {
 	priv->bugs.push_back(new bug_message(msg));
 
-	if (isfeasibleprefix()) {
-		set_assert();
-		return true;
-	}
 	return false;
 }
 
@@ -303,17 +290,17 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 
 	// Remove writes that violate read modification order
 	/*
-	for (uint i = 0; i < rf_set->size(); i++) {
-		ModelAction * rf = (*rf_set)[i];
-		if (!r_modification_order(curr, rf, NULL, NULL, true)) {
-			(*rf_set)[i] = rf_set->back();
-			rf_set->pop_back();
-		}
-	}*/
+	   for (uint i = 0; i < rf_set->size(); i++) {
+	        ModelAction * rf = (*rf_set)[i];
+	        if (!r_modification_order(curr, rf, NULL, NULL, true)) {
+	                (*rf_set)[i] = rf_set->back();
+	                rf_set->pop_back();
+	        }
+	   }*/
 
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
-		if (index == -1)	// no feasible write exists
+		if (index == -1)// no feasible write exists
 			return false;
 
 		ModelAction *rf = (*rf_set)[index];
@@ -664,7 +651,7 @@ void ModelExecution::read_from(ModelAction *act, ModelAction *rf)
 bool ModelExecution::synchronize(const ModelAction *first, ModelAction *second)
 {
 	if (*second < *first) {
-		set_bad_synchronization();
+		ASSERT(0);	//This should not happend
 		return false;
 	}
 	return second->synchronize_with(first);
@@ -735,10 +722,10 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 		delete rf_set;
 
 /*		bool success = process_read(curr, rf_set);
-		delete rf_set;
-		if (!success)
-			return curr;	// Do not add action to lists
-*/
+                delete rf_set;
+                if (!success)
+                        return curr;	// Do not add action to lists
+ */
 	} else
 		ASSERT(rf_set == NULL);
 
@@ -761,42 +748,6 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 		process_mutex(curr);
 
 	return curr;
-}
-
-/**
- * This is the strongest feasibility check available.
- * @return whether the current trace (partial or complete) must be a prefix of
- * a feasible trace.
- */
-bool ModelExecution::isfeasibleprefix() const
-{
-	return !is_infeasible();
-}
-
-/**
- * Print disagnostic information about an infeasible execution
- * @param prefix A string to prefix the output with; if NULL, then a default
- * message prefix will be provided
- */
-void ModelExecution::print_infeasibility(const char *prefix) const
-{
-	char buf[100];
-	char *ptr = buf;
-	if (priv->bad_synchronization)
-		ptr += sprintf(ptr, "[bad sw ordering]");
-	if (ptr != buf)
-		model_print("%s: %s", prefix ? prefix : "Infeasible", buf);
-}
-
-/**
- * Check if the current partial trace is infeasible. Does not check any
- * end-of-execution flags, which might rule out the execution. Thus, this is
- * useful only for ruling an execution as infeasible.
- * @return whether the current partial trace is infeasible.
- */
-bool ModelExecution::is_infeasible() const
-{
-	return priv->bad_synchronization;
 }
 
 /** Close out a RMWR by converting previous RMWR into a RMW or READ. */
@@ -830,7 +781,7 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
  */
 
 bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf,
-	SnapVector<const ModelAction *> * priorset, bool * canprune, bool check_only)
+																					SnapVector<const ModelAction *> * priorset, bool * canprune, bool check_only)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;
@@ -1170,7 +1121,7 @@ void ModelExecution::add_uninit_action_to_lists(ModelAction *act)
 		if ((int)vec->size() <= uninit_id) {
 			int oldsize = (int) vec->size();
 			vec->resize(uninit_id + 1);
-			for(int i = oldsize; i < uninit_id + 1; i++) {
+			for(int i = oldsize;i < uninit_id + 1;i++) {
 				new (&(*vec)[i]) action_list_t();
 			}
 		}
@@ -1186,7 +1137,7 @@ void ModelExecution::add_uninit_action_to_lists(ModelAction *act)
 	if ((int)vec->size() <= tid) {
 		uint oldsize = vec->size();
 		vec->resize(priv->next_thread_id);
-		for(uint i = oldsize; i < priv->next_thread_id; i++)
+		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
 	}
 	if (uninit)
@@ -1221,7 +1172,7 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 	if ((int)vec->size() <= tid) {
 		uint oldsize = vec->size();
 		vec->resize(priv->next_thread_id);
-		for(uint i = oldsize; i < priv->next_thread_id; i++)
+		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
 	}
 	(*vec)[tid].push_back(act);
@@ -1246,7 +1197,7 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		if ((int)vec->size() <= tid) {
 			uint oldsize = vec->size();
 			vec->resize(priv->next_thread_id);
-			for(uint i = oldsize; i < priv->next_thread_id; i++)
+			for(uint i = oldsize;i < priv->next_thread_id;i++)
 				new (&(*vec)[i]) action_list_t();
 		}
 		(*vec)[tid].push_back(act);
@@ -1619,13 +1570,11 @@ void ModelExecution::print_summary()
 #endif
 
 	model_print("Execution trace %d:", get_execution_number());
-	if (isfeasibleprefix()) {
-		if (scheduler->all_threads_sleeping())
-			model_print(" SLEEP-SET REDUNDANT");
-		if (have_bug_reports())
-			model_print(" DETECTED BUG(S)");
-	} else
-		print_infeasibility(" INFEASIBLE");
+	if (scheduler->all_threads_sleeping())
+		model_print(" SLEEP-SET REDUNDANT");
+	if (have_bug_reports())
+		model_print(" DETECTED BUG(S)");
+
 	model_print("\n");
 
 	print_list(&action_trace);

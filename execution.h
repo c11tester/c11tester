@@ -61,7 +61,6 @@ public:
 
 	ClockVector * get_cv(thread_id_t tid) const;
 	ModelAction * get_parent_action(thread_id_t tid) const;
-	bool isfeasibleprefix() const;
 
 	ModelAction * get_last_action(thread_id_t tid) const;
 
@@ -77,8 +76,6 @@ public:
 	void set_assert();
 	bool is_complete_execution() const;
 
-	void print_infeasibility(const char *prefix) const;
-	bool is_infeasible() const;
 	bool is_deadlocked() const;
 
 	action_list_t * get_action_trace() { return &action_trace; }
@@ -108,7 +105,6 @@ private:
 	Scheduler * const scheduler;
 
 	bool mo_may_allow(const ModelAction *writer, const ModelAction *reader);
-	void set_bad_synchronization();
 	bool should_wake_up(const ModelAction *curr, const Thread *thread) const;
 	void wake_up_sleeping_actions(ModelAction *curr);
 	modelclock_t get_next_seq_num();

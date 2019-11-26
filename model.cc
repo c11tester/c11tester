@@ -175,15 +175,12 @@ void ModelChecker::print_bugs() const
 void ModelChecker::record_stats()
 {
 	stats.num_total ++;
-	if (!execution->isfeasibleprefix())
-		stats.num_infeasible ++;
-	else if (execution->have_bug_reports())
+	if (execution->have_bug_reports())
 		stats.num_buggy_executions ++;
 	else if (execution->is_complete_execution())
 		stats.num_complete ++;
 	else {
-		stats.num_redundant ++;
-
+		//All threads are sleeping
 		/**
 		 * @todo We can violate this ASSERT() when fairness/sleep sets
 		 * conflict to cause an execution to terminate, e.g. with:
@@ -197,9 +194,7 @@ void ModelChecker::record_stats()
 void ModelChecker::print_stats() const
 {
 	model_print("Number of complete, bug-free executions: %d\n", stats.num_complete);
-	model_print("Number of redundant executions: %d\n", stats.num_redundant);
 	model_print("Number of buggy executions: %d\n", stats.num_buggy_executions);
-	model_print("Number of infeasible executions: %d\n", stats.num_infeasible);
 	model_print("Total executions: %d\n", stats.num_total);
 }
 
@@ -238,8 +233,7 @@ bool ModelChecker::next_execution()
 {
 	DBG();
 	/* Is this execution a feasible execution that's worth bug-checking? */
-	bool complete = execution->isfeasibleprefix() &&
-									(execution->is_complete_execution() ||
+	bool complete = (execution->is_complete_execution() ||
 									 execution->have_bug_reports());
 
 	/* End-of-execution bug checks */
@@ -360,10 +354,7 @@ void ModelChecker::startChecker() {
 
 bool ModelChecker::should_terminate_execution()
 {
-	/* Infeasible -> don't take any more steps */
-	if (execution->is_infeasible())
-		return true;
-	else if (execution->isfeasibleprefix() && execution->have_bug_reports()) {
+	if (execution->have_bug_reports()) {
 		execution->set_assert();
 		return true;
 	} else if (execution->isFinished()) {
