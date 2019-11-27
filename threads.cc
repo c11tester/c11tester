@@ -178,7 +178,7 @@ void real_init_all() {
 	}
 
 	if (!pthread_exit_p) {
-		pthread_exit_p = (void (*)(void *))dlsym(RTLD_NEXT, "pthread_exit");
+		*((void (**)(void *)) &pthread_exit_p) = (void (*)(void *))dlsym(RTLD_NEXT, "pthread_exit");
 		if ((error = dlerror()) != NULL) {
 			fputs(error, stderr);
 			exit(EXIT_FAILURE);
