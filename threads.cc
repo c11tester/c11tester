@@ -59,9 +59,17 @@ Thread * thread_current(void)
 	return model->get_current_thread();
 }
 
+#ifdef TLS
+void modelexit() {
+	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, thread_current()));
+}
+#endif
+
 void main_thread_startup() {
 #ifdef TLS
+	atexit(modelexit);
 	Thread * curr_thread = thread_current();
+
 	/* Add dummy "start" action, just to create a first clock vector */
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
 #endif
@@ -225,7 +233,7 @@ void * helper_thread(void * ptr) {
 #ifdef TLS
 void tlsdestructor(void *v) {
 	uintptr_t count = (uintptr_t) v;
-	if (count > 0) {
+	if (count > 1) {
 		if (pthread_setspecific(model->get_execution()->getPthreadKey(), (const void *)(count - 1))) {
 			printf("Destructor setup failed\n");
 			exit(-1);
