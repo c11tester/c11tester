@@ -26,7 +26,7 @@ void param_defaults(struct model_params *params)
 	params->threadsnocleanup = false;
 }
 
-static void print_usage(const char *program_name, struct model_params *params)
+static void print_usage(struct model_params *params)
 {
 	ModelVector<TraceAnalysis *> * registeredanalysis=getRegisteredTraceAnalysis();
 	/* Reset defaults before printing */
@@ -37,7 +37,7 @@ static void print_usage(const char *program_name, struct model_params *params)
 		"Distributed under the GPLv2\n"
 		"Written by Brian Norris and Brian Demsky\n"
 		"\n"
-		"Usage: %s [MODEL-CHECKER OPTIONS] -- [PROGRAM ARGS]\n"
+		"Usage: [MODEL-CHECKER OPTIONS] -- [PROGRAM ARGS]\n"
 		"\n"
 		"MODEL-CHECKER OPTIONS can be any of the model-checker options listed below. Arguments\n"
 		"provided after the `--' (the PROGRAM ARGS) are passed to the user program.\n"
@@ -61,7 +61,6 @@ static void print_usage(const char *program_name, struct model_params *params)
 		"-d                          Don't allow threads to cleanup\n"
 #endif
 		" --                         Program arguments follow.\n\n",
-		program_name,
 		params->verbose,
 		params->uninitvalue,
 		params->maxexecutions);
@@ -88,8 +87,7 @@ bool install_plugin(char * name) {
 	return true;
 }
 
-static void parse_options(struct model_params *params, int argc, char **argv)
-{
+void parse_options(struct model_params *params) {
 	const char *shortopts = "hdnt:o:u:x:v::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
@@ -101,11 +99,30 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		{0, 0, 0, 0}	/* Terminator */
 	};
 	int opt, longindex;
+	int tmpoptind = optind;
 	bool error = false;
+	char * options = getenv("C11TESTER");
+
+	if (options == NULL)
+		return;
+	int argc = 1;
+	for(int index = 0;options[index]!=0;index++) {
+		if (options[index] == ' ')
+			argc++;
+	}
+	argc++;	//first parameter is executable name
+	char * argv[argc + 1];
+	argv[0] = NULL;
+	argv[1] = options;
+	for(int index = 0, count = 2;options[index]!=0;index++) {
+		if (options[index]==' ')
+			argv[count++] = &options[index];
+	}
+
 	while (!error && (opt = getopt_long(argc, argv, shortopts, longopts, &longindex)) != -1) {
 		switch (opt) {
 		case 'h':
-			print_usage(argv[0], params);
+			print_usage(params);
 			break;
 		case 'd':
 			params->threadsnocleanup = true;
@@ -139,22 +156,12 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		}
 	}
 
-	/* Pass remaining arguments to user program */
-	params->argc = argc - (optind - 1);
-	params->argv = argv + (optind - 1);
-
-	/* Reset program name */
-	params->argv[0] = argv[0];
-
-	/* Reset (global) optind for potential use by user program */
-	optind = 1;
+	/* Restore (global) optind for potential use by user program */
+	optind = tmpoptind;
 
 	if (error)
-		print_usage(argv[0], params);
+		print_usage(params);
 }
-
-int main_argc;
-char **main_argv;
 
 static void install_trace_analyses(ModelExecution *execution)
 {
@@ -174,9 +181,6 @@ static void install_trace_analyses(ModelExecution *execution)
  */
 int main(int argc, char **argv)
 {
-	main_argc = argc;
-	main_argv = argv;
-
 	/*
 	 * If this printf statement is removed, C11Tester will fail on an
 	 * assert on some versions of glibc.  The first time printf is
@@ -199,13 +203,12 @@ int main(int argc, char **argv)
 
 	/* Configure output redirection for the model-checker */
 	redirect_output();
-
 	register_plugins();
 
-	//Parse command line options
+	//Stash command line options
 	model_params *params = model->getParams();
-	parse_options(params, main_argc, main_argv);
-
+	params->argc = argc;
+	params->argv = argv;
 
 	install_trace_analyses(model->get_execution());
 

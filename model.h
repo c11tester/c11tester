@@ -108,4 +108,5 @@ private:
 };
 
 extern ModelChecker *model;
+void parse_options(struct model_params *params);
 #endif	/* __MODEL_H__ */
