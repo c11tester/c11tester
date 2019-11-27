@@ -92,9 +92,14 @@ public:
 	void setFinished() {isfinished = true;}
 
 	void restore_last_seq_num();
-
+#ifdef TLS
+	pthread_key_t getPthreadKey() {return pthreadkey;}
+#endif
 	SNAPSHOTALLOC
 private:
+#ifdef TLS
+	pthread_key_t pthreadkey;
+#endif
 	int get_execution_number() const;
 
 	ModelChecker *model;

@@ -73,6 +73,9 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	add_thread(model_thread);
 	fuzzer->register_engine(m->get_history(), this);
 	scheduler->register_engine(this);
+#ifdef TLS
+	pthread_key_create(&pthreadkey, tlsdestructor);
+#endif
 }
 
 /** @brief Destructor */

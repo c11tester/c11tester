@@ -157,6 +157,7 @@ private:
 	ucontext_t context;
 	void *stack;
 #ifdef TLS
+	void * helper_stack;
 public:
 	char *tls;
 	ucontext_t helpercontext;
@@ -185,6 +186,7 @@ private:
 
 #ifdef TLS
 uintptr_t get_tls_addr();
+void tlsdestructor(void *v);
 #endif
 
 Thread * thread_current();
