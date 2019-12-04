@@ -35,6 +35,7 @@ public:
 	bool shouldWait(const ModelAction * wait);
 
 	void register_engine(ModelHistory * history, ModelExecution * execution);
+	Predicate * get_selected_child_branch(thread_id_t tid);
 
 	SNAPSHOTALLOC
 private:
@@ -47,9 +48,8 @@ private:
 	SnapVector<Predicate *> thrd_selected_child_branch;
 	SnapVector< SnapVector<ModelAction *> *> thrd_pruned_writes;
 
-	void check_store_visibility(Predicate * curr_pred, FuncInst * read_inst, inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set);
+	bool check_store_visibility(Predicate * curr_pred, FuncInst * read_inst, inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set);
 	Predicate * selectBranch(thread_id_t tid, Predicate * curr_pred, FuncInst * read_inst);
-	Predicate * get_selected_child_branch(thread_id_t tid);
 	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map);
 	int choose_index(SnapVector<Predicate *> * branches, uint32_t numerator);
 

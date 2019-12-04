@@ -25,6 +25,7 @@ public:
 	void add_backedge(Predicate * back_pred) { backedges.add(back_pred); }
 	void copy_predicate_expr(Predicate * other);
 
+	Predicate * get_single_child(FuncInst * inst);
 	ModelVector<Predicate *> * get_children() { return &children; }
 	Predicate * get_parent() { return parent; }
 	Predicate * get_exit() { return exit; }

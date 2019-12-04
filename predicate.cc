@@ -65,6 +65,24 @@ void Predicate::copy_predicate_expr(Predicate * other)
 	}
 }
 
+/* Return the single child branch of this predicate.
+ * Return NULL if this predicate has no children.
+ */
+Predicate * Predicate::get_single_child(FuncInst * inst)
+{
+	int size = children.size();
+	if (size == 0)
+		return NULL;
+
+	/* Should only have one child */
+	ASSERT(size == 1);
+	Predicate * child = children[0];
+
+	ASSERT(child->get_func_inst() == inst);
+
+	return child;
+}
+
 /* Evaluate predicate expressions against the given inst_act_map */
 ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id_t tid)
 {

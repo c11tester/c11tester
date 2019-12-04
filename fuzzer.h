@@ -18,6 +18,7 @@ public:
 	bool shouldWake(const ModelAction *sleep);
 	virtual bool shouldWait(const ModelAction *wait) = 0;
 	virtual void register_engine(ModelHistory * history, ModelExecution * execution) = 0;
+	virtual Predicate * get_selected_child_branch(thread_id_t tid) = 0;
 	SNAPSHOTALLOC
 private:
 };

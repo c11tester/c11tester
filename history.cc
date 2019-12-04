@@ -174,7 +174,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 			func_node->add_to_val_loc_map(value, location);
 		}
 
-		check_waiting_write(act);
+		// check_waiting_write(act);
 	}
 
 	uint32_t func_id = (*thrd_func_list)[thread_id].back();
@@ -200,6 +200,21 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	if (act->is_read()) {
 		func_node->update_inst_act_map(tid, act);
+
+		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
+		Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
+		func_node->set_predicate_tree_position(tid, selected_branch);
+	}
+
+	if (act->is_write()) {
+		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
+		FuncInst * curr_inst = func_node->get_inst(act);
+
+		if (curr_pred) {
+			// Follow child
+			curr_pred = curr_pred->get_single_child(curr_inst);
+		}
+		func_node->set_predicate_tree_position(tid, curr_pred);
 	}
 }
 
