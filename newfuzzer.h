@@ -45,6 +45,7 @@ private:
 	SnapVector<ModelAction *> thrd_last_read_act;
 	SnapVector<FuncInst *> thrd_last_func_inst;
 
+	SnapVector<Predicate *> tmp_branches_storage;
 	SnapVector<Predicate *> thrd_selected_child_branch;
 	SnapVector< SnapVector<ModelAction *> *> thrd_pruned_writes;
 
@@ -62,11 +63,9 @@ private:
 	SnapVector<struct node_dist_info> dist_info_vec;	//--
 
 	void conditional_sleep(Thread * thread);	//--
-	bool should_conditional_sleep(Predicate * predicate);
 	void wake_up_paused_threads(int * threadlist, int * numthreads);	//--
 
 	bool find_threads(ModelAction * pending_read);	//--
-	/*-- void update_predicate_score(Predicate * predicate, sleep_result_t type); */
 
 	bool check_predicate_expressions(PredExprSet * pred_expressions, inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate);
 };

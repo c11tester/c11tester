@@ -14,6 +14,7 @@
 NewFuzzer::NewFuzzer() :
 	thrd_last_read_act(),
 	thrd_last_func_inst(),
+	tmp_branches_storage(),
 	thrd_selected_child_branch(),
 	thrd_pruned_writes(),
 	paused_thread_list(),
@@ -174,23 +175,23 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 	}
 
 	ModelVector<Predicate *> * children = curr_pred->get_children();
-	SnapVector<Predicate *> branches;
+	tmp_branches_storage.clear();
 
 	for (uint i = 0; i < children->size(); i++) {
 		Predicate * child = (*children)[i];
 		if (child->get_func_inst() == read_inst && !failed_predicates.contains(child)) {
-			branches.push_back(child);
+			tmp_branches_storage.push_back(child);
 		}
 	}
 
 	// predicate children have not been generated
-	if (branches.size() == 0) {
+	if (tmp_branches_storage.size() == 0) {
 		thrd_selected_child_branch[thread_id] = NULL;
 		return NULL;
 	}
 
-	int index = choose_index(&branches, 0);
-	Predicate * random_branch = branches[ index ];
+	int index = choose_index(&tmp_branches_storage, 0);
+	Predicate * random_branch = tmp_branches_storage[ index ];
 	thrd_selected_child_branch[thread_id] = random_branch;
 
 	return random_branch;
@@ -330,28 +331,6 @@ void NewFuzzer::conditional_sleep(Thread * thread)
 	/* history->add_waiting_thread is already called in find_threads */
 }
 
-/**
- * Decides whether a thread should condition sleep based on
- * the sleep score of the chosen predicate.
- *
- * sleep_score = 0: never sleeps
- * sleep_score = 100: always sleeps
- **/
-bool NewFuzzer::should_conditional_sleep(Predicate * predicate)
-{
-	return false;
-	/*
-	   int sleep_score = predicate->get_sleep_score();
-	   int random_num = random() % 100;
-
-	   // should sleep if random_num falls within [0, sleep_score)
-	   if (random_num < sleep_score)
-	        return true;
-
-	   return false;
-	 */
-}
-
 bool NewFuzzer::has_paused_threads()
 {
 	return paused_thread_list.size() != 0;
@@ -464,44 +443,6 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
 
 	return finds_waiting_for;
 }
-
-/* Update predicate counts and scores (asynchronous) when the read value is not available
- *
- * @param type
- *        type 1: find_threads return false
- *        type 2: find_threads return true, but the fuzzer decides that that thread shall not sleep based on sleep score
- *        type 3: threads are put to sleep but woken up before the waited value appears
- *        type 4: threads are put to sleep and the waited vaule appears (success)
- */
-
-/*--
-   void NewFuzzer::update_predicate_score(Predicate * predicate, sleep_result_t type)
-   {
-        switch (type) {
-                case SLEEP_FAIL_TYPE1:
-                        predicate->incr_fail_count();
-
-                        // Do not choose this predicate when reselecting a new branch
-                        failed_predicates.put(predicate, true);
-                        break;
-                case SLEEP_FAIL_TYPE2:
-                        predicate->incr_fail_count();
-                        predicate->incr_sleep_score(1);
-                        failed_predicates.put(predicate, true);
-                        break;
-                case SLEEP_FAIL_TYPE3:
-                        predicate->incr_fail_count();
-                        predicate->decr_sleep_score(10);
-                        break;
-                case SLEEP_SUCCESS:
-                        predicate->incr_sleep_score(10);
-                        break;
-                default:
-                        model_print("unknown predicate result type.\n");
-                        break;
-        }
-   }
- */
 
 bool NewFuzzer::check_predicate_expressions(PredExprSet * pred_expressions,
 inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate)
