@@ -398,7 +398,7 @@ WaitObj * ModelHistory::getWaitObj(thread_id_t tid)
 }
 
 void ModelHistory::add_waiting_thread(thread_id_t self_id,
-																			thread_id_t waiting_for_id, FuncNode * target_node, int dist)
+thread_id_t waiting_for_id, FuncNode * target_node, int dist)
 {
 	WaitObj * self_wait_obj = getWaitObj(self_id);
 	self_wait_obj->add_waiting_for(waiting_for_id, target_node, dist);
@@ -426,7 +426,7 @@ void ModelHistory::remove_waiting_thread(thread_id_t tid)
 }
 
 void ModelHistory::stop_waiting_for_node(thread_id_t self_id,
-																				 thread_id_t waiting_for_id, FuncNode * target_node)
+thread_id_t waiting_for_id, FuncNode * target_node)
 {
 	WaitObj * self_wait_obj = getWaitObj(self_id);
 	bool thread_removed = self_wait_obj->remove_waiting_for_node(waiting_for_id, target_node);
