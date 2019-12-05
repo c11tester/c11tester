@@ -322,7 +322,7 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 		}
 
 		ASSERT(false);
-		/* Following code not needed anymore */
+		/* TODO: Following code not needed anymore */
 		priorset->clear();
 		(*rf_set)[index] = rf_set->back();
 		rf_set->pop_back();

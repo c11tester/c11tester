@@ -14,7 +14,7 @@
 NewFuzzer::NewFuzzer() :
 	thrd_last_read_act(),
 	thrd_last_func_inst(),
-	tmp_branches_storage(),
+	available_branches_tmp_storage(),
 	thrd_selected_child_branch(),
 	thrd_pruned_writes(),
 	paused_thread_list(),
@@ -78,31 +78,6 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 		thrd_last_read_act[thread_id] = read;
 		thrd_last_func_inst[thread_id] = read_inst;
-
-		ASSERT(rf_set->size() != 0);
-	}
-
-	// No write satisfies the selected predicate, so pause this thread.
-	while ( rf_set->size() == 0 ) {
-		Predicate * selected_branch = get_selected_child_branch(tid);
-
-		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
-
-		SnapVector<ModelAction *> * pruned_writes = thrd_pruned_writes[thread_id];
-		for (uint i = 0;i < pruned_writes->size();i++) {
-			rf_set->push_back( (*pruned_writes)[i] );
-		}
-
-		// Reselect a predicate and prune writes
-		Predicate * curr_pred = selected_branch->get_parent();
-		FuncInst * read_inst = thrd_last_func_inst[thread_id];
-		selected_branch = selectBranch(tid, curr_pred, read_inst);
-
-		FuncNode * func_node = history->get_curr_func_node(tid);
-		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
-		prune_writes(tid, selected_branch, rf_set, inst_act_map);
-
-		ASSERT(selected_branch);
 	}
 
 	ASSERT(rf_set->size() != 0);
@@ -120,6 +95,8 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 bool NewFuzzer::check_store_visibility(Predicate * curr_pred, FuncInst * read_inst,
 inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
 {
+	available_branches_tmp_storage.clear();
+
 	ASSERT(!rf_set->empty());
 	if (curr_pred == NULL || read_inst == NULL)
 		return false;
@@ -137,8 +114,10 @@ inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
 			any_child_match = true;
 
 			/* Do not check unset predicates */
-			if (pred_expressions->isEmpty())
+			if (pred_expressions->isEmpty()) {
+				available_branches_tmp_storage.push_back(branch);
 				continue;
+			}
 
 			branch->incr_total_checking_count();
 
@@ -152,6 +131,7 @@ inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
 				/* If one write value satisfies the predicate, go to check the next predicate */
 				if (satisfy_predicate) {
 					branch->incr_store_visible_count();
+					available_branches_tmp_storage.push_back(branch);
 					break;
 				}
 			}
@@ -160,7 +140,6 @@ inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
 
 	return any_child_match;
 }
-
 
 /* Select a random branch from the children of curr_pred
  * @return The selected branch
@@ -176,24 +155,14 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 		return NULL;
 	}
 
-	ModelVector<Predicate *> * children = curr_pred->get_children();
-	tmp_branches_storage.clear();
-
-	for (uint i = 0; i < children->size(); i++) {
-		Predicate * child = (*children)[i];
-		if (child->get_func_inst() == read_inst && !failed_predicates.contains(child)) {
-			tmp_branches_storage.push_back(child);
-		}
-	}
-
 	// predicate children have not been generated
-	if (tmp_branches_storage.size() == 0) {
+	if (available_branches_tmp_storage.size() == 0) {
 		thrd_selected_child_branch[thread_id] = NULL;
 		return NULL;
 	}
 
-	int index = choose_index(&tmp_branches_storage, 0);
-	Predicate * random_branch = tmp_branches_storage[ index ];
+	int index = choose_index(&available_branches_tmp_storage);
+	Predicate * random_branch = available_branches_tmp_storage[ index ];
 	thrd_selected_child_branch[thread_id] = random_branch;
 
 	return random_branch;
@@ -202,7 +171,7 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 /**
  * @brief Select a branch from the given predicate branch
  */
-int NewFuzzer::choose_index(SnapVector<Predicate *> * branches, uint32_t numerator)
+int NewFuzzer::choose_index(SnapVector<Predicate *> * branches)
 {
 	return random() % branches->size();
 }
