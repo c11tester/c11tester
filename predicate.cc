@@ -7,6 +7,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	entry_predicate(is_entry),
 	exit_predicate(is_exit),
 	does_write(false),
+	depth(0),
 	exploration_count(0),
 	store_visible_count(0),
 	total_checking_count(0),
@@ -51,6 +52,12 @@ void Predicate::add_child(Predicate * child)
 {
 	/* check duplication? */
 	children.push_back(child);
+}
+
+void Predicate::set_parent(Predicate * parent_pred)
+{
+	parent = parent_pred;
+	depth = parent_pred->get_depth() + 1;
 }
 
 void Predicate::copy_predicate_expr(Predicate * other)
@@ -118,7 +125,7 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 
 void Predicate::print_predicate()
 {
-	model_print("\"%p\" [shape=box, label=\"\n", this);
+	model_print("\"%p\" [shape=box, label=\"", this);
 	if (entry_predicate) {
 		model_print("entry node\"];\n");
 		return;
@@ -128,6 +135,8 @@ void Predicate::print_predicate()
 		model_print("exit node\"];\n");
 		return;
 	}
+
+	model_print("depth: %d\n", depth);
 
 	func_inst->print();
 
