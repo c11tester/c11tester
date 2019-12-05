@@ -78,6 +78,8 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 		thrd_last_read_act[thread_id] = read;
 		thrd_last_func_inst[thread_id] = read_inst;
+
+		ASSERT(rf_set->size() != 0);
 	}
 
 	// No write satisfies the selected predicate, so pause this thread.
@@ -198,51 +200,11 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 }
 
 /**
- * @brief Select a branch from the given predicate branches based
- * on their exploration counts.
- *
- * Let b_1, ..., b_n be branches with exploration counts c_1, ..., c_n
- * M := max(c_1, ..., c_n) + 1
- * Factor f_i := M / (c_i + 1)
- * The probability p_i that branch b_i is selected:
- *	p_i := f_i / (f_1 + ... + f_n)
- *	     = \fraction{ 1/(c_i + 1) }{ 1/(c_1 + 1) + ... + 1/(c_n + 1) }
- *
- * Note: (1) c_i + 1 is used because counts may be 0.
- *	 (2) The numerator of f_i is chosen to reduce the effect of underflow
- *
- * @param numerator is M defined above
+ * @brief Select a branch from the given predicate branch
  */
 int NewFuzzer::choose_index(SnapVector<Predicate *> * branches, uint32_t numerator)
 {
 	return random() % branches->size();
-/*--
-        if (branches->size() == 1)
-                return 0;
-
-        double total_factor = 0;
-        SnapVector<double> factors = SnapVector<double>( branches->size() + 1 );
-        for (uint i = 0; i < branches->size(); i++) {
-                Predicate * branch = (*branches)[i];
-                double factor = (double) numerator / (branch->get_expl_count() + 5 * branch->get_fail_count() + 1);
-                total_factor += factor;
-                factors.push_back(factor);
-        }
-
-        double prob = (double) random() / RAND_MAX;
-        double prob_sum = 0;
-        int index = 0;
-
-        for (uint i = 0; i < factors.size(); i++) {
-                index = i;
-                prob_sum += (double) (factors[i] / total_factor);
-                if (prob_sum > prob) {
-                        break;
-                }
-        }
-
-        return index;
- */
 }
 
 Predicate * NewFuzzer::get_selected_child_branch(thread_id_t tid)

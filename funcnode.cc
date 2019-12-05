@@ -21,6 +21,7 @@ FuncNode::FuncNode(ModelHistory * history) :
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
 	predicate_tree_exit = new Predicate(NULL, false, true);
+	predicate_tree_exit->set_depth(MAX_DEPTH);
 
 	/* Snapshot data structures below */
 	action_list_buffer = new SnapList<action_list_t *>();
