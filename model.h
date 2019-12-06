@@ -103,8 +103,6 @@ private:
 	void print_bugs() const;
 	void print_execution(bool printbugs) const;
 	void print_stats() const;
-
-	friend void user_main_wrapper();
 };
 
 extern ModelChecker *model;
