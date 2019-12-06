@@ -255,10 +255,6 @@ extern void * mspace_calloc(mspace msp, size_t n_elements, size_t elem_size);
 extern mspace create_mspace_with_base(void* base, size_t capacity, int locked);
 extern mspace create_mspace(size_t capacity, int locked);
 
-#if USE_MPROTECT_SNAPSHOT
-extern mspace user_snapshot_space;
-#endif
-
 extern mspace model_snapshot_space;
 
 #ifdef __cplusplus

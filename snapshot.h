@@ -12,9 +12,6 @@
 void snapshot_add_memory_region(void *ptr, unsigned int numPages);
 snapshot_id take_snapshot();
 void snapshot_roll_back(snapshot_id theSnapShot);
-
-#if !USE_MPROTECT_SNAPSHOT
 mspace create_shared_mspace();
-#endif
 
 #endif
