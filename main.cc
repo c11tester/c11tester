@@ -23,7 +23,6 @@ void param_defaults(struct model_params *params)
 	params->uninitvalue = 0;
 	params->maxexecutions = 10;
 	params->nofork = false;
-	params->threadsnocleanup = false;
 }
 
 static void print_usage(struct model_params *params)
@@ -37,7 +36,7 @@ static void print_usage(struct model_params *params)
 		"Distributed under the GPLv2\n"
 		"Written by Brian Norris and Brian Demsky\n"
 		"\n"
-		"Usage: [MODEL-CHECKER OPTIONS] -- [PROGRAM ARGS]\n"
+		"Usage: C11TESTER=[MODEL-CHECKER OPTIONS]\n"
 		"\n"
 		"MODEL-CHECKER OPTIONS can be any of the model-checker options listed below. Arguments\n"
 		"provided after the `--' (the PROGRAM ARGS) are passed to the user program.\n"
@@ -56,11 +55,7 @@ static void print_usage(struct model_params *params)
 		"-x, --maxexec=NUM           Maximum number of executions.\n"
 		"                            Default: %u\n"
 		"                            -o help for a list of options\n"
-		"-n                          No fork\n"
-#ifdef TLS
-		"-d                          Don't allow threads to cleanup\n"
-#endif
-		" --                         Program arguments follow.\n\n",
+		"-n                          No fork\n\n"
 		params->verbose,
 		params->uninitvalue,
 		params->maxexecutions);
@@ -88,7 +83,7 @@ bool install_plugin(char * name) {
 }
 
 void parse_options(struct model_params *params) {
-	const char *shortopts = "hdnt:o:u:x:v::";
+	const char *shortopts = "hnt:o:u:x:v::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"verbose", optional_argument, NULL, 'v'},
@@ -123,9 +118,6 @@ void parse_options(struct model_params *params) {
 		switch (opt) {
 		case 'h':
 			print_usage(params);
-			break;
-		case 'd':
-			params->threadsnocleanup = true;
 			break;
 		case 'n':
 			params->nofork = true;

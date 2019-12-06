@@ -350,7 +350,7 @@ void Thread::complete()
 	if (stack)
 		stack_free(stack);
 #ifdef TLS
-	if (this != model->getInitThread() && !model->getParams()->threadsnocleanup) {
+	if (this != model->getInitThread()) {
 		ASSERT(thread_current()==NULL);
 		real_pthread_mutex_unlock(&mutex2);
 		real_pthread_join(thread, NULL);
