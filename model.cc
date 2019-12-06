@@ -18,8 +18,13 @@
 #include "history.h"
 #include "bugmessage.h"
 #include "params.h"
+#include "plugins.h"
 
 ModelChecker *model = NULL;
+
+void placeholder(void *) {
+	ASSERT(0);
+}
 
 /** @brief Constructor */
 ModelChecker::ModelChecker() :
@@ -33,12 +38,12 @@ ModelChecker::ModelChecker() :
 	trace_analyses(),
 	inspect_plugin(NULL)
 {
-  	printf("C11Tester\n"
-	       "Copyright (c) 2013 and 2019 Regents of the University of California. All rights reserved.\n"
-	       "Distributed under the GPLv2\n"
-	       "Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
+	printf("C11Tester\n"
+				 "Copyright (c) 2013 and 2019 Regents of the University of California. All rights reserved.\n"
+				 "Distributed under the GPLv2\n"
+				 "Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
 	memset(&stats,0,sizeof(struct execution_stats));
-	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), NULL, NULL, NULL);
+	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &placeholder, NULL, NULL);
 #ifdef TLS
 	init_thread->setTLS((char *)get_tls_addr());
 #endif

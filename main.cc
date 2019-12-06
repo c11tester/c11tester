@@ -55,7 +55,7 @@ static void print_usage(struct model_params *params)
 		"-x, --maxexec=NUM           Maximum number of executions.\n"
 		"                            Default: %u\n"
 		"                            -o help for a list of options\n"
-		"-n                          No fork\n\n"
+		"-n                          No fork\n\n",
 		params->verbose,
 		params->uninitvalue,
 		params->maxexecutions);
@@ -155,8 +155,7 @@ void parse_options(struct model_params *params) {
 		print_usage(params);
 }
 
-static void install_trace_analyses(ModelExecution *execution)
-{
+void install_trace_analyses(ModelExecution *execution) {
 	ModelVector<TraceAnalysis *> * installedanalysis=getInstalledTraceAnalysis();
 	for(unsigned int i=0;i<installedanalysis->size();i++) {
 		TraceAnalysis * ta=(*installedanalysis)[i];
