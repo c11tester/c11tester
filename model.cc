@@ -21,12 +21,6 @@
 
 ModelChecker *model = NULL;
 
-/** Wrapper to run the user's main function, with appropriate arguments */
-void user_main_wrapper(void *)
-{
-	user_main(model->params.argc, model->params.argv);
-}
-
 /** @brief Constructor */
 ModelChecker::ModelChecker() :
 	/* Initialize default scheduler */
@@ -39,17 +33,25 @@ ModelChecker::ModelChecker() :
 	trace_analyses(),
 	inspect_plugin(NULL)
 {
+  	printf("C11Tester\n"
+	       "Copyright (c) 2013 and 2019 Regents of the University of California. All rights reserved.\n"
+	       "Distributed under the GPLv2\n"
+	       "Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
 	memset(&stats,0,sizeof(struct execution_stats));
-	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &user_main_wrapper, NULL, NULL);
+	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), NULL, NULL, NULL);
 #ifdef TLS
 	init_thread->setTLS((char *)get_tls_addr());
 #endif
 	execution->add_thread(init_thread);
 	scheduler->set_current_thread(init_thread);
+	register_plugins();
 	execution->setParams(&params);
 	param_defaults(&params);
 	parse_options(&params);
 	initRaceDetector();
+	/* Configure output redirection for the model-checker */
+	redirect_output();
+	install_trace_analyses(model->get_execution());
 }
 
 /** @brief Destructor */
