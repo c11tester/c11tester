@@ -39,9 +39,9 @@ ModelChecker::ModelChecker() :
 	inspect_plugin(NULL)
 {
 	model_print("C11Tester\n"
-				 "Copyright (c) 2013 and 2019 Regents of the University of California. All rights reserved.\n"
-				 "Distributed under the GPLv2\n"
-				 "Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
+							"Copyright (c) 2013 and 2019 Regents of the University of California. All rights reserved.\n"
+							"Distributed under the GPLv2\n"
+							"Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
 	memset(&stats,0,sizeof(struct execution_stats));
 	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &placeholder, NULL, NULL);
 #ifdef TLS
@@ -358,6 +358,7 @@ void ModelChecker::startChecker() {
 	startExecution(get_system_context(), runChecker);
 	snapshot_stack_init();
 	snapshot_record(0);
+	initMainThread();
 }
 
 bool ModelChecker::should_terminate_execution()
@@ -384,12 +385,6 @@ void ModelChecker::do_restart()
 	reset_to_initial_state();
 	memset(&stats,0,sizeof(struct execution_stats));
 	execution_number = 1;
-}
-
-void ModelChecker::startMainThread() {
-	init_thread->set_state(THREAD_RUNNING);
-	scheduler->set_current_thread(init_thread);
-	main_thread_startup();
 }
 
 /** @brief Run ModelChecker for the user program */

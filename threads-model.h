@@ -191,7 +191,7 @@ void tlsdestructor(void *v);
 
 Thread * thread_current();
 void thread_startup();
-void main_thread_startup();
+void initMainThread();
 
 static inline thread_id_t thrd_to_id(thrd_t t)
 {

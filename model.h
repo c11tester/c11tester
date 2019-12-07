@@ -63,7 +63,6 @@ public:
 	model_params params;
 	void add_trace_analysis(TraceAnalysis *a) {     trace_analyses.push_back(a); }
 	void set_inspect_plugin(TraceAnalysis *a) {     inspect_plugin=a;       }
-	void startMainThread();
 	void startChecker();
 	Thread * getInitThread() {return init_thread;}
 	Scheduler * getScheduler() {return scheduler;}

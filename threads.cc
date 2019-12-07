@@ -65,15 +65,10 @@ void modelexit() {
 }
 #endif
 
-void main_thread_startup() {
-#ifdef TLS
+void initMainThread() {
 	atexit(modelexit);
 	Thread * curr_thread = thread_current();
-
-	/* Add dummy "start" action, just to create a first clock vector */
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
-#endif
-	thread_startup();
 }
 
 /**
@@ -293,10 +288,7 @@ int Thread::create_context()
 	context.uc_stack.ss_flags = 0;
 	context.uc_link = model->get_system_context();
 #ifdef TLS
-	if (model != NULL)
-		makecontext(&context, setup_context, 0);
-	else
-		makecontext(&context, main_thread_startup, 0);
+	makecontext(&context, setup_context, 0);
 #else
 	makecontext(&context, thread_startup, 0);
 #endif
