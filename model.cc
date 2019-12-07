@@ -38,7 +38,7 @@ ModelChecker::ModelChecker() :
 	trace_analyses(),
 	inspect_plugin(NULL)
 {
-	printf("C11Tester\n"
+	model_print("C11Tester\n"
 				 "Copyright (c) 2013 and 2019 Regents of the University of California. All rights reserved.\n"
 				 "Distributed under the GPLv2\n"
 				 "Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
@@ -56,7 +56,7 @@ ModelChecker::ModelChecker() :
 	initRaceDetector();
 	/* Configure output redirection for the model-checker */
 	redirect_output();
-	install_trace_analyses(model->get_execution());
+	install_trace_analyses(get_execution());
 }
 
 /** @brief Destructor */
