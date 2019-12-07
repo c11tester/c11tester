@@ -101,17 +101,23 @@ void parse_options(struct model_params *params) {
 	if (options == NULL)
 		return;
 	int argc = 1;
-	for(int index = 0;options[index]!=0;index++) {
+	int index;
+	for(index = 0;options[index]!=0;index++) {
 		if (options[index] == ' ')
 			argc++;
 	}
 	argc++;	//first parameter is executable name
+	char optcpy[index + 1];
+	memcpy(optcpy, options, index+1);
 	char * argv[argc + 1];
 	argv[0] = NULL;
-	argv[1] = options;
-	for(int index = 0, count = 2;options[index]!=0;index++) {
-		if (options[index]==' ')
-			argv[count++] = &options[index];
+	argv[1] = optcpy;
+	int count = 2;
+	for(index = 0;optcpy[index]!=0;index++) {
+		if (optcpy[index] == ' ') {
+			argv[count++] = &optcpy[index+1];
+			optcpy[index] = 0;
+		}
 	}
 
 	while (!error && (opt = getopt_long(argc, argv, shortopts, longopts, &longindex)) != -1) {
