@@ -85,7 +85,7 @@ void ModelChecker::reset_to_initial_state()
 	for (unsigned int i = 0;i < get_num_threads();i++)
 		delete get_thread(int_to_id(i))->get_pending();
 
-	snapshot_backtrack_before(0);
+	snapshot_roll_back(snapshot);
 }
 
 /** @return the number of user threads created during this execution */
@@ -356,8 +356,7 @@ static void runChecker() {
 
 void ModelChecker::startChecker() {
 	startExecution(get_system_context(), runChecker);
-	snapshot_stack_init();
-	snapshot_record(0);
+	snapshot = take_snapshot();
 	initMainThread();
 }
 

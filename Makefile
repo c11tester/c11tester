@@ -1,7 +1,7 @@
 include common.mk
 
 OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
-	   clockvector.o main.o snapshot-interface.o cyclegraph.o \
+	   clockvector.o main.o cyclegraph.o \
 	   datarace.o impatomic.o cmodelint.o \
 	   snapshot.o malloc.o mymemory.o common.o mutex.o conditionvariable.o \
 	   context.o execution.o libannotate.o plugins.o pthread.o futex.o fuzzer.o \

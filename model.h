@@ -16,6 +16,7 @@
 #include "context.h"
 #include "params.h"
 #include "classlist.h"
+#include "snapshot-interface.h"
 
 typedef SnapList<ModelAction *> action_list_t;
 
@@ -70,6 +71,9 @@ public:
 private:
 	/** Flag indicates whether to restart the model checker. */
 	bool restart_flag;
+
+	/** Snapshot id we return to restart. */
+	snapshot_id snapshot;
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;

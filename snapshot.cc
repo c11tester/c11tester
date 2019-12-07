@@ -211,12 +211,6 @@ void startExecution(ucontext_t *context, VoidFuncPtr entryPoint)
 	fork_startExecution(context, entryPoint);
 }
 
-/** Assumes that addr is page aligned. */
-void snapshot_add_memory_region(void *addr, unsigned int numPages)
-{
-	/* not needed for fork-based snapshotting */
-}
-
 /** Takes a snapshot of memory.
  * @return The snapshot identifier.
  */
