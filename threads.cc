@@ -59,11 +59,9 @@ Thread * thread_current(void)
 	return model->get_current_thread();
 }
 
-#ifdef TLS
 void modelexit() {
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, thread_current()));
 }
-#endif
 
 void initMainThread() {
 	atexit(modelexit);
