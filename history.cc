@@ -579,7 +579,9 @@ void ModelHistory::print_func_node()
 	for (uint32_t i = 1;i < func_nodes.size();i++) {
 		FuncNode * func_node = func_nodes[i];
 
+		func_node->assign_base_score();
 		func_node->print_predicate_tree();
+
 /*
                 func_inst_list_mt * entry_insts = func_node->get_entry_insts();
                 model_print("function %s has entry actions\n", func_node->get_func_name());

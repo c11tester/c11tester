@@ -60,9 +60,8 @@ public:
 	ModelList<FuncNode *> * get_out_edges() { return &out_edges; }
 	int compute_distance(FuncNode * target, int max_step = MAX_DIST);
 
+	void assign_base_score();
 	void print_predicate_tree();
-	void print_val_loc_map();
-	void print_last_read(thread_id_t tid);
 
 	MEMALLOC
 private:

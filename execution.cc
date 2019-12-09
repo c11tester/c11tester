@@ -300,8 +300,6 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
-		if (index == -1)// no feasible write exists
-			return false;
 
 		ModelAction *rf = (*rf_set)[index];
 
@@ -723,12 +721,6 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	if (curr->is_read() && !second_part_of_rmw) {
 		process_read(curr, rf_set);
 		delete rf_set;
-
-/*		bool success = process_read(curr, rf_set);
-                delete rf_set;
-                if (!success)
-                        return curr;	// Do not add action to lists
- */
 	} else
 		ASSERT(rf_set == NULL);
 

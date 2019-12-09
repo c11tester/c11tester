@@ -23,8 +23,9 @@ public:
 	void add_predicate_expr(token_t token, FuncInst * func_inst, bool value);
 	void add_child(Predicate * child);
 	void set_parent(Predicate * parent_pred);
-	void set_exit(Predicate * exit_pred) { exit = exit_pred; }
+	void set_exit(Predicate * exit_pred);
 	void add_backedge(Predicate * back_pred) { backedges.add(back_pred); }
+	void set_weight(double weight_) { weight = weight_; }
 	void copy_predicate_expr(Predicate * other);
 
 	Predicate * get_single_child(FuncInst * inst);
@@ -32,9 +33,13 @@ public:
 	Predicate * get_parent() { return parent; }
 	Predicate * get_exit() { return exit; }
 	PredSet * get_backedges() { return &backedges; }
+	double get_weight() { return weight; }
 
 	bool is_entry_predicate() { return entry_predicate; }
 	void set_entry_predicate() { entry_predicate = true; }
+
+	void alloc_pre_exit_predicates();
+	void add_pre_exit_predicate(Predicate * pred);
 
 	/* Whether func_inst does write or not */
 	bool is_write() { return does_write; }
@@ -65,6 +70,7 @@ private:
 
 	/* Height of this predicate node in the predicate tree */
 	uint32_t depth;
+	double weight;
 
 	uint32_t exploration_count;
 	uint32_t store_visible_count;
@@ -77,6 +83,9 @@ private:
 	/* Only a single parent may exist */
 	Predicate * parent;
 	Predicate * exit;
+
+	/* Predicates precede exit nodes. Only used by exit predicates */
+	ModelVector<Predicate *> * pre_exit_predicates;
 
 	/* May have multiple back edges, e.g. nested loops */
 	PredSet backedges;

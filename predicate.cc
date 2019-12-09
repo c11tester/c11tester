@@ -8,6 +8,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	exit_predicate(is_exit),
 	does_write(false),
 	depth(0),
+	weight(0),
 	exploration_count(0),
 	store_visible_count(0),
 	total_checking_count(0),
@@ -58,6 +59,22 @@ void Predicate::set_parent(Predicate * parent_pred)
 {
 	parent = parent_pred;
 	depth = parent_pred->get_depth() + 1;
+}
+
+void Predicate::set_exit(Predicate * exit_pred)
+{
+	exit = exit_pred;
+	exit_pred->add_pre_exit_predicate(this);
+}
+
+void Predicate::alloc_pre_exit_predicates()
+{
+	pre_exit_predicates = new ModelVector<Predicate *>();
+}
+
+void Predicate::add_pre_exit_predicate(Predicate * pred)
+{
+	pre_exit_predicates->push_back(pred);
 }
 
 void Predicate::copy_predicate_expr(Predicate * other)
@@ -136,7 +153,7 @@ void Predicate::print_predicate()
 		return;
 	}
 
-	model_print("depth: %d\n", depth);
+	model_print("depth: %u; weight: %g\n", depth, weight);
 
 	func_inst->print();
 

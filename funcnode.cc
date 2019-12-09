@@ -6,6 +6,7 @@
 #include "concretepredicate.h"
 
 #include "model.h"
+#include <cmath>
 
 FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
@@ -20,7 +21,9 @@ FuncNode::FuncNode(ModelHistory * history) :
 {
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
+
 	predicate_tree_exit = new Predicate(NULL, false, true);
+	predicate_tree_exit->alloc_pre_exit_predicates();
 	predicate_tree_exit->set_depth(MAX_DEPTH);
 
 	/* Snapshot data structures below */
@@ -335,7 +338,10 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		curr_pred->incr_expl_count();
 	}
 
-	curr_pred->set_exit(predicate_tree_exit);
+	if (curr_pred->get_exit() == NULL) {
+		// Exit predicate is unset yet
+		curr_pred->set_exit(predicate_tree_exit);
+	}
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -721,29 +727,71 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	return -1;
 }
 
+void FuncNode::assign_base_score()
+{
+	SnapVector<Predicate *> leaves;
+	SnapList<Predicate *> queue;
+	queue.push_front(predicate_tree_entry);
+
+	// assign leaf score
+	while ( !queue.empty() ) {
+		Predicate * node = queue.back();
+		queue.pop_back();
+
+		ModelVector<Predicate *> * children = node->get_children();
+		if (children->empty()) {
+			node->set_weight(1);
+			leaves.push_back(node);
+		}
+
+		for (uint i = 0; i < children->size(); i++)
+			queue.push_front( (*children)[i] );
+	}
+
+	// assign scores for internal nodes;
+	while ( !leaves.empty() ) {
+		Predicate * leaf = leaves.back();
+		leaves.pop_back();
+
+		Predicate * curr = leaf->get_parent();
+		while (curr != NULL) {
+			if (curr->get_weight() != 0) {
+				// Has been exlpored
+				break;
+			}
+
+			ModelVector<Predicate *> * children = curr->get_children();
+			double weight_sum = 0;
+			bool has_unassigned_node = false;
+
+			for (uint i = 0; i < children->size(); i++) {
+				Predicate * child = (*children)[i];
+
+				// If a child has unassigned weight
+				double weight = child->get_weight();
+				if (weight == 0) {
+					has_unassigned_node = true;
+					break;
+				} else
+					weight_sum += weight;
+			}
+
+			if (!has_unassigned_node) {
+				double average_weight = (double) weight_sum / (double) children->size();
+				double weight = average_weight * pow(0.9, curr->get_depth());
+				curr->set_weight(weight);
+			} else
+				break;
+
+			curr = curr->get_parent();
+		}
+	}
+}
+
 void FuncNode::print_predicate_tree()
 {
 	model_print("digraph function_%s {\n", func_name);
 	predicate_tree_entry->print_pred_subtree();
 	predicate_tree_exit->print_predicate();
 	model_print("}\n");	// end of graph
-}
-
-void FuncNode::print_val_loc_map()
-{
-/*
-        value_set_iter * val_it = values_may_read_from->iterator();
-        while (val_it->hasNext()) {
-                uint64_t value = val_it->next();
-                model_print("val %llx: ", value);
-
-                loc_set_t * locations = val_loc_map->get(value);
-                loc_set_iter * loc_it = locations->iterator();
-                while (loc_it->hasNext()) {
-                        void * location = loc_it->next();
-                        model_print("%p ", location);
-                }
-                model_print("\n");
-        }
- */
 }
