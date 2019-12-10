@@ -18,11 +18,9 @@ LDFLAGS := -ldl
 SHARED := -Wl,-undefined,dynamic_lookup -dynamiclib
 endif
 
-TESTS_DIR := test
-
 MARKDOWN := doc/Markdown/Markdown.pl
 
-all: $(LIB_SO) tests README.html
+all: $(LIB_SO) README.html
 
 debug: CPPFLAGS += -DCONFIG_DEBUG
 debug: all
@@ -58,7 +56,6 @@ $(LIB_SO): $(OBJECTS)
 PHONY += clean
 clean:
 	rm -f *.o *.so .*.d *.pdf *.dot
-	$(MAKE) -C $(TESTS_DIR) clean
 
 PHONY += mrclean
 mrclean: clean
@@ -67,10 +64,6 @@ mrclean: clean
 PHONY += tags
 tags:
 	ctags -R
-
-PHONY += tests
-tests: $(LIB_SO)
-#	$(MAKE) -C $(TESTS_DIR)
 
 BENCH_DIR := benchmarks
 

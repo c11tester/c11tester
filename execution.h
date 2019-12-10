@@ -136,10 +136,11 @@ private:
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
 
-	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;
 	SnapVector<Thread *> pthread_map;
 	uint32_t pthread_counter;
+
+	action_list_t action_trace;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. 
@@ -151,8 +152,10 @@ private:
 	 * to a trace of all actions performed on the object. */
 	HashTable<const void *, action_list_t *, uintptr_t, 2> condvar_waiters_map;
 
+	/** Per-object list of actions that each thread performed. */
 	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> obj_thrd_map;
 
+	/** Per-object list of writes that each thread performed. */
 	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> obj_wr_thrd_map;
 
 	HashTable<const void *, ModelAction *, uintptr_t, 4> obj_last_sc_map;
