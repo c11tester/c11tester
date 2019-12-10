@@ -1110,11 +1110,10 @@ void ModelExecution::add_uninit_action_to_lists(ModelAction *act)
 	int tid = id_to_int(act->get_tid());
 	ModelAction *uninit = NULL;
 	int uninit_id = -1;
-	action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
-	if (list->empty() && act->is_atomic_var()) {
+	SnapVector<action_list_t> *objvec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
+	if (objvec->empty() && act->is_atomic_var()) {
 		uninit = get_uninitialized_action(act);
 		uninit_id = id_to_int(uninit->get_tid());
-		list->push_front(uninit);
 		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
 		if ((int)vec->size() <= uninit_id) {
 			int oldsize = (int) vec->size();
@@ -1159,8 +1158,10 @@ void ModelExecution::add_uninit_action_to_lists(ModelAction *act)
 void ModelExecution::add_action_to_lists(ModelAction *act)
 {
 	int tid = id_to_int(act->get_tid());
-	action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
-	list->push_back(act);
+	if ((act->is_fence() && act->is_seqcst()) || act->is_unlock()) {
+	  action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
+	  list->push_back(act);
+	}
 
 	// Update action trace, a total order of all actions
 	action_trace.push_back(act);
@@ -1248,9 +1249,6 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 {
 	int tid = id_to_int(act->get_tid());
 	insertIntoActionListAndSetCV(&action_trace, act);
-
-	action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
-	insertIntoActionList(list, act);
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());

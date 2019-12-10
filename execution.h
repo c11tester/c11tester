@@ -97,34 +97,20 @@ public:
 #endif
 	SNAPSHOTALLOC
 private:
-#ifdef TLS
-	pthread_key_t pthreadkey;
-#endif
 	int get_execution_number() const;
-
-	ModelChecker *model;
-
-	struct model_params * params;
-
-	/** The scheduler to use: tracks the running/ready Threads */
-	Scheduler * const scheduler;
-
 	bool mo_may_allow(const ModelAction *writer, const ModelAction *reader);
 	bool should_wake_up(const ModelAction *curr, const Thread *thread) const;
 	void wake_up_sleeping_actions(ModelAction *curr);
 	modelclock_t get_next_seq_num();
-
 	bool next_execution();
 	bool initialize_curr_action(ModelAction **curr);
 	bool process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
 	void process_write(ModelAction *curr);
 	bool process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
-
 	void process_thread_action(ModelAction *curr);
 	void read_from(ModelAction *act, ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
-
 	void add_uninit_action_to_lists(ModelAction *act);
 	void add_action_to_lists(ModelAction *act);
 	void add_normal_write_to_lists(ModelAction *act);
@@ -135,12 +121,20 @@ private:
 	ModelAction * get_last_unlock(ModelAction *curr) const;
 	SnapVector<ModelAction *> * build_may_read_from(ModelAction *curr);
 	ModelAction * process_rmw(ModelAction *curr);
-
 	bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> *priorset, bool *canprune, bool check_only = false);
 	void w_modification_order(ModelAction *curr);
 	ClockVector * get_hb_from_write(ModelAction *rf) const;
 	ModelAction * get_uninitialized_action(ModelAction *curr) const;
 	ModelAction * convertNonAtomicStore(void*);
+
+#ifdef TLS
+	pthread_key_t pthreadkey;
+#endif
+	ModelChecker *model;
+	struct model_params * params;
+
+	/** The scheduler to use: tracks the running/ready Threads */
+	Scheduler * const scheduler;
 
 	action_list_t action_trace;
 	SnapVector<Thread *> thread_map;
@@ -148,7 +142,9 @@ private:
 	uint32_t pthread_counter;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
-	 * to a trace of all actions performed on the object. */
+	 * to a trace of all actions performed on the object. 
+	 * Used only for SC fences, unlocks, & wait.
+	 */
 	HashTable<const void *, action_list_t *, uintptr_t, 2> obj_map;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
