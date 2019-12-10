@@ -38,9 +38,6 @@ public:
 	bool is_entry_predicate() { return entry_predicate; }
 	void set_entry_predicate() { entry_predicate = true; }
 
-	void alloc_pre_exit_predicates();
-	void add_pre_exit_predicate(Predicate * pred);
-
 	/* Whether func_inst does write or not */
 	bool is_write() { return does_write; }
 	void set_write(bool is_write) { does_write = is_write; }
@@ -83,9 +80,6 @@ private:
 	/* Only a single parent may exist */
 	Predicate * parent;
 	Predicate * exit;
-
-	/* Predicates precede exit nodes. Only used by exit predicates */
-	ModelVector<Predicate *> * pre_exit_predicates;
 
 	/* May have multiple back edges, e.g. nested loops */
 	PredSet backedges;

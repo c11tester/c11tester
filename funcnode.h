@@ -88,8 +88,8 @@ private:
 	func_inst_list_mt entry_insts;
 
 	void infer_predicates(FuncInst * next_inst, ModelAction * next_act, HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map, SnapVector<struct half_pred_expr *> * half_pred_expressions);
-	void generate_predicates(Predicate ** curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
-	bool amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act);
+	void generate_predicates(Predicate * curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
+	bool amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst, ModelAction * next_act);
 
 	/* Store action_lists when calls to update_tree are deferred */
 	SnapList<action_list_t *> * action_list_buffer;
@@ -110,6 +110,7 @@ private:
 
 	/* Run-time position in the predicate tree for each thread */
 	ModelVector<Predicate *> predicate_tree_position;
+	PredSet predicate_leaves;
 
 	/* Store the relation between this FuncNode and other FuncNodes */
 	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;

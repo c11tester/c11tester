@@ -16,6 +16,7 @@ FuncNode::FuncNode(ModelHistory * history) :
 	inst_list(),
 	entry_insts(),
 	predicate_tree_position(),
+	predicate_leaves(),
 	edge_table(32),
 	out_edges()
 {
@@ -23,7 +24,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
 
 	predicate_tree_exit = new Predicate(NULL, false, true);
-	predicate_tree_exit->alloc_pre_exit_predicates();
 	predicate_tree_exit->set_depth(MAX_DEPTH);
 
 	/* Snapshot data structures below */
@@ -290,7 +290,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			ASSERT(unset_predicates.size() == 1);
 			Predicate * one_branch = unset_predicates[0];
 
-			bool amended = amend_predicate_expr(&curr_pred, next_inst, next_act);
+			bool amended = amend_predicate_expr(curr_pred, next_inst, next_act);
 			if (amended)
 				continue;
 			else {
@@ -319,7 +319,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		if (!branch_found) {
 			SnapVector<struct half_pred_expr *> half_pred_expressions;
 			infer_predicates(next_inst, next_act, &loc_act_map, &half_pred_expressions);
-			generate_predicates(&curr_pred, next_inst, &half_pred_expressions);
+			generate_predicates(curr_pred, next_inst, &half_pred_expressions);
 			continue;
 		}
 
@@ -464,17 +464,21 @@ SnapVector<struct half_pred_expr *> * half_pred_expressions)
 }
 
 /* Able to generate complex predicates when there are multiple predciate expressions */
-void FuncNode::generate_predicates(Predicate ** curr_pred, FuncInst * next_inst,
+void FuncNode::generate_predicates(Predicate * curr_pred, FuncInst * next_inst,
 SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	if (half_pred_expressions->size() == 0) {
 		Predicate * new_pred = new Predicate(next_inst);
-		(*curr_pred)->add_child(new_pred);
-		new_pred->set_parent(*curr_pred);
+		curr_pred->add_child(new_pred);
+		new_pred->set_parent(curr_pred);
+
+		/* Maintain predicate leaves */
+		predicate_leaves.add(new_pred);
+		predicate_leaves.remove(curr_pred);
 
 		/* entry predicates and predicates containing pure write actions
 		 * have no predicate expressions */
-		if ( (*curr_pred)->is_entry_predicate() )
+		if ( curr_pred->is_entry_predicate() )
 			new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
 		else if (next_inst->is_write()) {
 			/* next_inst->is_write() <==> pure writes */
@@ -511,9 +515,15 @@ SnapVector<struct half_pred_expr *> * half_pred_expressions)
 
 	for (uint i = 0;i < predicates.size();i++) {
 		Predicate * pred= predicates[i];
-		(*curr_pred)->add_child(pred);
-		pred->set_parent(*curr_pred);
+		curr_pred->add_child(pred);
+		pred->set_parent(curr_pred);
+
+		/* Add new predicate leaves */
+		predicate_leaves.add(pred);
 	}
+
+	/* Remove predicate node that has children */
+	predicate_leaves.remove(curr_pred);
 
 	/* Free memories allocated by infer_predicate */
 	for (uint i = 0;i < half_pred_expressions->size();i++) {
@@ -523,18 +533,18 @@ SnapVector<struct half_pred_expr *> * half_pred_expressions)
 }
 
 /* Amend predicates that contain no predicate expressions. Currenlty only amend with NULLITY predicates */
-bool FuncNode::amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act)
+bool FuncNode::amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst, ModelAction * next_act)
 {
 	// there should only be only child
-	Predicate * unset_pred = (*curr_pred)->get_children()->back();
+	Predicate * unset_pred = curr_pred->get_children()->back();
 	uint64_t read_val = next_act->get_reads_from_value();
 
 	// only generate NULLITY predicate when it is actually NULL.
 	if ( !next_inst->is_single_location() && (void*)read_val == NULL ) {
 		Predicate * new_pred = new Predicate(next_inst);
 
-		(*curr_pred)->add_child(new_pred);
-		new_pred->set_parent(*curr_pred);
+		curr_pred->add_child(new_pred);
+		new_pred->set_parent(curr_pred);
 
 		unset_pred->add_predicate_expr(NULLITY, NULL, false);
 		new_pred->add_predicate_expr(NULLITY, NULL, true);
@@ -727,26 +737,50 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	return -1;
 }
 
+/* Implement quick sort to sort leaves before assigning base scores */
+static int partition(SnapVector<Predicate *> * arr, int low, int high)
+{
+	unsigned int pivot = (*arr)[high]->get_depth();
+	int i = low - 1;
+
+	for (int j = low; j <= high - 1; j++) {
+		if ( (*arr)[j]->get_depth() < pivot ) {
+			i++;
+			Predicate *tmp = (*arr)[i];
+			(*arr)[i] = (*arr)[j];
+			(*arr)[j] = tmp;
+		}
+	}
+
+	Predicate * tmp = (*arr)[i + 1];
+	(*arr)[i + 1] = (*arr)[high];
+	(*arr)[high] = tmp;
+
+	return i + 1;
+}
+
+/* Implement quick sort to sort leaves before assigning base scores */
+static void quickSort(SnapVector<Predicate *> * arr, int low, int high)
+{
+	if (low < high) {
+		int pi = partition(arr, low, high);
+
+		quickSort(arr, low, pi - 1);
+		quickSort(arr, pi + 1, high);
+	}
+}
+
 void FuncNode::assign_base_score()
 {
+	PredSetIter * it = predicate_leaves.iterator();
 	SnapVector<Predicate *> leaves;
-	SnapList<Predicate *> queue;
-	queue.push_front(predicate_tree_entry);
-
-	// assign leaf score
-	while ( !queue.empty() ) {
-		Predicate * node = queue.back();
-		queue.pop_back();
-
-		ModelVector<Predicate *> * children = node->get_children();
-		if (children->empty()) {
-			node->set_weight(1);
-			leaves.push_back(node);
-		}
-
-		for (uint i = 0; i < children->size(); i++)
-			queue.push_front( (*children)[i] );
+	while (it->hasNext()) {
+		Predicate * pred = it->next();
+		pred->set_weight(1);
+		leaves.push_back(pred);
 	}
+
+	quickSort(&leaves, 0, leaves.size() - 1);
 
 	// assign scores for internal nodes;
 	while ( !leaves.empty() ) {

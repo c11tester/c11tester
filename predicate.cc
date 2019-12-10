@@ -64,17 +64,6 @@ void Predicate::set_parent(Predicate * parent_pred)
 void Predicate::set_exit(Predicate * exit_pred)
 {
 	exit = exit_pred;
-	exit_pred->add_pre_exit_predicate(this);
-}
-
-void Predicate::alloc_pre_exit_predicates()
-{
-	pre_exit_predicates = new ModelVector<Predicate *>();
-}
-
-void Predicate::add_pre_exit_predicate(Predicate * pred)
-{
-	pre_exit_predicates->push_back(pred);
 }
 
 void Predicate::copy_predicate_expr(Predicate * other)
