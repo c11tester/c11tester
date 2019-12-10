@@ -23,10 +23,9 @@ void param_defaults(struct model_params *params)
 	params->uninitvalue = 0;
 	params->maxexecutions = 10;
 	params->nofork = false;
-	params->threadsnocleanup = false;
 }
 
-static void print_usage(const char *program_name, struct model_params *params)
+static void print_usage(struct model_params *params)
 {
 	ModelVector<TraceAnalysis *> * registeredanalysis=getRegisteredTraceAnalysis();
 	/* Reset defaults before printing */
@@ -37,7 +36,7 @@ static void print_usage(const char *program_name, struct model_params *params)
 		"Distributed under the GPLv2\n"
 		"Written by Brian Norris and Brian Demsky\n"
 		"\n"
-		"Usage: %s [MODEL-CHECKER OPTIONS] -- [PROGRAM ARGS]\n"
+		"Usage: C11TESTER=[MODEL-CHECKER OPTIONS]\n"
 		"\n"
 		"MODEL-CHECKER OPTIONS can be any of the model-checker options listed below. Arguments\n"
 		"provided after the `--' (the PROGRAM ARGS) are passed to the user program.\n"
@@ -56,12 +55,7 @@ static void print_usage(const char *program_name, struct model_params *params)
 		"-x, --maxexec=NUM           Maximum number of executions.\n"
 		"                            Default: %u\n"
 		"                            -o help for a list of options\n"
-		"-n                          No fork\n"
-#ifdef TLS
-		"-d                          Don't allow threads to cleanup\n"
-#endif
-		" --                         Program arguments follow.\n\n",
-		program_name,
+		"-n                          No fork\n\n",
 		params->verbose,
 		params->uninitvalue,
 		params->maxexecutions);
@@ -88,9 +82,8 @@ bool install_plugin(char * name) {
 	return true;
 }
 
-static void parse_options(struct model_params *params, int argc, char **argv)
-{
-	const char *shortopts = "hdnt:o:u:x:v::";
+void parse_options(struct model_params *params) {
+	const char *shortopts = "hnt:o:u:x:v::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"verbose", optional_argument, NULL, 'v'},
@@ -101,14 +94,36 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		{0, 0, 0, 0}	/* Terminator */
 	};
 	int opt, longindex;
+	int tmpoptind = optind;
 	bool error = false;
+	char * options = getenv("C11TESTER");
+
+	if (options == NULL)
+		return;
+	int argc = 1;
+	int index;
+	for(index = 0;options[index]!=0;index++) {
+		if (options[index] == ' ')
+			argc++;
+	}
+	argc++;	//first parameter is executable name
+	char optcpy[index + 1];
+	memcpy(optcpy, options, index+1);
+	char * argv[argc + 1];
+	argv[0] = NULL;
+	argv[1] = optcpy;
+	int count = 2;
+	for(index = 0;optcpy[index]!=0;index++) {
+		if (optcpy[index] == ' ') {
+			argv[count++] = &optcpy[index+1];
+			optcpy[index] = 0;
+		}
+	}
+
 	while (!error && (opt = getopt_long(argc, argv, shortopts, longopts, &longindex)) != -1) {
 		switch (opt) {
 		case 'h':
-			print_usage(argv[0], params);
-			break;
-		case 'd':
-			params->threadsnocleanup = true;
+			print_usage(params);
 			break;
 		case 'n':
 			params->nofork = true;
@@ -139,25 +154,14 @@ static void parse_options(struct model_params *params, int argc, char **argv)
 		}
 	}
 
-	/* Pass remaining arguments to user program */
-	params->argc = argc - (optind - 1);
-	params->argv = argv + (optind - 1);
-
-	/* Reset program name */
-	params->argv[0] = argv[0];
-
-	/* Reset (global) optind for potential use by user program */
-	optind = 1;
+	/* Restore (global) optind for potential use by user program */
+	optind = tmpoptind;
 
 	if (error)
-		print_usage(argv[0], params);
+		print_usage(params);
 }
 
-int main_argc;
-char **main_argv;
-
-static void install_trace_analyses(ModelExecution *execution)
-{
+void install_trace_analyses(ModelExecution *execution) {
 	ModelVector<TraceAnalysis *> * installedanalysis=getInstalledTraceAnalysis();
 	for(unsigned int i=0;i<installedanalysis->size();i++) {
 		TraceAnalysis * ta=(*installedanalysis)[i];
@@ -166,49 +170,4 @@ static void install_trace_analyses(ModelExecution *execution)
 		/** Call the installation event for each installed plugin */
 		ta->actionAtInstallation();
 	}
-}
-
-/**
- * Main function.  Just initializes snapshotting library and the
- * snapshotting library calls the model_main function.
- */
-int main(int argc, char **argv)
-{
-	main_argc = argc;
-	main_argv = argv;
-
-	/*
-	 * If this printf statement is removed, C11Tester will fail on an
-	 * assert on some versions of glibc.  The first time printf is
-	 * called, it allocated internal buffers.  We can't easily snapshot
-	 * libc since we also use it.
-	 */
-
-	printf("C11Tester\n"
-				 "Copyright (c) 2013 and 2019 Regents of the University of California. All rights reserved.\n"
-				 "Distributed under the GPLv2\n"
-				 "Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
-
-
-	//Initialize snapshotting library and model checker object
-	if (!model) {
-		snapshot_system_init(10000, 1024, 1024, 40000);
-		model = new ModelChecker();
-		model->startChecker();
-	}
-
-	/* Configure output redirection for the model-checker */
-	redirect_output();
-
-	register_plugins();
-
-	//Parse command line options
-	model_params *params = model->getParams();
-	parse_options(params, main_argc, main_argv);
-
-
-	install_trace_analyses(model->get_execution());
-
-	model->startMainThread();
-	DEBUG("Exiting\n");
 }

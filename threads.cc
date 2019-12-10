@@ -59,13 +59,14 @@ Thread * thread_current(void)
 	return model->get_current_thread();
 }
 
-void main_thread_startup() {
-#ifdef TLS
+void modelexit() {
+	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, thread_current()));
+}
+
+void initMainThread() {
+	atexit(modelexit);
 	Thread * curr_thread = thread_current();
-	/* Add dummy "start" action, just to create a first clock vector */
 	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
-#endif
-	thread_startup();
 }
 
 /**
@@ -89,8 +90,10 @@ void thread_startup()
 		void *retval = curr_thread->pstart_routine(curr_thread->arg);
 		curr_thread->set_pthread_return(retval);
 	}
+#ifndef TLS
 	/* Finish thread properly */
 	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, curr_thread));
+#endif
 }
 
 static int (*pthread_mutex_init_p)(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) = NULL;
@@ -168,7 +171,7 @@ void real_init_all() {
 	}
 
 	if (!pthread_exit_p) {
-		pthread_exit_p = (void (*)(void *))dlsym(RTLD_NEXT, "pthread_exit");
+		*((void (**)(void *)) &pthread_exit_p) = (void (*)(void *))dlsym(RTLD_NEXT, "pthread_exit");
 		if ((error = dlerror()) != NULL) {
 			fputs(error, stderr);
 			exit(EXIT_FAILURE);
@@ -196,9 +199,16 @@ void * helper_thread(void * ptr) {
 	int ret = getcontext(&curr_thread->helpercontext);
 	ASSERT(!ret);
 
+	//Setup destructor
+	if (pthread_setspecific(model->get_execution()->getPthreadKey(), (const void *)4)) {
+		printf("Destructor setup failed\n");
+		exit(-1);
+	}
+
+
 	/* Initialize new managed context */
-	void *helperstack = stack_allocate(STACK_SIZE);
-	curr_thread->helpercontext.uc_stack.ss_sp = helperstack;
+	curr_thread->helper_stack = stack_allocate(STACK_SIZE);
+	curr_thread->helpercontext.uc_stack.ss_sp = curr_thread->helper_stack;
 	curr_thread->helpercontext.uc_stack.ss_size = STACK_SIZE;
 	curr_thread->helpercontext.uc_stack.ss_flags = 0;
 	curr_thread->helpercontext.uc_link = model->get_system_context();
@@ -206,14 +216,27 @@ void * helper_thread(void * ptr) {
 
 	model_swapcontext(&curr_thread->context, &curr_thread->helpercontext);
 
+
 	//start the real thread
 	thread_startup();
 
-	//now the real thread has control again
-	stack_free(helperstack);
-
 	return NULL;
 }
+
+#ifdef TLS
+void tlsdestructor(void *v) {
+	uintptr_t count = (uintptr_t) v;
+	if (count > 1) {
+		if (pthread_setspecific(model->get_execution()->getPthreadKey(), (const void *)(count - 1))) {
+			printf("Destructor setup failed\n");
+			exit(-1);
+		}
+		return;
+	}
+	/* Finish thread properly */
+	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, thread_current()));
+}
+#endif
 
 void setup_context() {
 	Thread * curr_thread = thread_current();
@@ -263,10 +286,7 @@ int Thread::create_context()
 	context.uc_stack.ss_flags = 0;
 	context.uc_link = model->get_system_context();
 #ifdef TLS
-	if (model != NULL)
-		makecontext(&context, setup_context, 0);
-	else
-		makecontext(&context, main_thread_startup, 0);
+	makecontext(&context, setup_context, 0);
 #else
 	makecontext(&context, thread_startup, 0);
 #endif
@@ -320,16 +340,11 @@ void Thread::complete()
 	if (stack)
 		stack_free(stack);
 #ifdef TLS
-	if (this != model->getInitThread() && !model->getParams()->threadsnocleanup) {
-		modellock = 1;
+	if (this != model->getInitThread()) {
 		ASSERT(thread_current()==NULL);
-		Thread * curr_thread = model->getScheduler()->get_current_thread();
-		//Make any current_thread calls work in code to free
-		model->getScheduler()->set_current_thread(this);
 		real_pthread_mutex_unlock(&mutex2);
 		real_pthread_join(thread, NULL);
-		model->getScheduler()->set_current_thread(curr_thread);
-		modellock = 0;
+		stack_free(helper_stack);
 	}
 #endif
 }

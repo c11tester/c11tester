@@ -16,6 +16,7 @@
 #include "context.h"
 #include "params.h"
 #include "classlist.h"
+#include "snapshot-interface.h"
 
 typedef SnapList<ModelAction *> action_list_t;
 
@@ -63,7 +64,6 @@ public:
 	model_params params;
 	void add_trace_analysis(TraceAnalysis *a) {     trace_analyses.push_back(a); }
 	void set_inspect_plugin(TraceAnalysis *a) {     inspect_plugin=a;       }
-	void startMainThread();
 	void startChecker();
 	Thread * getInitThread() {return init_thread;}
 	Scheduler * getScheduler() {return scheduler;}
@@ -71,6 +71,9 @@ public:
 private:
 	/** Flag indicates whether to restart the model checker. */
 	bool restart_flag;
+
+	/** Snapshot id we return to restart. */
+	snapshot_id snapshot;
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
@@ -103,9 +106,10 @@ private:
 	void print_bugs() const;
 	void print_execution(bool printbugs) const;
 	void print_stats() const;
-
-	friend void user_main_wrapper();
 };
 
 extern ModelChecker *model;
+void parse_options(struct model_params *params);
+void install_trace_analyses(ModelExecution *execution);
+
 #endif	/* __MODEL_H__ */

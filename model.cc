@@ -18,13 +18,12 @@
 #include "history.h"
 #include "bugmessage.h"
 #include "params.h"
+#include "plugins.h"
 
 ModelChecker *model = NULL;
 
-/** Wrapper to run the user's main function, with appropriate arguments */
-void user_main_wrapper(void *)
-{
-	user_main(model->params.argc, model->params.argv);
+void placeholder(void *) {
+	ASSERT(0);
 }
 
 /** @brief Constructor */
@@ -39,16 +38,25 @@ ModelChecker::ModelChecker() :
 	trace_analyses(),
 	inspect_plugin(NULL)
 {
+	model_print("C11Tester\n"
+							"Copyright (c) 2013 and 2019 Regents of the University of California. All rights reserved.\n"
+							"Distributed under the GPLv2\n"
+							"Written by Weiyu Luo, Brian Norris, and Brian Demsky\n\n");
 	memset(&stats,0,sizeof(struct execution_stats));
-	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &user_main_wrapper, NULL, NULL);
+	init_thread = new Thread(execution->get_next_id(), (thrd_t *) model_malloc(sizeof(thrd_t)), &placeholder, NULL, NULL);
 #ifdef TLS
 	init_thread->setTLS((char *)get_tls_addr());
 #endif
 	execution->add_thread(init_thread);
 	scheduler->set_current_thread(init_thread);
+	register_plugins();
 	execution->setParams(&params);
 	param_defaults(&params);
+	parse_options(&params);
 	initRaceDetector();
+	/* Configure output redirection for the model-checker */
+	redirect_output();
+	install_trace_analyses(get_execution());
 }
 
 /** @brief Destructor */
@@ -77,7 +85,7 @@ void ModelChecker::reset_to_initial_state()
 	for (unsigned int i = 0;i < get_num_threads();i++)
 		delete get_thread(int_to_id(i))->get_pending();
 
-	snapshot_backtrack_before(0);
+	snapshot_roll_back(snapshot);
 }
 
 /** @return the number of user threads created during this execution */
@@ -348,8 +356,8 @@ static void runChecker() {
 
 void ModelChecker::startChecker() {
 	startExecution(get_system_context(), runChecker);
-	snapshot_stack_init();
-	snapshot_record(0);
+	snapshot = take_snapshot();
+	initMainThread();
 }
 
 bool ModelChecker::should_terminate_execution()
@@ -376,12 +384,6 @@ void ModelChecker::do_restart()
 	reset_to_initial_state();
 	memset(&stats,0,sizeof(struct execution_stats));
 	execution_number = 1;
-}
-
-void ModelChecker::startMainThread() {
-	init_thread->set_state(THREAD_RUNNING);
-	scheduler->set_current_thread(init_thread);
-	main_thread_startup();
 }
 
 /** @brief Run ModelChecker for the user program */

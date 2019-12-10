@@ -9,16 +9,9 @@ struct model_params {
 	unsigned int uninitvalue;
 	int maxexecutions;
 	bool nofork;
-	bool threadsnocleanup;
 
 	/** @brief Verbosity (0 = quiet; 1 = noisy; 2 = noisier) */
 	int verbose;
-
-	/** @brief Command-line argument count to pass to user program */
-	int argc;
-
-	/** @brief Command-line arguments to pass to user program */
-	char **argv;
 };
 
 void param_defaults(struct model_params *params);

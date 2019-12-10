@@ -14,8 +14,8 @@ void snapshot_system_init(unsigned int numbackingpages,
 													unsigned int numsnapshots, unsigned int nummemoryregions,
 													unsigned int numheappages);
 void startExecution(ucontext_t * context, VoidFuncPtr entryPoint);
-void snapshot_stack_init();
-void snapshot_record(int seq_index);
-int snapshot_backtrack_before(int seq_index);
+snapshot_id take_snapshot();
+void snapshot_roll_back(snapshot_id theSnapShot);
+
 
 #endif

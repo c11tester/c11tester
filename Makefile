@@ -1,7 +1,7 @@
 include common.mk
 
 OBJECTS := libthreads.o schedule.o model.o threads.o librace.o action.o \
-	   clockvector.o main.o snapshot-interface.o cyclegraph.o \
+	   clockvector.o main.o cyclegraph.o \
 	   datarace.o impatomic.o cmodelint.o \
 	   snapshot.o malloc.o mymemory.o common.o mutex.o conditionvariable.o \
 	   context.o execution.o libannotate.o plugins.o pthread.o futex.o fuzzer.o \
@@ -18,11 +18,9 @@ LDFLAGS := -ldl
 SHARED := -Wl,-undefined,dynamic_lookup -dynamiclib
 endif
 
-TESTS_DIR := test
-
 MARKDOWN := doc/Markdown/Markdown.pl
 
-all: $(LIB_SO) tests README.html
+all: $(LIB_SO) README.html
 
 debug: CPPFLAGS += -DCONFIG_DEBUG
 debug: all
@@ -58,7 +56,6 @@ $(LIB_SO): $(OBJECTS)
 PHONY += clean
 clean:
 	rm -f *.o *.so .*.d *.pdf *.dot
-	$(MAKE) -C $(TESTS_DIR) clean
 
 PHONY += mrclean
 mrclean: clean
@@ -67,10 +64,6 @@ mrclean: clean
 PHONY += tags
 tags:
 	ctags -R
-
-PHONY += tests
-tests: $(LIB_SO)
-#	$(MAKE) -C $(TESTS_DIR)
 
 BENCH_DIR := benchmarks
 

@@ -18,83 +18,30 @@
 size_t allocatedReqs[REQUESTS_BEFORE_ALLOC] = { 0 };
 int nextRequest = 0;
 int howManyFreed = 0;
-#if !USE_MPROTECT_SNAPSHOT
 static mspace sStaticSpace = NULL;
-#endif
 
 /** Non-snapshotting calloc for our use. */
 void *model_calloc(size_t count, size_t size)
 {
-#if USE_MPROTECT_SNAPSHOT
-	static void *(*callocp)(size_t count, size_t size) = NULL;
-	char *error;
-	void *ptr;
-
-	/* get address of libc malloc */
-	if (!callocp) {
-		callocp = (void * (*)(size_t, size_t))dlsym(RTLD_NEXT, "calloc");
-		if ((error = dlerror()) != NULL) {
-			fputs(error, stderr);
-			exit(EXIT_FAILURE);
-		}
-	}
-	ptr = callocp(count, size);
-	return ptr;
-#else
 	if (!sStaticSpace)
 		sStaticSpace = create_shared_mspace();
 	return mspace_calloc(sStaticSpace, count, size);
-#endif
 }
 
 /** Non-snapshotting malloc for our use. */
 void *model_malloc(size_t size)
 {
-#if USE_MPROTECT_SNAPSHOT
-	static void *(*mallocp)(size_t size) = NULL;
-	char *error;
-	void *ptr;
-
-	/* get address of libc malloc */
-	if (!mallocp) {
-		mallocp = (void * (*)(size_t))dlsym(RTLD_NEXT, "malloc");
-		if ((error = dlerror()) != NULL) {
-			fputs(error, stderr);
-			exit(EXIT_FAILURE);
-		}
-	}
-	ptr = mallocp(size);
-	return ptr;
-#else
 	if (!sStaticSpace)
 		sStaticSpace = create_shared_mspace();
 	return mspace_malloc(sStaticSpace, size);
-#endif
 }
 
 /** Non-snapshotting malloc for our use. */
 void *model_realloc(void *ptr, size_t size)
 {
-#if USE_MPROTECT_SNAPSHOT
-	static void *(*reallocp)(void *ptr, size_t size) = NULL;
-	char *error;
-	void *newptr;
-
-	/* get address of libc malloc */
-	if (!reallocp) {
-		reallocp = (void * (*)(size_t))dlsym(RTLD_NEXT, "realloc");
-		if ((error = dlerror()) != NULL) {
-			fputs(error, stderr);
-			exit(EXIT_FAILURE);
-		}
-	}
-	newptr = reallocp(ptr, size);
-	return newptr;
-#else
 	if (!sStaticSpace)
 		sStaticSpace = create_shared_mspace();
 	return mspace_realloc(sStaticSpace, ptr, size);
-#endif
 }
 
 /** @brief Snapshotting malloc, for use by model-checker (not user progs) */
@@ -130,22 +77,7 @@ void snapshot_free(void *ptr)
 /** Non-snapshotting free for our use. */
 void model_free(void *ptr)
 {
-#if USE_MPROTECT_SNAPSHOT
-	static void (*freep)(void *);
-	char *error;
-
-	/* get address of libc free */
-	if (!freep) {
-		freep = (void (*)(void *))dlsym(RTLD_NEXT, "free");
-		if ((error = dlerror()) != NULL) {
-			fputs(error, stderr);
-			exit(EXIT_FAILURE);
-		}
-	}
-	freep(ptr);
-#else
 	mspace_free(sStaticSpace, ptr);
-#endif
 }
 
 /** Bootstrap allocation. Problem is that the dynamic linker calls require
@@ -173,120 +105,6 @@ void * HandleEarlyAllocationRequest(size_t sz)
 /** @brief Global mspace reference for the model-checker's snapshotting heap */
 mspace model_snapshot_space = NULL;
 
-#if USE_MPROTECT_SNAPSHOT
-
-/** @brief Global mspace reference for the user's snapshotting heap */
-mspace user_snapshot_space = NULL;
-
-/** Check whether this is bootstrapped memory that we should not free */
-static bool DontFree(void *ptr)
-{
-	return (ptr >= (&bootstrapmemory[0]) && ptr < (&bootstrapmemory[BOOTSTRAPBYTES]));
-}
-
-/**
- * @brief The allocator function for "user" allocation
- *
- * Should only be used for allocations which will not disturb the allocation
- * patterns of a user thread.
- */
-static void * user_malloc(size_t size)
-{
-	void *tmp = mspace_malloc(user_snapshot_space, size);
-	ASSERT(tmp);
-	return tmp;
-}
-
-/**
- * @brief Snapshotting malloc implementation for user programs
- *
- * Do NOT call this function from a model-checker context. Doing so may disrupt
- * the allocation patterns of a user thread.
- */
-void *malloc(size_t size)
-{
-	void *tmp;
-	if (user_snapshot_space) {
-		/* Only perform user allocations from user context */
-		ASSERT(!model || thread_current());
-		tmp = user_malloc(size);
-	} else
-		tmp = HandleEarlyAllocationRequest(size);
-	recordCalloc(tmp, size);
-	return tmp;
-}
-
-/** @brief Snapshotting free implementation for user programs */
-void free(void * ptr)
-{
-	if (!DontFree(ptr)) {
-		mspace_free(user_snapshot_space, ptr);
-	}
-}
-
-/** @brief Snapshotting realloc implementation for user programs */
-void *realloc(void *ptr, size_t size)
-{
-	void *tmp = mspace_realloc(user_snapshot_space, ptr, size);
-	recordCalloc(tmp, size);
-	ASSERT(tmp);
-	return tmp;
-}
-
-/** @brief Snapshotting calloc implementation for user programs */
-void * calloc(size_t num, size_t size)
-{
-	if (user_snapshot_space) {
-		void *tmp = mspace_calloc(user_snapshot_space, num, size);
-		ASSERT(tmp);
-		recordAlloc(tmp, num*size);
-		return tmp;
-	} else {
-		void *tmp = HandleEarlyAllocationRequest(size * num);
-		memset(tmp, 0, size * num);
-		recordAlloc(tmp, num*size);
-		return tmp;
-	}
-}
-
-/** @brief Snapshotting allocation function for use by the Thread class only */
-void * Thread_malloc(size_t size)
-{
-	return user_malloc(size);
-}
-
-/** @brief Snapshotting free function for use by the Thread class only */
-void Thread_free(void *ptr)
-{
-	free(ptr);
-}
-
-/** @brief Snapshotting new operator for user programs */
-void * operator new(size_t size) throw(std::bad_alloc)
-{
-	return malloc(size);
-}
-
-/** @brief Snapshotting delete operator for user programs */
-void operator delete(void *p) throw()
-{
-	free(p);
-}
-
-/** @brief Snapshotting new[] operator for user programs */
-void * operator new[](size_t size) throw(std::bad_alloc)
-{
-	return malloc(size);
-}
-
-/** @brief Snapshotting delete[] operator for user programs */
-void operator delete[](void *p, size_t size)
-{
-	free(p);
-}
-
-#else	/* !USE_MPROTECT_SNAPSHOT */
-
 /** @brief Snapshotting allocation function for use by the Thread class only */
 void * Thread_malloc(size_t size)
 {
@@ -298,5 +116,3 @@ void Thread_free(void *ptr)
 {
 	snapshot_free(ptr);
 }
-
-#endif	/* !USE_MPROTECT_SNAPSHOT */
