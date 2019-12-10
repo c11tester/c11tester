@@ -73,6 +73,20 @@ private:
 	HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0> * loc_wr_func_nodes_map;
 
 	HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0> * loc_waiting_writes_map;
+
+	/* Keeps track of atomic actions that thread i has performed in some
+	 * function. Index of SnapVector is thread id. SnapList simulates
+	 * the call stack.
+	 */
+	SnapVector< SnapList<action_list_t *> *> * thrd_func_act_lists;
+
+	/* thrd_func_list stores a list of function ids for each thread.
+	 * Each element in thrd_func_list stores the functions that
+	 * thread i has entered and yet to exit from
+	 */
+	SnapVector<func_id_list_t> * thrd_func_list;
+	SnapVector<uint32_t> * thrd_last_entered_func;
+
 	/* The write values each paused thread is waiting for */
 	SnapVector<ConcretePredicate *> * thrd_waiting_write;
 	SnapVector<WaitObj *> * thrd_wait_obj;
@@ -84,6 +98,7 @@ private:
 	bool skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list);
 	void monitor_waiting_thread(uint32_t func_id, thread_id_t tid);
 	void monitor_waiting_thread_counter(thread_id_t tid);
+
 };
 
 #endif	/* __HISTORY_H__ */
