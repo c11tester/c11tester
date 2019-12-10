@@ -6,6 +6,7 @@
 #include "concretepredicate.h"
 
 #include "model.h"
+#include <cmath>
 
 FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
@@ -20,7 +21,10 @@ FuncNode::FuncNode(ModelHistory * history) :
 {
 	predicate_tree_entry = new Predicate(NULL, true);
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
+
 	predicate_tree_exit = new Predicate(NULL, false, true);
+	predicate_tree_exit->alloc_pre_exit_predicates();
+	predicate_tree_exit->set_depth(MAX_DEPTH);
 
 	/* Snapshot data structures below */
 	action_list_buffer = new SnapList<action_list_t *>();
@@ -334,7 +338,10 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		curr_pred->incr_expl_count();
 	}
 
-	curr_pred->set_exit(predicate_tree_exit);
+	if (curr_pred->get_exit() == NULL) {
+		// Exit predicate is unset yet
+		curr_pred->set_exit(predicate_tree_exit);
+	}
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -342,7 +349,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
  * @return true if branch found, false otherwise.
  */
 bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
-														 ModelAction * next_act, SnapVector<Predicate *> * unset_predicates)
+ModelAction * next_act, SnapVector<Predicate *> * unset_predicates)
 {
 	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
@@ -369,33 +376,34 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 			bool equality;
 
 			switch(pred_expression->token) {
-			case NOPREDICATE:
-				predicate_correct = true;
-				break;
-			case EQUALITY:
-				FuncInst * to_be_compared;
-				ModelAction * last_act;
+				case NOPREDICATE:
+					predicate_correct = true;
+					break;
+				case EQUALITY:
+					FuncInst * to_be_compared;
+					ModelAction * last_act;
 
-				to_be_compared = pred_expression->func_inst;
-				last_act = to_be_compared->get_associated_act(marker);
+					to_be_compared = pred_expression->func_inst;
+					last_act = to_be_compared->get_associated_act(marker);
 
-				last_read = last_act->get_reads_from_value();
-				next_read = next_act->get_reads_from_value();
-				equality = (last_read == next_read);
-				if (equality != pred_expression->value)
+					last_read = last_act->get_reads_from_value();
+					next_read = next_act->get_reads_from_value();
+					equality = (last_read == next_read);
+					if (equality != pred_expression->value)
+						predicate_correct = false;
+
+					break;
+				case NULLITY:
+					next_read = next_act->get_reads_from_value();
+					// TODO: implement likely to be null
+					equality = ( (void*) (next_read & 0xffffffff) == NULL);
+					if (equality != pred_expression->value)
+						predicate_correct = false;
+					break;
+				default:
 					predicate_correct = false;
-
-				break;
-			case NULLITY:
-				next_read = next_act->get_reads_from_value();
-				equality = ((void*)next_read == NULL);
-				if (equality != pred_expression->value)
-					predicate_correct = false;
-				break;
-			default:
-				predicate_correct = false;
-				model_print("unkown predicate token\n");
-				break;
+					model_print("unkown predicate token\n");
+					break;
 			}
 		}
 
@@ -411,8 +419,8 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 
 /* Infer predicate expressions, which are generated in FuncNode::generate_predicates */
 void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
-																HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map,
-																SnapVector<struct half_pred_expr *> * half_pred_expressions)
+HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map,
+SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	void * loc = next_act->get_location();
 
@@ -457,7 +465,7 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 
 /* Able to generate complex predicates when there are multiple predciate expressions */
 void FuncNode::generate_predicates(Predicate ** curr_pred, FuncInst * next_inst,
-																	 SnapVector<struct half_pred_expr *> * half_pred_expressions)
+SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	if (half_pred_expressions->size() == 0) {
 		Predicate * new_pred = new Predicate(next_inst);
@@ -719,29 +727,71 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	return -1;
 }
 
+void FuncNode::assign_base_score()
+{
+	SnapVector<Predicate *> leaves;
+	SnapList<Predicate *> queue;
+	queue.push_front(predicate_tree_entry);
+
+	// assign leaf score
+	while ( !queue.empty() ) {
+		Predicate * node = queue.back();
+		queue.pop_back();
+
+		ModelVector<Predicate *> * children = node->get_children();
+		if (children->empty()) {
+			node->set_weight(1);
+			leaves.push_back(node);
+		}
+
+		for (uint i = 0; i < children->size(); i++)
+			queue.push_front( (*children)[i] );
+	}
+
+	// assign scores for internal nodes;
+	while ( !leaves.empty() ) {
+		Predicate * leaf = leaves.back();
+		leaves.pop_back();
+
+		Predicate * curr = leaf->get_parent();
+		while (curr != NULL) {
+			if (curr->get_weight() != 0) {
+				// Has been exlpored
+				break;
+			}
+
+			ModelVector<Predicate *> * children = curr->get_children();
+			double weight_sum = 0;
+			bool has_unassigned_node = false;
+
+			for (uint i = 0; i < children->size(); i++) {
+				Predicate * child = (*children)[i];
+
+				// If a child has unassigned weight
+				double weight = child->get_weight();
+				if (weight == 0) {
+					has_unassigned_node = true;
+					break;
+				} else
+					weight_sum += weight;
+			}
+
+			if (!has_unassigned_node) {
+				double average_weight = (double) weight_sum / (double) children->size();
+				double weight = average_weight * pow(0.9, curr->get_depth());
+				curr->set_weight(weight);
+			} else
+				break;
+
+			curr = curr->get_parent();
+		}
+	}
+}
+
 void FuncNode::print_predicate_tree()
 {
 	model_print("digraph function_%s {\n", func_name);
 	predicate_tree_entry->print_pred_subtree();
 	predicate_tree_exit->print_predicate();
 	model_print("}\n");	// end of graph
-}
-
-void FuncNode::print_val_loc_map()
-{
-/*
-        value_set_iter * val_it = values_may_read_from->iterator();
-        while (val_it->hasNext()) {
-                uint64_t value = val_it->next();
-                model_print("val %llx: ", value);
-
-                loc_set_t * locations = val_loc_map->get(value);
-                loc_set_iter * loc_it = locations->iterator();
-                while (loc_it->hasNext()) {
-                        void * location = loc_it->next();
-                        model_print("%p ", location);
-                }
-                model_print("\n");
-        }
- */
 }

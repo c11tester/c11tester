@@ -174,7 +174,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 			func_node->add_to_val_loc_map(value, location);
 		}
 
-		check_waiting_write(act);
+		// check_waiting_write(act);
 	}
 
 	uint32_t func_id = (*thrd_func_list)[thread_id].back();
@@ -200,6 +200,21 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	if (act->is_read()) {
 		func_node->update_inst_act_map(tid, act);
+
+		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
+		Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
+		func_node->set_predicate_tree_position(tid, selected_branch);
+	}
+
+	if (act->is_write()) {
+		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
+		FuncInst * curr_inst = func_node->get_inst(act);
+
+		if (curr_pred) {
+			// Follow child
+			curr_pred = curr_pred->get_single_child(curr_inst);
+		}
+		func_node->set_predicate_tree_position(tid, curr_pred);
 	}
 }
 
@@ -383,7 +398,7 @@ WaitObj * ModelHistory::getWaitObj(thread_id_t tid)
 }
 
 void ModelHistory::add_waiting_thread(thread_id_t self_id,
-																			thread_id_t waiting_for_id, FuncNode * target_node, int dist)
+thread_id_t waiting_for_id, FuncNode * target_node, int dist)
 {
 	WaitObj * self_wait_obj = getWaitObj(self_id);
 	self_wait_obj->add_waiting_for(waiting_for_id, target_node, dist);
@@ -411,7 +426,7 @@ void ModelHistory::remove_waiting_thread(thread_id_t tid)
 }
 
 void ModelHistory::stop_waiting_for_node(thread_id_t self_id,
-																				 thread_id_t waiting_for_id, FuncNode * target_node)
+thread_id_t waiting_for_id, FuncNode * target_node)
 {
 	WaitObj * self_wait_obj = getWaitObj(self_id);
 	bool thread_removed = self_wait_obj->remove_waiting_for_node(waiting_for_id, target_node);
@@ -564,7 +579,9 @@ void ModelHistory::print_func_node()
 	for (uint32_t i = 1;i < func_nodes.size();i++) {
 		FuncNode * func_node = func_nodes[i];
 
+		func_node->assign_base_score();
 		func_node->print_predicate_tree();
+
 /*
                 func_inst_list_mt * entry_insts = func_node->get_entry_insts();
                 model_print("function %s has entry actions\n", func_node->get_func_name());

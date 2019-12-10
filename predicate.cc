@@ -7,6 +7,8 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	entry_predicate(is_entry),
 	exit_predicate(is_exit),
 	does_write(false),
+	depth(0),
+	weight(0),
 	exploration_count(0),
 	store_visible_count(0),
 	total_checking_count(0),
@@ -53,6 +55,28 @@ void Predicate::add_child(Predicate * child)
 	children.push_back(child);
 }
 
+void Predicate::set_parent(Predicate * parent_pred)
+{
+	parent = parent_pred;
+	depth = parent_pred->get_depth() + 1;
+}
+
+void Predicate::set_exit(Predicate * exit_pred)
+{
+	exit = exit_pred;
+	exit_pred->add_pre_exit_predicate(this);
+}
+
+void Predicate::alloc_pre_exit_predicates()
+{
+	pre_exit_predicates = new ModelVector<Predicate *>();
+}
+
+void Predicate::add_pre_exit_predicate(Predicate * pred)
+{
+	pre_exit_predicates->push_back(pred);
+}
+
 void Predicate::copy_predicate_expr(Predicate * other)
 {
 	PredExprSet * other_pred_expressions = other->get_pred_expressions();
@@ -63,6 +87,24 @@ void Predicate::copy_predicate_expr(Predicate * other)
 		struct pred_expr * copy = new pred_expr(ptr->token, ptr->func_inst, ptr->value);
 		pred_expressions.add(copy);
 	}
+}
+
+/* Return the single child branch of this predicate.
+ * Return NULL if this predicate has no children.
+ */
+Predicate * Predicate::get_single_child(FuncInst * inst)
+{
+	int size = children.size();
+	if (size == 0)
+		return NULL;
+
+	/* Should only have one child */
+	ASSERT(size == 1);
+	Predicate * child = children[0];
+
+	ASSERT(child->get_func_inst() == inst);
+
+	return child;
 }
 
 /* Evaluate predicate expressions against the given inst_act_map */
@@ -100,7 +142,7 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 
 void Predicate::print_predicate()
 {
-	model_print("\"%p\" [shape=box, label=\"\n", this);
+	model_print("\"%p\" [shape=box, label=\"", this);
 	if (entry_predicate) {
 		model_print("entry node\"];\n");
 		return;
@@ -110,6 +152,8 @@ void Predicate::print_predicate()
 		model_print("exit node\"];\n");
 		return;
 	}
+
+	model_print("depth: %u; weight: %g\n", depth, weight);
 
 	func_inst->print();
 

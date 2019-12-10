@@ -341,46 +341,45 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
 
 void cds_func_entry(const char * funcName) {
 	ensureModel();
-	/*
-	   Thread * th = thread_current();
-	   uint32_t func_id;
+	Thread * th = thread_current();
+	uint32_t func_id;
 
-	   ModelHistory *history = model->get_history();
-	   if ( !history->getFuncMap()->contains(funcName) ) {
-	        // add func id to func map
-	        func_id = history->get_func_counter();
-	        history->incr_func_counter();
-	        history->getFuncMap()->put(funcName, func_id);
+	ModelHistory *history = model->get_history();
+	if ( !history->getFuncMap()->contains(funcName) ) {
+		// add func id to func map
+		func_id = history->get_func_counter();
+		history->incr_func_counter();
+		history->getFuncMap()->put(funcName, func_id);
 
-	        // add func id to reverse func map
-	        ModelVector<const char *> * func_map_rev = history->getFuncMapRev();
-	        if ( func_map_rev->size() <= func_id )
-	                func_map_rev->resize( func_id + 1 );
-	        func_map_rev->at(func_id) = funcName;
-	   } else {
-	        func_id = history->getFuncMap()->get(funcName);
-	   }
+		// add func id to reverse func map
+		ModelVector<const char *> * func_map_rev = history->getFuncMapRev();
+		if ( func_map_rev->size() <= func_id )
+			func_map_rev->resize( func_id + 1 );
 
-	   history->enter_function(func_id, th->get_id());
-	 */
+		func_map_rev->at(func_id) = funcName;
+	} else {
+		func_id = history->getFuncMap()->get(funcName);
+	}
+
+	history->enter_function(func_id, th->get_id());
 }
 
 void cds_func_exit(const char * funcName) {
 	ensureModel();
 
-/*	Thread * th = thread_current();
-        uint32_t func_id;
+	Thread * th = thread_current();
+	uint32_t func_id;
 
-        ModelHistory *history = model->get_history();
-        func_id = history->getFuncMap()->get(funcName);
-
+	ModelHistory *history = model->get_history();
+	func_id = history->getFuncMap()->get(funcName);
+/*
  * func_id not found; this could happen in the case where a function calls cds_func_entry
  * when the model has been defined yet, but then an atomic inside the function initializes
  * the model. And then cds_func_exit is called upon the function exiting.
  *
-        if (func_id == 0)
-                return;
-
-        history->exit_function(func_id, th->get_id());
  */
+	if (func_id == 0)
+		return;
+
+	history->exit_function(func_id, th->get_id());
 }
