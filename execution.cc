@@ -1715,6 +1715,42 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	return action_select_next_thread(curr);
 }
 
+void ModelExecution::removeAction(ModelAction *act) {
+	{
+		sllnode<ModelAction *> * listref = act->getTraceRef();
+		if (listref != NULL) {
+			action_trace.erase(listref);
+		}
+	}
+	{
+		sllnode<ModelAction *> * listref = act->getThrdMapRef();
+		if (listref != NULL) {
+			SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
+			(*vec)[act->get_tid()].erase(listref);
+		}
+	}
+	if ((act->is_fence() && act->is_seqcst()) || act->is_unlock()) {
+		sllnode<ModelAction *> * listref = act->getActionRef();
+		if (listref != NULL) {
+			action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
+			list->erase(listref);
+		}
+	} else if (act->is_wait()) {
+		sllnode<ModelAction *> * listref = act->getActionRef();
+		if (listref != NULL) {
+			void *mutex_loc = (void *) act->get_value();
+			get_safe_ptr_action(&obj_map, mutex_loc)->erase(listref);
+		}
+	} else if (act->is_write()) {
+		sllnode<ModelAction *> * listref = act->getActionRef();
+		if (listref != NULL) {
+			SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
+			(*vec)[act->get_tid()].erase(listref);
+		}
+	}
+
+}
+
 Fuzzer * ModelExecution::getFuzzer() {
 	return fuzzer;
 }

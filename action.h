@@ -192,6 +192,9 @@ public:
 	void setTraceRef(sllnode<ModelAction *> *ref) { trace_ref = ref; }
 	void setThrdMapRef(sllnode<ModelAction *> *ref) { thrdmap_ref = ref; }
 	void setActionRef(sllnode<ModelAction *> *ref) { action_ref = ref; }
+	sllnode<ModelAction *> * getTraceRef() { return trace_ref; }
+	sllnode<ModelAction *> * getThrdMapRef() { return thrdmap_ref; }
+	sllnode<ModelAction *> * getActionRef() { return action_ref; }
 	SNAPSHOTALLOC
 private:
 	const char * get_type_str() const;

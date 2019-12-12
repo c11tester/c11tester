@@ -123,6 +123,7 @@ private:
 	ClockVector * get_hb_from_write(ModelAction *rf) const;
 	ModelAction * get_uninitialized_action(ModelAction *curr) const;
 	ModelAction * convertNonAtomicStore(void*);
+	void removeAction(ModelAction *act);
 
 #ifdef TLS
 	pthread_key_t pthreadkey;
@@ -132,12 +133,13 @@ private:
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
-	action_list_t action_trace;
 
 
 	SnapVector<Thread *> thread_map;
 	SnapVector<Thread *> pthread_map;
 	uint32_t pthread_counter;
+
+	action_list_t action_trace;
 
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
