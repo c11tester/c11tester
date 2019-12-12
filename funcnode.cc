@@ -20,6 +20,8 @@ FuncNode::FuncNode(ModelHistory * history) :
 	loc_act_map(128),
 	predicate_tree_position(),
 	predicate_leaves(),
+	leaves_tmp_storage(),
+	weight_debug_vec(),
 	edge_table(32),
 	out_edges()
 {
@@ -274,6 +276,9 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 	inst_pred_map.reset();
 	inst_id_map.reset();
 
+	// Clear the set of leaves encountered in this path
+	leaves_tmp_storage.clear();
+
 	sllnode<ModelAction *> *it = act_list->begin();
 	Predicate * curr_pred = predicate_tree_entry;
 	while (it != NULL) {
@@ -305,6 +310,10 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 				Predicate * old_pred = inst_pred_map.get(next_inst);
 				Predicate * back_pred = old_pred->get_parent();
 
+				// For updating weights
+				leaves_tmp_storage.push_back(curr_pred);
+
+				// Add to the set of backedges
 				curr_pred->add_backedge(back_pred);
 				curr_pred = back_pred;
 				continue;
@@ -340,6 +349,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		curr_pred->set_exit(predicate_tree_exit);
 	}
 
+	leaves_tmp_storage.push_back(curr_pred);
 	update_predicate_tree_weight();
 }
 
@@ -411,6 +421,8 @@ ModelAction * next_act, Predicate ** unset_predicate)
 			}
 		}
 
+		delete pred_expr_it;
+
 		if (predicate_correct) {
 			*curr_pred = branch;
 			branch_found = true;
@@ -449,6 +461,8 @@ SnapVector<struct half_pred_expr *> * half_pred_expressions)
 						half_pred_expressions->push_back(expression);
 					}
 				}
+
+				delete loc_it;
 			}
 		} else {
 			// next_inst is not single location
@@ -585,6 +599,8 @@ void FuncNode::add_to_val_loc_map(value_set_t * values, void * loc)
 		uint64_t val = it->next();
 		add_to_val_loc_map(val, loc);
 	}
+
+	delete it;
 }
 
 void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations)
@@ -613,6 +629,8 @@ void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_location
 		}
 		_neighbors->add(new_loc);
 	}
+
+	delete loc_it;
 }
 
 /* Every time a thread enters a function, set its position to the predicate tree entry */
@@ -744,7 +762,8 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 }
 
 /* Implement quick sort to sort leaves before assigning base scores */
-static int partition(SnapVector<Predicate *> * arr, int low, int high)
+template<typename _Tp>
+static int partition(ModelVector<_Tp *> * arr, int low, int high)
 {
 	unsigned int pivot = (*arr)[high]->get_depth();
 	int i = low - 1;
@@ -752,13 +771,13 @@ static int partition(SnapVector<Predicate *> * arr, int low, int high)
 	for (int j = low; j <= high - 1; j++) {
 		if ( (*arr)[j]->get_depth() < pivot ) {
 			i++;
-			Predicate *tmp = (*arr)[i];
+			_Tp * tmp = (*arr)[i];
 			(*arr)[i] = (*arr)[j];
 			(*arr)[j] = tmp;
 		}
 	}
 
-	Predicate * tmp = (*arr)[i + 1];
+	_Tp * tmp = (*arr)[i + 1];
 	(*arr)[i + 1] = (*arr)[high];
 	(*arr)[high] = tmp;
 
@@ -766,7 +785,8 @@ static int partition(SnapVector<Predicate *> * arr, int low, int high)
 }
 
 /* Implement quick sort to sort leaves before assigning base scores */
-static void quickSort(SnapVector<Predicate *> * arr, int low, int high)
+template<typename _Tp>
+static void quickSort(ModelVector<_Tp *> * arr, int low, int high)
 {
 	if (low < high) {
 		int pi = partition(arr, low, high);
@@ -779,20 +799,22 @@ static void quickSort(SnapVector<Predicate *> * arr, int low, int high)
 void FuncNode::assign_initial_weight()
 {
 	PredSetIter * it = predicate_leaves.iterator();
-	SnapVector<Predicate *> leaves;
+	leaves_tmp_storage.clear();
+
 	while (it->hasNext()) {
 		Predicate * pred = it->next();
 		double weight = 100.0 / sqrt(pred->get_expl_count() + 1);
 		pred->set_weight(weight);
-		leaves.push_back(pred);
+		leaves_tmp_storage.push_back(pred);
 	}
+	delete it;
 
-	quickSort(&leaves, 0, leaves.size() - 1);
+	quickSort(&leaves_tmp_storage, 0, leaves_tmp_storage.size() - 1);
 
 	// assign scores for internal nodes;
-	while ( !leaves.empty() ) {
-		Predicate * leaf = leaves.back();
-		leaves.pop_back();
+	while ( !leaves_tmp_storage.empty() ) {
+		Predicate * leaf = leaves_tmp_storage.back();
+		leaves_tmp_storage.pop_back();
 
 		Predicate * curr = leaf->get_parent();
 		while (curr != NULL) {
@@ -834,8 +856,61 @@ void FuncNode::update_predicate_tree_weight()
 	if (marker == 2) {
 		// Predicate tree is initially built
 		assign_initial_weight();
-	} else {
+		return;
+	}
 
+	weight_debug_vec.clear();
+
+	quickSort(&leaves_tmp_storage, 0, leaves_tmp_storage.size() - 1);
+	for (uint i = 0; i < leaves_tmp_storage.size(); i++) {
+		Predicate * pred = leaves_tmp_storage[i];
+		double weight = 100.0 / sqrt(pred->get_expl_count() + 1);
+		pred->set_weight(weight);
+	}
+
+	// Update weights in internal nodes
+	while ( !leaves_tmp_storage.empty() ) {
+		Predicate * leaf = leaves_tmp_storage.back();
+		leaves_tmp_storage.pop_back();
+
+		Predicate * curr = leaf->get_parent();
+		while (curr != NULL) {
+			ModelVector<Predicate *> * children = curr->get_children();
+			double weight_sum = 0;
+			bool has_unassigned_node = false;
+
+			for (uint i = 0; i < children->size(); i++) {
+				Predicate * child = (*children)[i];
+
+				double weight = child->get_weight();
+				if (weight != 0)
+					weight_sum += weight;
+				else if ( predicate_leaves.contains(child) ) {
+					// If this child is a leaf
+					double weight = 100.0 / sqrt(child->get_expl_count() + 1);
+					child->set_weight(weight);
+					weight_sum += weight;
+				} else {
+					has_unassigned_node = true;
+					weight_debug_vec.push_back(child);	// For debugging purpose
+					break;
+				}
+			}
+
+			if (!has_unassigned_node) {
+				double average_weight = (double) weight_sum / (double) children->size();
+				double weight = average_weight * pow(0.9, curr->get_depth());
+				curr->set_weight(weight);
+			} else
+				break;
+
+			curr = curr->get_parent();
+		}
+	}
+
+	for (uint i = 0; i < weight_debug_vec.size(); i++) {
+		Predicate * tmp = weight_debug_vec[i];
+		ASSERT( tmp->get_weight() != 0 );
 	}
 }
 

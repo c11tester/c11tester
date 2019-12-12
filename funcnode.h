@@ -118,7 +118,10 @@ private:
 
 	/* Run-time position in the predicate tree for each thread */
 	ModelVector<Predicate *> predicate_tree_position;
+
 	PredSet predicate_leaves;
+	ModelVector<Predicate *> leaves_tmp_storage;
+	ModelVector<Predicate *> weight_debug_vec;
 
 	/* Store the relation between this FuncNode and other FuncNodes */
 	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;

@@ -410,6 +410,7 @@ void ModelHistory::remove_waiting_thread(thread_id_t tid)
 	}
 
 	self_wait_obj->clear_waiting_for();
+	delete iter;
 }
 
 void ModelHistory::stop_waiting_for_node(thread_id_t self_id,
@@ -503,7 +504,11 @@ void ModelHistory::monitor_waiting_thread(uint32_t func_id, thread_id_t tid)
 				stop_waiting_for_node(waited_by_id, tid, target);
 			}
 		}
+
+		delete node_iter;
 	}
+
+	delete tid_iter;
 }
 
 void ModelHistory::monitor_waiting_thread_counter(thread_id_t tid)
@@ -532,6 +537,8 @@ void ModelHistory::monitor_waiting_thread_counter(thread_id_t tid)
 			}
 		}
 	}
+
+	delete tid_iter;
 }
 
 /* Reallocate some snapshotted memories when new executions start */

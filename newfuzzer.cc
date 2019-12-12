@@ -68,6 +68,8 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 						break;
 					}
 				}
+
+				delete it;
 			}
 
 			prune_writes(tid, selected_branch, rf_set, inst_act_map);
@@ -113,13 +115,14 @@ inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
 			PredExprSet * pred_expressions = branch->get_pred_expressions();
 			any_child_match = true;
 
-			/* Do not check unset predicates */
+			branch->incr_total_checking_count();
+
 			if (pred_expressions->isEmpty()) {
+				/* Do not check predicate expression of unset predicates */
 				available_branches_tmp_storage.push_back(branch);
+				branch->incr_store_visible_count();
 				continue;
 			}
-
-			branch->incr_total_checking_count();
 
 			/* Iterate over all write actions */
 			for (uint j = 0;j < rf_set->size();j++) {
@@ -417,6 +420,7 @@ inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate)
 			break;
 	}
 
+	delete pred_expr_it;
 	return satisfy_predicate;
 }
 
