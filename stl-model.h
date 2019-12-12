@@ -214,7 +214,7 @@ public:
 		_size++;
 	}
 
-	sllnode<_Tp>add_front(_Tp val) {
+	sllnode<_Tp>* add_front(_Tp val) {
 		sllnode<_Tp> * tmp = new sllnode<_Tp>();
 		tmp->prev = NULL;
 		tmp->next = head;
@@ -273,7 +273,7 @@ public:
 		_size=0;
 	}
 
-	void insertAfter(sllnode<_Tp> * node, _Tp val) {
+	sllnode<_Tp> * insertAfter(sllnode<_Tp> * node, _Tp val) {
 		sllnode<_Tp> *tmp = new sllnode<_Tp>();
 		tmp->val = val;
 		tmp->prev = node;
@@ -285,6 +285,7 @@ public:
 			tmp->next->prev = tmp;
 		}
 		_size++;
+		return tmp;
 	}
 
 	void insertBefore(sllnode<_Tp> * node, _Tp val) {

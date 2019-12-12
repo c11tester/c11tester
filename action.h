@@ -189,6 +189,9 @@ public:
 	void set_thread_operand(Thread *th) { thread_operand = th; }
 	void set_uninit_action(ModelAction *act) { uninitaction = act; }
 	ModelAction * get_uninit_action() { return uninitaction; }
+	void setTraceRef(sllnode<ModelAction *> *ref) { trace_ref = ref; }
+	void setThrdMapRef(sllnode<ModelAction *> *ref) { thrdmap_ref = ref; }
+	void setActionRef(sllnode<ModelAction *> *ref) { action_ref = ref; }
 	SNAPSHOTALLOC
 private:
 	const char * get_type_str() const;
@@ -224,6 +227,10 @@ private:
 	 */
 	ClockVector *cv;
 	ClockVector *rf_cv;
+	sllnode<ModelAction *> * trace_ref;
+	sllnode<ModelAction *> * thrdmap_ref;
+	sllnode<ModelAction *> * action_ref;
+
 
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;

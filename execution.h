@@ -137,7 +137,7 @@ private:
 	Scheduler * const scheduler;
 	action_list_t action_trace;
 
-  
+
 	SnapVector<Thread *> thread_map;
 	SnapVector<Thread *> pthread_map;
 	uint32_t pthread_counter;

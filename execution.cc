@@ -318,6 +318,7 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 			if (canprune && curr->get_type() == ATOMIC_READ) {
 				int tid = id_to_int(curr->get_tid());
 				(*obj_thrd_map.get(curr->get_location()))[tid].pop_back();
+				curr->setThrdMapRef(NULL);
 			}
 			return true;
 		}
@@ -1122,13 +1123,13 @@ void ModelExecution::add_uninit_action_to_lists(ModelAction *act)
 				new (&(*vec)[i]) action_list_t();
 			}
 		}
-		(*vec)[uninit_id].push_front(uninit);
+		uninit->setActionRef((*vec)[uninit_id].add_front(uninit));
 	}
 
 	// Update action trace, a total order of all actions
-	if (uninit)
-		action_trace.push_front(uninit);
-
+	if (uninit) {
+		uninit->setTraceRef(action_trace.add_front(uninit));
+	}
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
 	if ((int)vec->size() <= tid) {
@@ -1138,7 +1139,7 @@ void ModelExecution::add_uninit_action_to_lists(ModelAction *act)
 			new (&(*vec)[i]) action_list_t();
 	}
 	if (uninit)
-		(*vec)[uninit_id].push_front(uninit);
+		uninit->setThrdMapRef((*vec)[uninit_id].add_front(uninit));
 
 	// Update thrd_last_action, the last action taken by each thrad
 	if ((int)thrd_last_action.size() <= tid)
@@ -1160,11 +1161,12 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 	int tid = id_to_int(act->get_tid());
 	if ((act->is_fence() && act->is_seqcst()) || act->is_unlock()) {
 		action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
-		list->push_back(act);
+		act->setActionRef(list->add_back(act));
 	}
 
 	// Update action trace, a total order of all actions
-	action_trace.push_back(act);
+	act->setTraceRef(action_trace.add_back(act));
+
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
@@ -1174,9 +1176,9 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
 	}
-	(*vec)[tid].push_back(act);
+	act->setThrdMapRef((*vec)[tid].add_back(act));
 
-	// Update thrd_last_action, the last action taken by each thrad
+	// Update thrd_last_action, the last action taken by each thread
 	if ((int)thrd_last_action.size() <= tid)
 		thrd_last_action.resize(get_num_threads());
 	thrd_last_action[tid] = act;
@@ -1190,7 +1192,7 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 
 	if (act->is_wait()) {
 		void *mutex_loc = (void *) act->get_value();
-		get_safe_ptr_action(&obj_map, mutex_loc)->push_back(act);
+		act->setActionRef(get_safe_ptr_action(&obj_map, mutex_loc)->add_back(act));
 
 		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, mutex_loc);
 		if ((int)vec->size() <= tid) {
@@ -1199,41 +1201,42 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 			for(uint i = oldsize;i < priv->next_thread_id;i++)
 				new (&(*vec)[i]) action_list_t();
 		}
-		(*vec)[tid].push_back(act);
+		act->setThrdMapRef((*vec)[tid].add_back(act));
 	}
 }
 
-void insertIntoActionList(action_list_t *list, ModelAction *act) {
+sllnode<ModelAction *>* insertIntoActionList(action_list_t *list, ModelAction *act) {
 	sllnode<ModelAction*> * rit = list->end();
 	modelclock_t next_seq = act->get_seq_number();
 	if (rit == NULL || (rit->getVal()->get_seq_number() == next_seq))
-		list->push_back(act);
+		return list->add_back(act);
 	else {
 		for(;rit != NULL;rit=rit->getPrev()) {
 			if (rit->getVal()->get_seq_number() == next_seq) {
-				list->insertAfter(rit, act);
-				break;
+				return list->insertAfter(rit, act);
 			}
 		}
+		return NULL;
 	}
 }
 
-void insertIntoActionListAndSetCV(action_list_t *list, ModelAction *act) {
+sllnode<ModelAction *>* insertIntoActionListAndSetCV(action_list_t *list, ModelAction *act) {
 	sllnode<ModelAction*> * rit = list->end();
 	modelclock_t next_seq = act->get_seq_number();
 	if (rit == NULL) {
 		act->create_cv(NULL);
+		return NULL;
 	} else if (rit->getVal()->get_seq_number() == next_seq) {
 		act->create_cv(rit->getVal());
-		list->push_back(act);
+		return list->add_back(act);
 	} else {
 		for(;rit != NULL;rit=rit->getPrev()) {
 			if (rit->getVal()->get_seq_number() == next_seq) {
 				act->create_cv(rit->getVal());
-				list->insertAfter(rit, act);
-				break;
+				return list->insertAfter(rit, act);
 			}
 		}
+		return NULL;
 	}
 }
 
@@ -1248,7 +1251,7 @@ void insertIntoActionListAndSetCV(action_list_t *list, ModelAction *act) {
 void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 {
 	int tid = id_to_int(act->get_tid());
-	insertIntoActionListAndSetCV(&action_trace, act);
+	act->setTraceRef(insertIntoActionListAndSetCV(&action_trace, act));
 
 	// Update obj_thrd_map, a per location, per thread, order of actions
 	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
@@ -1258,7 +1261,7 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
 	}
-	insertIntoActionList(&(*vec)[tid],act);
+	act->setThrdMapRef(insertIntoActionList(&(*vec)[tid],act));
 
 	// Update thrd_last_action, the last action taken by each thrad
 	if (thrd_last_action[tid]->get_seq_number() == act->get_seq_number())
@@ -1275,7 +1278,7 @@ void ModelExecution::add_write_to_lists(ModelAction *write) {
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
 	}
-	(*vec)[tid].push_back(write);
+	write->setActionRef((*vec)[tid].add_back(write));
 }
 
 /**
