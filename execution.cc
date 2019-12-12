@@ -1366,6 +1366,9 @@ ModelAction * ModelExecution::get_last_unlock(ModelAction *curr) const
 	void *location = curr->get_location();
 
 	action_list_t *list = obj_map.get(location);
+	if (list == NULL)
+		return NULL;
+
 	/* Find: max({i in dom(S) | isUnlock(t_i) && samevar(t_i, t)}) */
 	sllnode<ModelAction*>* rit;
 	for (rit = list->end();rit != NULL;rit=rit->getPrev())
