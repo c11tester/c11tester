@@ -108,7 +108,6 @@ private:
 	void process_thread_action(ModelAction *curr);
 	void read_from(ModelAction *act, ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
-	void add_uninit_action_to_lists(ModelAction *act);
 	void add_action_to_lists(ModelAction *act);
 	void add_normal_write_to_lists(ModelAction *act);
 	void add_write_to_lists(ModelAction *act);
@@ -121,7 +120,6 @@ private:
 	bool r_modification_order(ModelAction *curr, const ModelAction *rf, SnapVector<const ModelAction *> *priorset, bool *canprune, bool check_only = false);
 	void w_modification_order(ModelAction *curr);
 	ClockVector * get_hb_from_write(ModelAction *rf) const;
-	ModelAction * get_uninitialized_action(ModelAction *curr) const;
 	ModelAction * convertNonAtomicStore(void*);
 	void removeAction(ModelAction *act);
 

@@ -66,12 +66,12 @@ bool hasNonAtomicStore(const void *address) {
 	uint64_t shadowval = *shadow;
 	if (ISSHORTRECORD(shadowval)) {
 		//Do we have a non atomic write with a non-zero clock
-		return ((WRITEVECTOR(shadowval) != 0) && !(ATOMICMASK & shadowval));
+		return !(ATOMICMASK & shadowval);
 	} else {
 		if (shadowval == 0)
 			return false;
 		struct RaceRecord *record = (struct RaceRecord *)shadowval;
-		return !record->isAtomic && record->writeClock != 0;
+		return !record->isAtomic;
 	}
 }
 

@@ -90,7 +90,7 @@ bool FuncInst::is_read() const
  * is_write() <==> pure writes (excluding rmw) */
 bool FuncInst::is_write() const
 {
-	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT || type == NONATOMIC_WRITE;
+	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == NONATOMIC_WRITE;
 }
 
 void FuncInst::print()

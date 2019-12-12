@@ -58,7 +58,6 @@ typedef enum action_type {
 	PTHREAD_CREATE,	// < A pthread creation action
 	PTHREAD_JOIN,	// < A pthread join action
 
-	ATOMIC_UNINIT,	// < Represents an uninitialized atomic
 	NONATOMIC_WRITE,	// < Represents a non-atomic store
 	ATOMIC_INIT,	// < Initialization of an atomic object (e.g., atomic_init())
 	ATOMIC_WRITE,	// < An atomic write action
@@ -85,8 +84,8 @@ typedef enum action_type {
  * @brief Represents a single atomic action
  *
  * A ModelAction is always allocated as non-snapshotting, because it is used in
- * multiple executions during backtracking. Except for fake uninitialized
- * (ATOMIC_UNINIT) ModelActions, each action is assigned a unique sequence
+ * multiple executions during backtracking. Except for non-atomic write
+ * ModelActions, each action is assigned a unique sequence
  * number.
  */
 class ModelAction {
@@ -140,7 +139,6 @@ public:
 	bool is_success_lock() const;
 	bool is_failed_trylock() const;
 	bool is_atomic_var() const;
-	bool is_uninitialized() const;
 	bool is_read() const;
 	bool is_write() const;
 	bool is_yield() const;
@@ -187,8 +185,6 @@ public:
 	/* to accomodate pthread create and join */
 	Thread * thread_operand;
 	void set_thread_operand(Thread *th) { thread_operand = th; }
-	void set_uninit_action(ModelAction *act) { uninitaction = act; }
-	ModelAction * get_uninit_action() { return uninitaction; }
 	void setTraceRef(sllnode<ModelAction *> *ref) { trace_ref = ref; }
 	void setThrdMapRef(sllnode<ModelAction *> *ref) { thrdmap_ref = ref; }
 	void setActionRef(sllnode<ModelAction *> *ref) { action_ref = ref; }
@@ -219,7 +215,6 @@ private:
 
 	/** @brief The last fence release from the same thread */
 	const ModelAction *last_fence_release;
-	ModelAction * uninitaction;
 
 	/**
 	 * @brief The clock vector for this operation
@@ -253,7 +248,7 @@ private:
 	/**
 	 * @brief The sequence number of this action
 	 *
-	 * Except for ATOMIC_UNINIT actions, this number should be unique and
+	 * Except for non atomic write actions, this number should be unique and
 	 * should represent the action's position in the execution order.
 	 */
 	modelclock_t seq_number;

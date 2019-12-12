@@ -711,10 +711,6 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 
 	wake_up_sleeping_actions(curr);
 
-	/* Add uninitialized actions to lists */
-	if (!second_part_of_rmw)
-		add_uninit_action_to_lists(curr);
-
 	SnapVector<ModelAction *> * rf_set = NULL;
 	/* Build may_read_from set for newly-created actions */
 	if (newly_explored && curr->is_read())
@@ -1096,58 +1092,6 @@ ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
 }
 
 /**
- * Performs various bookkeeping operations for the current ModelAction when it is
- * the first atomic action occurred at its memory location.
- *
- * For instance, adds uninitialized action to the per-object, per-thread action vector
- * and to the action trace list of all thread actions.
- *
- * @param act is the ModelAction to process.
- */
-void ModelExecution::add_uninit_action_to_lists(ModelAction *act)
-{
-	int tid = id_to_int(act->get_tid());
-	ModelAction *uninit = NULL;
-	int uninit_id = -1;
-	SnapVector<action_list_t> *objvec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
-	if (objvec->empty() && act->is_atomic_var()) {
-		uninit = get_uninitialized_action(act);
-		uninit_id = id_to_int(uninit->get_tid());
-		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
-		if ((int)vec->size() <= uninit_id) {
-			int oldsize = (int) vec->size();
-			vec->resize(uninit_id + 1);
-			for(int i = oldsize;i < uninit_id + 1;i++) {
-				new (&(*vec)[i]) action_list_t();
-			}
-		}
-		uninit->setActionRef((*vec)[uninit_id].add_front(uninit));
-	}
-
-	// Update action trace, a total order of all actions
-	if (uninit) {
-		uninit->setTraceRef(action_trace.add_front(uninit));
-	}
-	// Update obj_thrd_map, a per location, per thread, order of actions
-	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
-	if ((int)vec->size() <= tid) {
-		uint oldsize = vec->size();
-		vec->resize(priv->next_thread_id);
-		for(uint i = oldsize;i < priv->next_thread_id;i++)
-			new (&(*vec)[i]) action_list_t();
-	}
-	if (uninit)
-		uninit->setThrdMapRef((*vec)[uninit_id].add_front(uninit));
-
-	// Update thrd_last_action, the last action taken by each thrad
-	if ((int)thrd_last_action.size() <= tid)
-		thrd_last_action.resize(get_num_threads());
-	if (uninit)
-		thrd_last_action[uninit_id] = uninit;
-}
-
-
-/**
  * Performs various bookkeeping operations for the current ModelAction. For
  * instance, adds action to the per-object, per-thread action vector and to the
  * action trace list of all thread actions.
@@ -1483,25 +1427,6 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 		model_print("End printing read_from_past\n");
 	}
 	return rf_set;
-}
-
-/**
- * @brief Get an action representing an uninitialized atomic
- *
- * This function may create a new one.
- *
- * @param curr The current action, which prompts the creation of an UNINIT action
- * @return A pointer to the UNINIT ModelAction
- */
-ModelAction * ModelExecution::get_uninitialized_action(ModelAction *curr) const
-{
-	ModelAction *act = curr->get_uninit_action();
-	if (!act) {
-		act = new ModelAction(ATOMIC_UNINIT, std::memory_order_relaxed, curr->get_location(), params->uninitvalue, model_thread);
-		curr->set_uninit_action(act);
-	}
-	act->create_cv(NULL);
-	return act;
 }
 
 static void print_list(action_list_t *list)

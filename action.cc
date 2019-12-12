@@ -36,7 +36,6 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	position(NULL),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	trace_ref(NULL),
@@ -71,7 +70,6 @@ ModelAction::ModelAction(action_type_t type, memory_order order, uint64_t value,
 	position(NULL),
 	time(_time),
 	last_fence_release(NULL),
-	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	trace_ref(NULL),
@@ -105,7 +103,6 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	position(NULL),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	trace_ref(NULL),
@@ -143,7 +140,6 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	position(position),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	trace_ref(NULL),
@@ -182,7 +178,6 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	position(position),
 	reads_from(NULL),
 	last_fence_release(NULL),
-	uninitaction(NULL),
 	cv(NULL),
 	rf_cv(NULL),
 	trace_ref(NULL),
@@ -228,8 +223,6 @@ void ModelAction::copy_from_new(ModelAction *newaction)
 
 void ModelAction::set_seq_number(modelclock_t num)
 {
-	/* ATOMIC_UNINIT actions should never have non-zero clock */
-	ASSERT(!is_uninitialized());
 	ASSERT(seq_number == ACTION_INITIAL_CLOCK);
 	seq_number = num;
 }
@@ -302,11 +295,6 @@ bool ModelAction::is_atomic_var() const
 	return is_read() || could_be_write();
 }
 
-bool ModelAction::is_uninitialized() const
-{
-	return type == ATOMIC_UNINIT;
-}
-
 bool ModelAction::is_read() const
 {
 	return type == ATOMIC_READ || type == ATOMIC_RMWR || type == ATOMIC_RMWRCAS || type == ATOMIC_RMW;
@@ -314,7 +302,7 @@ bool ModelAction::is_read() const
 
 bool ModelAction::is_write() const
 {
-	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == ATOMIC_UNINIT || type == NONATOMIC_WRITE;
+	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == NONATOMIC_WRITE;
 }
 
 bool ModelAction::could_be_write() const
@@ -643,19 +631,6 @@ void ModelAction::set_read_from(ModelAction *act)
 	ASSERT(act);
 
 	reads_from = act;
-	if (act->is_uninitialized()) {	// WL
-		uint64_t val = *((uint64_t *) location);
-		ModelAction * act_uninitialized = (ModelAction *)act;
-		act_uninitialized->set_value(val);
-		reads_from = act_uninitialized;
-
-// disabled by WL, because LLVM IR is unable to detect atomic init
-/*		model->assert_bug("May read from uninitialized atomic:\n"
-                                "    action %d, thread %d, location %p (%s, %s)",
-                                seq_number, id_to_int(tid), location,
-                                get_type_str(), get_mo_str());
- */
-	}
 }
 
 /**
@@ -702,7 +677,6 @@ const char * ModelAction::get_type_str() const
 	case PTHREAD_CREATE: return "pthread create";
 	case PTHREAD_JOIN: return "pthread join";
 
-	case ATOMIC_UNINIT: return "uninitialized";
 	case NONATOMIC_WRITE: return "nonatomic write";
 	case ATOMIC_READ: return "atomic read";
 	case ATOMIC_WRITE: return "atomic write";

@@ -6,7 +6,6 @@
  * the model checker.
  */
 struct model_params {
-	unsigned int uninitvalue;
 	int maxexecutions;
 	bool nofork;
 

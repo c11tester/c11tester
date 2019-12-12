@@ -20,7 +20,6 @@
 void param_defaults(struct model_params *params)
 {
 	params->verbose = !!DBG_ENABLED();
-	params->uninitvalue = 0;
 	params->maxexecutions = 10;
 	params->nofork = false;
 }
@@ -47,9 +46,6 @@ static void print_usage(struct model_params *params)
 		"                              0 is quiet; 1 shows valid executions; 2 is noisy;\n"
 		"                              3 is noisier.\n"
 		"                              Default: %d\n"
-		"-u, --uninitialized=VALUE   Return VALUE any load which may read from an\n"
-		"                              uninitialized atomic.\n"
-		"                              Default: %u\n"
 		"-t, --analysis=NAME         Use Analysis Plugin.\n"
 		"-o, --options=NAME          Option for previous analysis plugin.  \n"
 		"-x, --maxexec=NUM           Maximum number of executions.\n"
@@ -57,7 +53,6 @@ static void print_usage(struct model_params *params)
 		"                            -o help for a list of options\n"
 		"-n                          No fork\n\n",
 		params->verbose,
-		params->uninitvalue,
 		params->maxexecutions);
 	model_print("Analysis plugins:\n");
 	for(unsigned int i=0;i<registeredanalysis->size();i++) {
@@ -83,11 +78,10 @@ bool install_plugin(char * name) {
 }
 
 void parse_options(struct model_params *params) {
-	const char *shortopts = "hnt:o:u:x:v::";
+	const char *shortopts = "hnt:o:x:v::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"verbose", optional_argument, NULL, 'v'},
-		{"uninitialized", required_argument, NULL, 'u'},
 		{"analysis", required_argument, NULL, 't'},
 		{"options", required_argument, NULL, 'o'},
 		{"maxexecutions", required_argument, NULL, 'x'},
@@ -133,9 +127,6 @@ void parse_options(struct model_params *params) {
 			break;
 		case 'v':
 			params->verbose = optarg ? atoi(optarg) : 1;
-			break;
-		case 'u':
-			params->uninitvalue = atoi(optarg);
 			break;
 		case 't':
 			if (install_plugin(optarg))

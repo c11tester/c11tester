@@ -55,12 +55,6 @@ Useful Options
 
   > Specify the number number of executions to run.
 
-`-u num`
-
-  > Value to provide to atomics loads from uninitialized memory locations. The
-  > default is 0, but this may cause some programs to throw exceptions
-  > (segfault) before the model checker prints a trace.
-
 Benchmarks
 -------------------
 
@@ -179,9 +173,8 @@ summaries are based off of a few different properties of an execution, which we
 will break down here:
 
 * A _buggy_ execution is an execution in which C11Tester has found a real
-  bug: a data race, a deadlock, failure of a user-provided assertion, or an
-  uninitialized load, for instance. C11Tester will only report bugs in feasible
-  executions.
+  bug: a data race, a deadlock, or a failure of a user-provided assertion.
+  C11Tester will only report bugs in feasible executions.
 
 
 Other Notes and Pitfalls
