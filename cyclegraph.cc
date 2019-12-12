@@ -131,6 +131,7 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 		if (tonode != rmwnode) {
 			rmwnode->addEdge(tonode);
 		}
+		tonode->refcount--;
 	}
 	fromnode->edges.clear();
 
@@ -297,7 +298,8 @@ bool CycleGraph::checkReachable(const ModelAction *from, const ModelAction *to) 
 CycleNode::CycleNode(const ModelAction *act) :
 	action(act),
 	hasRMW(NULL),
-	cv(new ClockVector(NULL, act))
+	cv(new ClockVector(NULL, act)),
+	refcount(0)
 {
 }
 
@@ -317,20 +319,6 @@ unsigned int CycleNode::getNumEdges() const
 }
 
 /**
- * @brief Remove a (forward) edge from this CycleNode
- * @return The CycleNode which was popped, if one exists; otherwise NULL
- */
-CycleNode * CycleNode::removeEdge()
-{
-	if (edges.empty())
-		return NULL;
-
-	CycleNode *ret = edges.back();
-	edges.pop_back();
-	return ret;
-}
-
-/**
  * Adds an edge from this CycleNode to another CycleNode.
  * @param node The node to which we add a directed edge
  * @return True if this edge is a new edge; false otherwise
@@ -341,6 +329,7 @@ void CycleNode::addEdge(CycleNode *node)
 		if (edges[i] == node)
 			return;
 	edges.push_back(node);
+	node->refcount++;
 }
 
 /** @returns the RMW CycleNode that reads from the current CycleNode */

@@ -63,7 +63,6 @@ public:
 	void addEdge(CycleNode *node);
 	CycleNode * getEdge(unsigned int i) const;
 	unsigned int getNumEdges() const;
-	CycleNode * removeEdge();
 	bool setRMW(CycleNode *);
 	CycleNode * getRMW() const;
 	void clearRMW() { hasRMW = NULL; }
@@ -84,6 +83,9 @@ private:
 	/** ClockVector for this Node. */
 	ClockVector *cv;
 	friend class CycleGraph;
+
+	/** @brief Reference count to node. */
+	int refcount;
 };
 
 #endif	/* __CYCLEGRAPH_H__ */
