@@ -36,7 +36,7 @@ public:
 	void update_tree(action_list_t * act_list);
 	void update_inst_tree(func_inst_list_t * inst_list);
 	void update_predicate_tree(action_list_t * act_list);
-	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, SnapVector<Predicate *> * unset_predicates);
+	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, Predicate ** unset_predicate);
 
 	void incr_exit_count() { exit_count++; }
 	uint32_t get_exit_count() { return exit_count; }
@@ -60,7 +60,6 @@ public:
 	ModelList<FuncNode *> * get_out_edges() { return &out_edges; }
 	int compute_distance(FuncNode * target, int max_step = MAX_DIST);
 
-	void assign_base_score();
 	void print_predicate_tree();
 
 	MEMALLOC
@@ -87,9 +86,18 @@ private:
 	/* Possible entry atomic actions in this function */
 	func_inst_list_mt entry_insts;
 
-	void infer_predicates(FuncInst * next_inst, ModelAction * next_act, HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map, SnapVector<struct half_pred_expr *> * half_pred_expressions);
-	void generate_predicates(Predicate ** curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
-	bool amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act);
+	/* Map a FuncInst to the its predicate when updating predicate trees */
+	HashTable<FuncInst *, Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_pred_map;
+
+	/* Number FuncInsts to detect loops when updating predicate trees */
+	HashTable<FuncInst *, uint32_t, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_id_map;
+
+	/* Delect read actions at the same locations when updating predicate trees */
+	HashTable<void *, ModelAction *, uintptr_t, 0, model_malloc, model_calloc, model_free> loc_act_map;
+
+	void infer_predicates(FuncInst * next_inst, ModelAction * next_act, SnapVector<struct half_pred_expr *> * half_pred_expressions);
+	void generate_predicates(Predicate * curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
+	bool amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst, ModelAction * next_act);
 
 	/* Store action_lists when calls to update_tree are deferred */
 	SnapList<action_list_t *> * action_list_buffer;
@@ -110,12 +118,16 @@ private:
 
 	/* Run-time position in the predicate tree for each thread */
 	ModelVector<Predicate *> predicate_tree_position;
+	PredSet predicate_leaves;
 
 	/* Store the relation between this FuncNode and other FuncNodes */
 	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;
 
 	/* FuncNodes that follow this node */
 	ModelList<FuncNode *> out_edges;
+
+	void assign_initial_weight();
+	void update_predicate_tree_weight();
 };
 
 #endif	/* __FUNCNODE_H__ */

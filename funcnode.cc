@@ -15,7 +15,11 @@ FuncNode::FuncNode(ModelHistory * history) :
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
+	inst_pred_map(128),
+	inst_id_map(128),
+	loc_act_map(128),
 	predicate_tree_position(),
+	predicate_leaves(),
 	edge_table(32),
 	out_edges()
 {
@@ -23,7 +27,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 	predicate_tree_entry->add_predicate_expr(NOPREDICATE, NULL, true);
 
 	predicate_tree_exit = new Predicate(NULL, false, true);
-	predicate_tree_exit->alloc_pre_exit_predicates();
 	predicate_tree_exit->set_depth(MAX_DEPTH);
 
 	/* Snapshot data structures below */
@@ -264,16 +267,12 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		return;
 
 	incr_marker();
-
-	/* Map a FuncInst to the its predicate */
-	HashTable<FuncInst *, Predicate *, uintptr_t, 0> inst_pred_map(128);
-
-	// Number FuncInsts to detect loops
-	HashTable<FuncInst *, uint32_t, uintptr_t, 0> inst_id_map(128);
 	uint32_t inst_counter = 0;
 
-	/* Only need to store the locations of read actions */
-	HashTable<void *, ModelAction *, uintptr_t, 0> loc_act_map(128);
+	// Clear hashtables
+	loc_act_map.reset();
+	inst_pred_map.reset();
+	inst_id_map.reset();
 
 	sllnode<ModelAction *> *it = act_list->begin();
 	Predicate * curr_pred = predicate_tree_entry;
@@ -282,19 +281,16 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		FuncInst * next_inst = get_inst(next_act);
 		next_inst->set_associated_act(next_act, marker);
 
-		SnapVector<Predicate *> unset_predicates = SnapVector<Predicate *>();
-		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &unset_predicates);
+		Predicate * unset_predicate = NULL;
+		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &unset_predicate);
 
 		// A branch with unset predicate expression is detected
-		if (!branch_found && unset_predicates.size() != 0) {
-			ASSERT(unset_predicates.size() == 1);
-			Predicate * one_branch = unset_predicates[0];
-
-			bool amended = amend_predicate_expr(&curr_pred, next_inst, next_act);
+		if (!branch_found && unset_predicate != NULL) {
+			bool amended = amend_predicate_expr(curr_pred, next_inst, next_act);
 			if (amended)
 				continue;
 			else {
-				curr_pred = one_branch;
+				curr_pred = unset_predicate;
 				branch_found = true;
 			}
 		}
@@ -318,8 +314,8 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		// Generate new branches
 		if (!branch_found) {
 			SnapVector<struct half_pred_expr *> half_pred_expressions;
-			infer_predicates(next_inst, next_act, &loc_act_map, &half_pred_expressions);
-			generate_predicates(&curr_pred, next_inst, &half_pred_expressions);
+			infer_predicates(next_inst, next_act, &half_pred_expressions);
+			generate_predicates(curr_pred, next_inst, &half_pred_expressions);
 			continue;
 		}
 
@@ -327,6 +323,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			curr_pred->set_write(true);
 
 		if (next_act->is_read()) {
+			/* Only need to store the locations of read actions */
 			loc_act_map.put(next_act->get_location(), next_act);
 		}
 
@@ -342,6 +339,8 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		// Exit predicate is unset yet
 		curr_pred->set_exit(predicate_tree_exit);
 	}
+
+	update_predicate_tree_weight();
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -349,7 +348,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
  * @return true if branch found, false otherwise.
  */
 bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
-														 ModelAction * next_act, SnapVector<Predicate *> * unset_predicates)
+ModelAction * next_act, Predicate ** unset_predicate)
 {
 	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
@@ -362,48 +361,53 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 		/* Check against predicate expressions */
 		bool predicate_correct = true;
 		PredExprSet * pred_expressions = branch->get_pred_expressions();
-		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 
 		/* Only read and rmw actions my have unset predicate expressions */
 		if (pred_expressions->getSize() == 0) {
 			predicate_correct = false;
-			unset_predicates->push_back(branch);
+			if (*unset_predicate == NULL)
+				*unset_predicate = branch;
+			else
+				ASSERT(false);
+
+			continue;
 		}
 
+		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 		while (pred_expr_it->hasNext()) {
 			pred_expr * pred_expression = pred_expr_it->next();
 			uint64_t last_read, next_read;
 			bool equality;
 
 			switch(pred_expression->token) {
-			case NOPREDICATE:
-				predicate_correct = true;
-				break;
-			case EQUALITY:
-				FuncInst * to_be_compared;
-				ModelAction * last_act;
+				case NOPREDICATE:
+					predicate_correct = true;
+					break;
+				case EQUALITY:
+					FuncInst * to_be_compared;
+					ModelAction * last_act;
 
-				to_be_compared = pred_expression->func_inst;
-				last_act = to_be_compared->get_associated_act(marker);
+					to_be_compared = pred_expression->func_inst;
+					last_act = to_be_compared->get_associated_act(marker);
 
-				last_read = last_act->get_reads_from_value();
-				next_read = next_act->get_reads_from_value();
-				equality = (last_read == next_read);
-				if (equality != pred_expression->value)
+					last_read = last_act->get_reads_from_value();
+					next_read = next_act->get_reads_from_value();
+					equality = (last_read == next_read);
+					if (equality != pred_expression->value)
+						predicate_correct = false;
+
+					break;
+				case NULLITY:
+					next_read = next_act->get_reads_from_value();
+					// TODO: implement likely to be null
+					equality = ( (void*) (next_read & 0xffffffff) == NULL);
+					if (equality != pred_expression->value)
+						predicate_correct = false;
+					break;
+				default:
 					predicate_correct = false;
-
-				break;
-			case NULLITY:
-				next_read = next_act->get_reads_from_value();
-				// TODO: implement likely to be null
-				equality = ( (void*) (next_read & 0xffffffff) == NULL);
-				if (equality != pred_expression->value)
-					predicate_correct = false;
-				break;
-			default:
-				predicate_correct = false;
-				model_print("unkown predicate token\n");
-				break;
+					model_print("unkown predicate token\n");
+					break;
 			}
 		}
 
@@ -419,15 +423,14 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 
 /* Infer predicate expressions, which are generated in FuncNode::generate_predicates */
 void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
-																HashTable<void *, ModelAction *, uintptr_t, 0> * loc_act_map,
-																SnapVector<struct half_pred_expr *> * half_pred_expressions)
+SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	void * loc = next_act->get_location();
 
 	if (next_inst->is_read()) {
 		/* read + rmw */
-		if ( loc_act_map->contains(loc) ) {
-			ModelAction * last_act = loc_act_map->get(loc);
+		if ( loc_act_map.contains(loc) ) {
+			ModelAction * last_act = loc_act_map.get(loc);
 			FuncInst * last_inst = get_inst(last_act);
 			struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
 			half_pred_expressions->push_back(expression);
@@ -438,8 +441,8 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 				loc_set_iter * loc_it = loc_may_equal->iterator();
 				while (loc_it->hasNext()) {
 					void * neighbor = loc_it->next();
-					if (loc_act_map->contains(neighbor)) {
-						ModelAction * last_act = loc_act_map->get(neighbor);
+					if (loc_act_map.contains(neighbor)) {
+						ModelAction * last_act = loc_act_map.get(neighbor);
 						FuncInst * last_inst = get_inst(last_act);
 
 						struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
@@ -464,17 +467,21 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 }
 
 /* Able to generate complex predicates when there are multiple predciate expressions */
-void FuncNode::generate_predicates(Predicate ** curr_pred, FuncInst * next_inst,
-																	 SnapVector<struct half_pred_expr *> * half_pred_expressions)
+void FuncNode::generate_predicates(Predicate * curr_pred, FuncInst * next_inst,
+SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	if (half_pred_expressions->size() == 0) {
 		Predicate * new_pred = new Predicate(next_inst);
-		(*curr_pred)->add_child(new_pred);
-		new_pred->set_parent(*curr_pred);
+		curr_pred->add_child(new_pred);
+		new_pred->set_parent(curr_pred);
+
+		/* Maintain predicate leaves */
+		predicate_leaves.add(new_pred);
+		predicate_leaves.remove(curr_pred);
 
 		/* entry predicates and predicates containing pure write actions
 		 * have no predicate expressions */
-		if ( (*curr_pred)->is_entry_predicate() )
+		if ( curr_pred->is_entry_predicate() )
 			new_pred->add_predicate_expr(NOPREDICATE, NULL, true);
 		else if (next_inst->is_write()) {
 			/* next_inst->is_write() <==> pure writes */
@@ -511,9 +518,15 @@ void FuncNode::generate_predicates(Predicate ** curr_pred, FuncInst * next_inst,
 
 	for (uint i = 0;i < predicates.size();i++) {
 		Predicate * pred= predicates[i];
-		(*curr_pred)->add_child(pred);
-		pred->set_parent(*curr_pred);
+		curr_pred->add_child(pred);
+		pred->set_parent(curr_pred);
+
+		/* Add new predicate leaves */
+		predicate_leaves.add(pred);
 	}
+
+	/* Remove predicate node that has children */
+	predicate_leaves.remove(curr_pred);
 
 	/* Free memories allocated by infer_predicate */
 	for (uint i = 0;i < half_pred_expressions->size();i++) {
@@ -523,18 +536,21 @@ void FuncNode::generate_predicates(Predicate ** curr_pred, FuncInst * next_inst,
 }
 
 /* Amend predicates that contain no predicate expressions. Currenlty only amend with NULLITY predicates */
-bool FuncNode::amend_predicate_expr(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act)
+bool FuncNode::amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst, ModelAction * next_act)
 {
+	ModelVector<Predicate *> * children = curr_pred->get_children();
+	ASSERT(children->size() == 1);
+
 	// there should only be only child
-	Predicate * unset_pred = (*curr_pred)->get_children()->back();
+	Predicate * unset_pred = (*children)[0];
 	uint64_t read_val = next_act->get_reads_from_value();
 
 	// only generate NULLITY predicate when it is actually NULL.
 	if ( !next_inst->is_single_location() && (void*)read_val == NULL ) {
 		Predicate * new_pred = new Predicate(next_inst);
 
-		(*curr_pred)->add_child(new_pred);
-		new_pred->set_parent(*curr_pred);
+		curr_pred->add_child(new_pred);
+		new_pred->set_parent(curr_pred);
 
 		unset_pred->add_predicate_expr(NULLITY, NULL, false);
 		new_pred->add_predicate_expr(NULLITY, NULL, true);
@@ -727,26 +743,51 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	return -1;
 }
 
-void FuncNode::assign_base_score()
+/* Implement quick sort to sort leaves before assigning base scores */
+static int partition(SnapVector<Predicate *> * arr, int low, int high)
 {
-	SnapVector<Predicate *> leaves;
-	SnapList<Predicate *> queue;
-	queue.push_front(predicate_tree_entry);
+	unsigned int pivot = (*arr)[high]->get_depth();
+	int i = low - 1;
 
-	// assign leaf score
-	while ( !queue.empty() ) {
-		Predicate * node = queue.back();
-		queue.pop_back();
-
-		ModelVector<Predicate *> * children = node->get_children();
-		if (children->empty()) {
-			node->set_weight(1);
-			leaves.push_back(node);
+	for (int j = low; j <= high - 1; j++) {
+		if ( (*arr)[j]->get_depth() < pivot ) {
+			i++;
+			Predicate *tmp = (*arr)[i];
+			(*arr)[i] = (*arr)[j];
+			(*arr)[j] = tmp;
 		}
-
-		for (uint i = 0;i < children->size();i++)
-			queue.push_front( (*children)[i] );
 	}
+
+	Predicate * tmp = (*arr)[i + 1];
+	(*arr)[i + 1] = (*arr)[high];
+	(*arr)[high] = tmp;
+
+	return i + 1;
+}
+
+/* Implement quick sort to sort leaves before assigning base scores */
+static void quickSort(SnapVector<Predicate *> * arr, int low, int high)
+{
+	if (low < high) {
+		int pi = partition(arr, low, high);
+
+		quickSort(arr, low, pi - 1);
+		quickSort(arr, pi + 1, high);
+	}
+}
+
+void FuncNode::assign_initial_weight()
+{
+	PredSetIter * it = predicate_leaves.iterator();
+	SnapVector<Predicate *> leaves;
+	while (it->hasNext()) {
+		Predicate * pred = it->next();
+		double weight = 100.0 / sqrt(pred->get_expl_count() + 1);
+		pred->set_weight(weight);
+		leaves.push_back(pred);
+	}
+
+	quickSort(&leaves, 0, leaves.size() - 1);
 
 	// assign scores for internal nodes;
 	while ( !leaves.empty() ) {
@@ -764,7 +805,7 @@ void FuncNode::assign_base_score()
 			double weight_sum = 0;
 			bool has_unassigned_node = false;
 
-			for (uint i = 0;i < children->size();i++) {
+			for (uint i = 0; i < children->size(); i++) {
 				Predicate * child = (*children)[i];
 
 				// If a child has unassigned weight
@@ -785,6 +826,16 @@ void FuncNode::assign_base_score()
 
 			curr = curr->get_parent();
 		}
+	}
+}
+
+void FuncNode::update_predicate_tree_weight()
+{
+	if (marker == 2) {
+		// Predicate tree is initially built
+		assign_initial_weight();
+	} else {
+
 	}
 }
 

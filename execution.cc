@@ -51,10 +51,10 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	model(m),
 	params(NULL),
 	scheduler(scheduler),
-	action_trace(),
 	thread_map(2),	/* We'll always need at least 2 threads */
 	pthread_map(0),
 	pthread_counter(1),
+	action_trace(),
 	obj_map(),
 	condvar_waiters_map(),
 	obj_thrd_map(),
@@ -64,8 +64,6 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	priv(new struct model_snapshot_members ()),
 	mo_graph(new CycleGraph()),
 	fuzzer(new NewFuzzer()),
-	thrd_func_list(),
-	thrd_func_act_lists(),
 	isfinished(false)
 {
 	/* Initialize a model-checker thread, for special ModelActions */
@@ -1371,6 +1369,9 @@ ModelAction * ModelExecution::get_last_unlock(ModelAction *curr) const
 	void *location = curr->get_location();
 
 	action_list_t *list = obj_map.get(location);
+	if (list == NULL)
+		return NULL;
+
 	/* Find: max({i in dom(S) | isUnlock(t_i) && samevar(t_i, t)}) */
 	sllnode<ModelAction*>* rit;
 	for (rit = list->end();rit != NULL;rit=rit->getPrev())

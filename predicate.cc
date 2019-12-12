@@ -64,17 +64,6 @@ void Predicate::set_parent(Predicate * parent_pred)
 void Predicate::set_exit(Predicate * exit_pred)
 {
 	exit = exit_pred;
-	exit_pred->add_pre_exit_predicate(this);
-}
-
-void Predicate::alloc_pre_exit_predicates()
-{
-	pre_exit_predicates = new ModelVector<Predicate *>();
-}
-
-void Predicate::add_pre_exit_predicate(Predicate * pred)
-{
-	pre_exit_predicates->push_back(pred);
 }
 
 void Predicate::copy_predicate_expr(Predicate * other)
@@ -89,22 +78,22 @@ void Predicate::copy_predicate_expr(Predicate * other)
 	}
 }
 
-/* Return the single child branch of this predicate.
- * Return NULL if this predicate has no children.
+/* Follow the child if any child whose FuncInst matches with inst
+ *
+ * @param inst must be an ATOMIC_WRITE FuncInst
+ * @return NULL if no such child is found.
  */
-Predicate * Predicate::get_single_child(FuncInst * inst)
+Predicate * Predicate::follow_write_child(FuncInst * inst)
 {
-	int size = children.size();
-	if (size == 0)
-		return NULL;
+	ASSERT(inst->get_type() == ATOMIC_WRITE);
 
-	/* Should only have one child */
-	ASSERT(size == 1);
-	Predicate * child = children[0];
+	for (uint i = 0; i < children.size(); i++) {
+		Predicate * child = children[i];
+		if (child->get_func_inst() == inst)
+			return child;
+	}
 
-	ASSERT(child->get_func_inst() == inst);
-
-	return child;
+	return NULL;
 }
 
 /* Evaluate predicate expressions against the given inst_act_map */
