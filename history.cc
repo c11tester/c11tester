@@ -200,7 +200,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 		if (curr_pred) {
 			// Follow child
-			curr_pred = curr_pred->get_single_child(curr_inst);
+			curr_pred = curr_pred->follow_write_child(curr_inst);
 		}
 		func_node->set_predicate_tree_position(tid, curr_pred);
 	}
@@ -565,8 +565,6 @@ void ModelHistory::print_func_node()
 	/* function id starts with 1 */
 	for (uint32_t i = 1;i < func_nodes.size();i++) {
 		FuncNode * func_node = func_nodes[i];
-
-		func_node->assign_base_score();
 		func_node->print_predicate_tree();
 
 /*
