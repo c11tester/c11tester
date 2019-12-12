@@ -270,7 +270,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 	uint32_t inst_counter = 0;
 
 	// Clear hashtables
-	loc_act_map.reset();	/* Only need to store the locations of read actions */
+	loc_act_map.reset();
 	inst_pred_map.reset();
 	inst_id_map.reset();
 
@@ -281,19 +281,16 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		FuncInst * next_inst = get_inst(next_act);
 		next_inst->set_associated_act(next_act, marker);
 
-		SnapVector<Predicate *> unset_predicates = SnapVector<Predicate *>();
-		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &unset_predicates);
+		Predicate * unset_predicate = NULL;
+		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &unset_predicate);
 
 		// A branch with unset predicate expression is detected
-		if (!branch_found && unset_predicates.size() != 0) {
-			ASSERT(unset_predicates.size() == 1);
-			Predicate * one_branch = unset_predicates[0];
-
+		if (!branch_found && unset_predicate != NULL) {
 			bool amended = amend_predicate_expr(curr_pred, next_inst, next_act);
 			if (amended)
 				continue;
 			else {
-				curr_pred = one_branch;
+				curr_pred = unset_predicate;
 				branch_found = true;
 			}
 		}
@@ -326,6 +323,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			curr_pred->set_write(true);
 
 		if (next_act->is_read()) {
+			/* Only need to store the locations of read actions */
 			loc_act_map.put(next_act->get_location(), next_act);
 		}
 
@@ -350,7 +348,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
  * @return true if branch found, false otherwise.
  */
 bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
-ModelAction * next_act, SnapVector<Predicate *> * unset_predicates)
+ModelAction * next_act, Predicate ** unset_predicate)
 {
 	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
@@ -363,14 +361,19 @@ ModelAction * next_act, SnapVector<Predicate *> * unset_predicates)
 		/* Check against predicate expressions */
 		bool predicate_correct = true;
 		PredExprSet * pred_expressions = branch->get_pred_expressions();
-		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 
 		/* Only read and rmw actions my have unset predicate expressions */
 		if (pred_expressions->getSize() == 0) {
 			predicate_correct = false;
-			unset_predicates->push_back(branch);
+			if (*unset_predicate == NULL)
+				*unset_predicate = branch;
+			else
+				ASSERT(false);
+
+			continue;
 		}
 
+		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
 		while (pred_expr_it->hasNext()) {
 			pred_expr * pred_expression = pred_expr_it->next();
 			uint64_t last_read, next_read;
@@ -535,8 +538,11 @@ SnapVector<struct half_pred_expr *> * half_pred_expressions)
 /* Amend predicates that contain no predicate expressions. Currenlty only amend with NULLITY predicates */
 bool FuncNode::amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst, ModelAction * next_act)
 {
+	ModelVector<Predicate *> * children = curr_pred->get_children();
+	ASSERT(children->size() == 1);
+
 	// there should only be only child
-	Predicate * unset_pred = curr_pred->get_children()->back();
+	Predicate * unset_pred = (*children)[0];
 	uint64_t read_val = next_act->get_reads_from_value();
 
 	// only generate NULLITY predicate when it is actually NULL.

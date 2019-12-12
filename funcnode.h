@@ -36,7 +36,7 @@ public:
 	void update_tree(action_list_t * act_list);
 	void update_inst_tree(func_inst_list_t * inst_list);
 	void update_predicate_tree(action_list_t * act_list);
-	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, SnapVector<Predicate *> * unset_predicates);
+	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, Predicate ** unset_predicate);
 
 	void incr_exit_count() { exit_count++; }
 	uint32_t get_exit_count() { return exit_count; }
