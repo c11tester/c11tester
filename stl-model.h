@@ -214,6 +214,33 @@ public:
 		_size++;
 	}
 
+	sllnode<_Tp>add_front(_Tp val) {
+		sllnode<_Tp> * tmp = new sllnode<_Tp>();
+		tmp->prev = NULL;
+		tmp->next = head;
+		tmp->val = val;
+		if (head == NULL)
+			tail = tmp;
+		else
+			head->prev = tmp;
+		head = tmp;
+		_size++;
+		return tmp;
+	}
+
+	sllnode<_Tp> * add_back(_Tp val) {
+		sllnode<_Tp> * tmp = new sllnode<_Tp>();
+		tmp->prev = tail;
+		tmp->next = NULL;
+		tmp->val = val;
+		if (tail == NULL)
+			head = tmp;
+		else tail->next = tmp;
+		tail = tmp;
+		_size++;
+		return tmp;
+	}
+
 	void pop_front() {
 		sllnode<_Tp> *tmp = head;
 		head = head->next;

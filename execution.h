@@ -143,7 +143,7 @@ private:
 	action_list_t action_trace;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
-	 * to a trace of all actions performed on the object. 
+	 * to a trace of all actions performed on the object.
 	 * Used only for SC fences, unlocks, & wait.
 	 */
 	HashTable<const void *, action_list_t *, uintptr_t, 2> obj_map;

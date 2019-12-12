@@ -1159,8 +1159,8 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 {
 	int tid = id_to_int(act->get_tid());
 	if ((act->is_fence() && act->is_seqcst()) || act->is_unlock()) {
-	  action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
-	  list->push_back(act);
+		action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
+		list->push_back(act);
 	}
 
 	// Update action trace, a total order of all actions

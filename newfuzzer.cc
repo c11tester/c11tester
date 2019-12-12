@@ -93,7 +93,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
  * @return False if no child matches read_inst
  */
 bool NewFuzzer::check_store_visibility(Predicate * curr_pred, FuncInst * read_inst,
-inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
+																			 inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
 {
 	available_branches_tmp_storage.clear();
 
@@ -191,7 +191,7 @@ Predicate * NewFuzzer::get_selected_child_branch(thread_id_t tid)
  * @return true if rf_set is pruned
  */
 bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
-SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map)
+														 SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map)
 {
 	if (pred == NULL)
 		return false;
@@ -376,7 +376,7 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
 }
 
 bool NewFuzzer::check_predicate_expressions(PredExprSet * pred_expressions,
-inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate)
+																						inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate)
 {
 	bool satisfy_predicate = true;
 
@@ -386,31 +386,31 @@ inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate)
 		bool equality;
 
 		switch (expression->token) {
-			case NOPREDICATE:
-				*no_predicate = true;
-				break;
-			case EQUALITY:
-				FuncInst * to_be_compared;
-				ModelAction * last_act;
-				uint64_t last_read;
+		case NOPREDICATE:
+			*no_predicate = true;
+			break;
+		case EQUALITY:
+			FuncInst * to_be_compared;
+			ModelAction * last_act;
+			uint64_t last_read;
 
-				to_be_compared = expression->func_inst;
-				last_act = inst_act_map->get(to_be_compared);
-				last_read = last_act->get_reads_from_value();
+			to_be_compared = expression->func_inst;
+			last_act = inst_act_map->get(to_be_compared);
+			last_read = last_act->get_reads_from_value();
 
-				equality = (write_val == last_read);
-				if (equality != expression->value)
-					satisfy_predicate = false;
-				break;
-			case NULLITY:
-				// TODO: implement likely to be null
-				equality = ((void*) (write_val & 0xffffffff) == NULL);
-				if (equality != expression->value)
-					satisfy_predicate = false;
-				break;
-			default:
-				model_print("unknown predicate token\n");
-				break;
+			equality = (write_val == last_read);
+			if (equality != expression->value)
+				satisfy_predicate = false;
+			break;
+		case NULLITY:
+			// TODO: implement likely to be null
+			equality = ((void*) (write_val & 0xffffffff) == NULL);
+			if (equality != expression->value)
+				satisfy_predicate = false;
+			break;
+		default:
+			model_print("unknown predicate token\n");
+			break;
 		}
 
 		if (!satisfy_predicate)
