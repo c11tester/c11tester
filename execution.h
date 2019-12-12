@@ -135,12 +135,13 @@ private:
 
 	/** The scheduler to use: tracks the running/ready Threads */
 	Scheduler * const scheduler;
+	action_list_t action_trace;
 
+  
 	SnapVector<Thread *> thread_map;
 	SnapVector<Thread *> pthread_map;
 	uint32_t pthread_counter;
 
-	action_list_t action_trace;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object.
