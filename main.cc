@@ -21,6 +21,7 @@ void param_defaults(struct model_params *params)
 {
 	params->verbose = !!DBG_ENABLED();
 	params->maxexecutions = 10;
+	params->tracebound = 0;
 	params->nofork = false;
 }
 

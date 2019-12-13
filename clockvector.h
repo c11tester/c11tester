@@ -14,6 +14,7 @@ public:
 	ClockVector(ClockVector *parent = NULL, const ModelAction *act = NULL);
 	~ClockVector();
 	bool merge(const ClockVector *cv);
+	bool minmerge(const ClockVector *cv);
 	bool synchronized_since(const ModelAction *act) const;
 
 	void print() const;

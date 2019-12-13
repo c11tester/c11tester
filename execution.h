@@ -87,8 +87,9 @@ public:
 
 	bool isFinished() {return isfinished;}
 	void setFinished() {isfinished = true;}
-
 	void restore_last_seq_num();
+	void collectActions();
+
 #ifdef TLS
 	pthread_key_t getPthreadKey() {return pthreadkey;}
 #endif
@@ -121,6 +122,7 @@ private:
 	void w_modification_order(ModelAction *curr);
 	ClockVector * get_hb_from_write(ModelAction *rf) const;
 	ModelAction * convertNonAtomicStore(void*);
+	ClockVector * computeMinimalCV();
 	void removeAction(ModelAction *act);
 
 #ifdef TLS

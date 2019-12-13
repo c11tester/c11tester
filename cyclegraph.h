@@ -28,7 +28,7 @@ public:
 	void addEdge(const ModelAction *from, const ModelAction *to, bool forceedge);
 	void addRMWEdge(const ModelAction *from, const ModelAction *rmw);
 	bool checkReachable(const ModelAction *from, const ModelAction *to) const;
-
+	void freeAction(const ModelAction * act);
 #if SUPPORT_MOD_ORDER_DUMP
 	void dumpNodes(FILE *file) const;
 	void dumpGraphToFile(const char *filename) const;
@@ -67,6 +67,8 @@ public:
 	CycleNode * getRMW() const;
 	void clearRMW() { hasRMW = NULL; }
 	const ModelAction * getAction() const { return action; }
+	void removeInEdge(CycleNode *src);
+	~CycleNode();
 
 	SNAPSHOTALLOC
 private:
@@ -76,6 +78,9 @@ private:
 	/** @brief The edges leading out from this node */
 	SnapVector<CycleNode *> edges;
 
+	/** @brief The edges leading in from this node */
+	SnapVector<CycleNode *> inedges;
+
 	/** Pointer to a RMW node that reads from this node, or NULL, if none
 	 * exists */
 	CycleNode *hasRMW;
@@ -83,9 +88,6 @@ private:
 	/** ClockVector for this Node. */
 	ClockVector *cv;
 	friend class CycleGraph;
-
-	/** @brief Reference count to node. */
-	int refcount;
 };
 
 #endif	/* __CYCLEGRAPH_H__ */

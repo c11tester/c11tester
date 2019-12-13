@@ -131,7 +131,7 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 		if (tonode != rmwnode) {
 			rmwnode->addEdge(tonode);
 		}
-		tonode->refcount--;
+		tonode->removeInEdge(fromnode);
 	}
 	fromnode->edges.clear();
 
@@ -291,6 +291,15 @@ bool CycleGraph::checkReachable(const ModelAction *from, const ModelAction *to) 
 	return checkReachable(fromnode, tonode);
 }
 
+void CycleGraph::freeAction(const ModelAction * act) {
+	CycleNode *cn = actionToNode.remove(act);
+	for(unsigned int i=0;i<cn->edges.size();i++) {
+		CycleNode *dst = cn->edges[i];
+		dst->removeInEdge(cn);
+	}
+	delete cn;
+}
+
 /**
  * @brief Constructor for a CycleNode
  * @param act The ModelAction for this node
@@ -298,9 +307,22 @@ bool CycleGraph::checkReachable(const ModelAction *from, const ModelAction *to) 
 CycleNode::CycleNode(const ModelAction *act) :
 	action(act),
 	hasRMW(NULL),
-	cv(new ClockVector(NULL, act)),
-	refcount(0)
+	cv(new ClockVector(NULL, act))
 {
+}
+
+CycleNode::~CycleNode() {
+	delete cv;
+}
+
+void CycleNode::removeInEdge(CycleNode *src) {
+	for(unsigned int i=0;i < edges.size();i++) {
+		if (edges[i] == src) {
+			edges[i] = edges[edges.size()-1];
+			edges.pop_back();
+			break;
+		}
+	}
 }
 
 /**
@@ -329,7 +351,7 @@ void CycleNode::addEdge(CycleNode *node)
 		if (edges[i] == node)
 			return;
 	edges.push_back(node);
-	node->refcount++;
+	node->inedges.push_back(this);
 }
 
 /** @returns the RMW CycleNode that reads from the current CycleNode */

@@ -1672,8 +1672,42 @@ void ModelExecution::removeAction(ModelAction *act) {
 			SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
 			(*vec)[act->get_tid()].erase(listref);
 		}
+		//Remove from Cyclegraph
+		mo_graph->freeAction(act);
+	}
+}
+
+ClockVector * ModelExecution::computeMinimalCV() {
+	ClockVector *cvmin = NULL;
+	for(unsigned int i = 0;i < thread_map.size();i++) {
+		Thread * t = thread_map[i];
+		if (t->get_state() == THREAD_COMPLETED)
+			continue;
+		thread_id_t tid = int_to_id(i);
+		ClockVector * cv = get_cv(tid);
+		if (cvmin == NULL)
+			cvmin = new ClockVector(cv, NULL);
+		else
+			cvmin->minmerge(cv);
+	}
+	return cvmin;
+}
+
+void ModelExecution::collectActions() {
+	//Compute minimal clock vector for all live threads
+	ClockVector *cvmin = computeMinimalCV();
+
+	//walk action trace...  When we hit an action ,see if it is
+	//invisible (e.g., earlier than the first before the minimum
+	//clock for the thread...  if so erase it and all previous
+	//actions in cyclegraph
+	for (sllnode<ModelAction*>* it = action_trace.begin();it != NULL;it=it->getNext()) {
+		ModelAction *act = it->getVal();
+
 	}
 
+
+	delete cvmin;
 }
 
 Fuzzer * ModelExecution::getFuzzer() {
