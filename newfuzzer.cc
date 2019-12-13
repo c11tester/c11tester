@@ -176,7 +176,32 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
  */
 int NewFuzzer::choose_index(SnapVector<Predicate *> * branches)
 {
-	return random() % branches->size();
+	if (branches->size() == 1)
+		return 0;
+
+	double total_weight = 0;
+	SnapVector<double> weights;
+	for (uint i = 0; i < branches->size(); i++) {
+		Predicate * branch = (*branches)[i];
+		double weight = branch->get_weight();
+		total_weight += weight;
+		weights.push_back(weight);
+	}
+
+	double prob = (double) random() / RAND_MAX;
+	double prob_sum = 0;
+	int index = 0;
+
+	for (uint i = 0; i < weights.size(); i++) {
+		index = i;
+		prob_sum += (double) (weights[i] / total_weight);
+		if (prob_sum > prob) {
+			break;
+		}
+	}
+
+	return index;
+//	return random() % branches->size();
 }
 
 Predicate * NewFuzzer::get_selected_child_branch(thread_id_t tid)
