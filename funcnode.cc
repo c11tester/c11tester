@@ -22,6 +22,7 @@ FuncNode::FuncNode(ModelHistory * history) :
 	predicate_leaves(),
 	leaves_tmp_storage(),
 	weight_debug_vec(),
+	failed_predicates(),
 	edge_table(32),
 	out_edges()
 {
@@ -761,6 +762,11 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	return -1;
 }
 
+void FuncNode::add_failed_predicate(Predicate * pred)
+{
+	failed_predicates.add(pred);
+}
+
 /* Implement quick sort to sort leaves before assigning base scores */
 template<typename _Tp>
 static int partition(ModelVector<_Tp *> * arr, int low, int high)
@@ -803,7 +809,7 @@ void FuncNode::assign_initial_weight()
 
 	while (it->hasNext()) {
 		Predicate * pred = it->next();
-		double weight = 100.0 / sqrt(pred->get_expl_count() + 1);
+		double weight = 100.0 / sqrt(pred->get_expl_count() + pred->get_fail_count() + 1);
 		pred->set_weight(weight);
 		leaves_tmp_storage.push_back(pred);
 	}
@@ -861,10 +867,18 @@ void FuncNode::update_predicate_tree_weight()
 
 	weight_debug_vec.clear();
 
+	PredSetIter * it = failed_predicates.iterator();
+	while (it->hasNext()) {
+		Predicate * pred = it->next();
+		leaves_tmp_storage.push_back(pred);
+	}
+	delete it;
+	failed_predicates.reset();
+
 	quickSort(&leaves_tmp_storage, 0, leaves_tmp_storage.size() - 1);
 	for (uint i = 0; i < leaves_tmp_storage.size(); i++) {
 		Predicate * pred = leaves_tmp_storage[i];
-		double weight = 100.0 / sqrt(pred->get_expl_count() + 1);
+		double weight = 100.0 / sqrt(pred->get_expl_count() + pred->get_fail_count() + 1);
 		pred->set_weight(weight);
 	}
 

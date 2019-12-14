@@ -177,7 +177,7 @@ void Predicate::print_predicate()
 
 	double prob = (double) store_visible_count / total_checking_count;
 	model_print("Total checks: %d, visible count: %d; prob: %f\n", total_checking_count, store_visible_count, prob);
-	model_print("Exploration count: %d", exploration_count);
+	model_print("Exploration count: %d, failure count: %d", exploration_count, failure_count);
 	model_print("\"];\n");
 
 	delete it;

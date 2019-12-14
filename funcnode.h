@@ -60,6 +60,8 @@ public:
 	ModelList<FuncNode *> * get_out_edges() { return &out_edges; }
 	int compute_distance(FuncNode * target, int max_step = MAX_DIST);
 
+	void add_failed_predicate(Predicate * pred);
+
 	void print_predicate_tree();
 
 	MEMALLOC
@@ -122,6 +124,7 @@ private:
 	PredSet predicate_leaves;
 	ModelVector<Predicate *> leaves_tmp_storage;
 	ModelVector<Predicate *> weight_debug_vec;
+	PredSet failed_predicates;
 
 	/* Store the relation between this FuncNode and other FuncNodes */
 	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;

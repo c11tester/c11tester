@@ -45,10 +45,12 @@ public:
 	ConcretePredicate * evaluate(inst_act_map_t * inst_act_map, thread_id_t tid);
 
 	uint32_t get_expl_count() { return exploration_count; }
+	uint32_t get_fail_count() { return failure_count; }
 	uint32_t get_store_visible_count() { return store_visible_count; }
 	uint32_t get_total_checking_count() { return total_checking_count; }
 
 	void incr_expl_count() { exploration_count++; }
+	void incr_fail_count() { failure_count++; }
 	void incr_store_visible_count() { store_visible_count++; }
 	void incr_total_checking_count() { total_checking_count++; }
 
@@ -70,6 +72,7 @@ private:
 	double weight;
 
 	uint32_t exploration_count;
+	uint32_t failure_count;
 	uint32_t store_visible_count;
 	uint32_t total_checking_count;	/* The number of times the store visibility is checked */
 

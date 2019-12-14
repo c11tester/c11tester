@@ -54,7 +54,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		if (curr_pred != NULL)  {
 			Predicate * selected_branch = NULL;
 
-			if (check_store_visibility(curr_pred, read_inst, inst_act_map, rf_set))
+			if (check_branch_inst(curr_pred, read_inst, inst_act_map, rf_set))
 				selected_branch = selectBranch(tid, curr_pred, read_inst);
 			else {
 				// no child of curr_pred matches read_inst, check back edges
@@ -63,7 +63,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 				while (it->hasNext()) {
 					curr_pred = it->next();
-					if (check_store_visibility(curr_pred, read_inst, inst_act_map, rf_set)) {
+					if (check_branch_inst(curr_pred, read_inst, inst_act_map, rf_set)) {
 						selected_branch = selectBranch(tid, curr_pred, read_inst);
 						break;
 					}
@@ -85,7 +85,12 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	// The chosen branch fails, reselect new branches
 	while ( rf_set->size() == 0 ) {
 		Predicate * selected_branch = get_selected_child_branch(tid);
+		FuncNode * func_node = history->get_curr_func_node(tid);
+
+		// Add failed predicate to NewFuzzer and FuncNode
 		failed_predicates.put(selected_branch, true);
+		func_node->add_failed_predicate(selected_branch);
+		selected_branch->incr_fail_count();
 
 		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
 
@@ -99,7 +104,6 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		FuncInst * read_inst = thrd_last_func_inst[thread_id];
 		selected_branch = selectBranch(tid, curr_pred, read_inst);
 
-		FuncNode * func_node = history->get_curr_func_node(tid);
 		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
 		prune_writes(tid, selected_branch, rf_set, inst_act_map);
 
@@ -111,13 +115,10 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	return random_index;
 }
 
-/* For children of curr_pred that matches read_inst.
- * If any store in rf_set satisfies the a child's predicate,
- * increment the store visibility count for it.
- *
+/* Check if children of curr_pred match read_inst.
  * @return False if no child matches read_inst
  */
-bool NewFuzzer::check_store_visibility(Predicate * curr_pred, FuncInst * read_inst,
+bool NewFuzzer::check_branch_inst(Predicate * curr_pred, FuncInst * read_inst,
 inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
 {
 	available_branches_tmp_storage.clear();
@@ -136,6 +137,7 @@ inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
 		/* The children predicates may have different FuncInsts */
 		if (branch->get_func_inst() == read_inst) {
 			any_child_match = true;
+			branch->incr_total_checking_count();
 			available_branches_tmp_storage.push_back(branch);
 		}
 	}
