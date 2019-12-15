@@ -23,10 +23,10 @@ class CycleGraph {
 public:
 	CycleGraph();
 	~CycleGraph();
-	void addEdges(SnapList<ModelAction *> * edgeset, const ModelAction *to);
-	void addEdge(const ModelAction *from, const ModelAction *to);
-	void addEdge(const ModelAction *from, const ModelAction *to, bool forceedge);
-	void addRMWEdge(const ModelAction *from, const ModelAction *rmw);
+	void addEdges(SnapList<ModelAction *> * edgeset, ModelAction *to);
+	void addEdge(ModelAction *from, ModelAction *to);
+	void addEdge(ModelAction *from, ModelAction *to, bool forceedge);
+	void addRMWEdge(ModelAction *from, ModelAction *rmw);
 	bool checkReachable(const ModelAction *from, const ModelAction *to) const;
 	void freeAction(const ModelAction * act);
 #if SUPPORT_MOD_ORDER_DUMP
@@ -41,7 +41,7 @@ public:
 private:
 	void addNodeEdge(CycleNode *fromnode, CycleNode *tonode, bool forceedge);
 	void putNode(const ModelAction *act, CycleNode *node);
-	CycleNode * getNode(const ModelAction *act);
+	CycleNode * getNode(ModelAction *act);
 
 	/** @brief A table for mapping ModelActions to CycleNodes */
 	HashTable<const ModelAction *, CycleNode *, uintptr_t, 4> actionToNode;
@@ -59,21 +59,23 @@ private:
  */
 class CycleNode {
 public:
-	CycleNode(const ModelAction *act);
+	CycleNode(ModelAction *act);
 	void addEdge(CycleNode *node);
 	CycleNode * getEdge(unsigned int i) const;
 	unsigned int getNumEdges() const;
+	CycleNode * getInEdge(unsigned int i) const;
+	unsigned int getNumInEdges() const;
 	bool setRMW(CycleNode *);
 	CycleNode * getRMW() const;
 	void clearRMW() { hasRMW = NULL; }
-	const ModelAction * getAction() const { return action; }
+	ModelAction * getAction() const { return action; }
 	void removeInEdge(CycleNode *src);
 	~CycleNode();
 
 	SNAPSHOTALLOC
 private:
 	/** @brief The ModelAction that this node represents */
-	const ModelAction *action;
+	ModelAction *action;
 
 	/** @brief The edges leading out from this node */
 	SnapVector<CycleNode *> edges;

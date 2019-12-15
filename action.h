@@ -77,6 +77,7 @@ typedef enum action_type {
 	ATOMIC_WAIT,	// < A wait action
 	ATOMIC_TIMEDWAIT,	// < A timed wait action
 	ATOMIC_ANNOTATION,	// < An annotation action to pass information to a trace analysis
+	READY_FREE
 } action_type_t;
 
 
@@ -100,6 +101,7 @@ public:
 
 	thread_id_t get_tid() const { return tid; }
 	action_type get_type() const { return type; }
+	void set_free() { type = READY_FREE; }
 	memory_order get_mo() const { return order; }
 	memory_order get_original_mo() const { return original_order; }
 	void set_mo(memory_order order) { this->order = order; }

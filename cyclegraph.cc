@@ -43,7 +43,7 @@ CycleNode * CycleGraph::getNode_noCreate(const ModelAction *act) const
  * @param action The ModelAction to find a node for
  * @return The CycleNode paired with this action
  */
-CycleNode * CycleGraph::getNode(const ModelAction *action)
+CycleNode * CycleGraph::getNode(ModelAction *action)
 {
 	CycleNode *node = getNode_noCreate(action);
 	if (node == NULL) {
@@ -107,7 +107,7 @@ void CycleGraph::addNodeEdge(CycleNode *fromnode, CycleNode *tonode, bool forcee
  * @param rmw The edge points to this ModelAction; this action must read from
  * the ModelAction from
  */
-void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
+void CycleGraph::addRMWEdge(ModelAction *from, ModelAction *rmw)
 {
 	ASSERT(from);
 	ASSERT(rmw);
@@ -138,7 +138,7 @@ void CycleGraph::addRMWEdge(const ModelAction *from, const ModelAction *rmw)
 	addNodeEdge(fromnode, rmwnode, true);
 }
 
-void CycleGraph::addEdges(SnapList<ModelAction *> * edgeset, const ModelAction *to) {
+void CycleGraph::addEdges(SnapList<ModelAction *> * edgeset, ModelAction *to) {
 	for(sllnode<ModelAction*> * it = edgeset->begin();it!=NULL;) {
 		ModelAction *act = it->getVal();
 		CycleNode *node = getNode(act);
@@ -182,7 +182,7 @@ endouterloop:
  * @return True, if new edge(s) are added; otherwise false
  */
 
-void CycleGraph::addEdge(const ModelAction *from, const ModelAction *to)
+void CycleGraph::addEdge(ModelAction *from, ModelAction *to)
 {
 	ASSERT(from);
 	ASSERT(to);
@@ -193,7 +193,7 @@ void CycleGraph::addEdge(const ModelAction *from, const ModelAction *to)
 	addNodeEdge(fromnode, tonode, false);
 }
 
-void CycleGraph::addEdge(const ModelAction *from, const ModelAction *to, bool forceedge)
+void CycleGraph::addEdge(ModelAction *from, ModelAction *to, bool forceedge)
 {
 	ASSERT(from);
 	ASSERT(to);
@@ -304,7 +304,7 @@ void CycleGraph::freeAction(const ModelAction * act) {
  * @brief Constructor for a CycleNode
  * @param act The ModelAction for this node
  */
-CycleNode::CycleNode(const ModelAction *act) :
+CycleNode::CycleNode(ModelAction *act) :
 	action(act),
 	hasRMW(NULL),
 	cv(new ClockVector(NULL, act))
@@ -338,6 +338,21 @@ CycleNode * CycleNode::getEdge(unsigned int i) const
 unsigned int CycleNode::getNumEdges() const
 {
 	return edges.size();
+}
+
+/**
+ * @param i The index of the edge to return
+ * @returns The CycleNode edge indexed by i
+ */
+CycleNode * CycleNode::getInEdge(unsigned int i) const
+{
+	return inedges[i];
+}
+
+/** @returns The number of edges leaving this CycleNode */
+unsigned int CycleNode::getNumInEdges() const
+{
+	return inedges.size();
 }
 
 /**

@@ -281,7 +281,7 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
  */
 bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
 {
-	SnapVector<const ModelAction *> * priorset = new SnapVector<const ModelAction *>();
+	SnapVector<ModelAction *> * priorset = new SnapVector<ModelAction *>();
 	bool hasnonatomicstore = hasNonAtomicStore(curr->get_location());
 	if (hasnonatomicstore) {
 		ModelAction * nonatomicstore = convertNonAtomicStore(curr->get_location());
@@ -774,7 +774,7 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
  */
 
 bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf,
-																					SnapVector<const ModelAction *> * priorset, bool * canprune, bool check_only)
+																					SnapVector<ModelAction *> * priorset, bool * canprune, bool check_only)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	unsigned int i;
@@ -868,7 +868,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 					if (!check_only)
 						priorset->push_back(act);
 				} else {
-					const ModelAction *prevrf = act->get_reads_from();
+					ModelAction *prevrf = act->get_reads_from();
 					if (!prevrf->equals(rf)) {
 						if (mo_graph->checkReachable(rf, prevrf))
 							return false;
@@ -1696,19 +1696,47 @@ ClockVector * ModelExecution::computeMinimalCV() {
 void ModelExecution::collectActions() {
 	//Compute minimal clock vector for all live threads
 	ClockVector *cvmin = computeMinimalCV();
-
+	SnapVector<CycleNode *> * queue = new SnapVector<CycleNode *>();
 	//walk action trace...  When we hit an action ,see if it is
 	//invisible (e.g., earlier than the first before the minimum
 	//clock for the thread...  if so erase it and all previous
 	//actions in cyclegraph
 	for (sllnode<ModelAction*>* it = action_trace.begin();it != NULL;it=it->getNext()) {
 		ModelAction *act = it->getVal();
+		modelclock_t actseq = act->get_seq_number();
+		thread_id_t act_tid = act->get_tid();
+		modelclock_t tid_clock = cvmin->getClock(act_tid);
+		if (actseq <= tid_clock) {
+			ModelAction * write;
+			if (act->is_write()) {
+				write = act;
+			} else if (act->is_read()) {
+				write = act->get_reads_from();
+			} else
+				continue;
 
+			//Mark everything earlier in MO graph to be freed
+			queue->push_back(mo_graph->getNode_noCreate(write));
+			while(!queue->empty()) {
+				CycleNode * node = queue->back();
+				queue->pop_back();
+				for(unsigned int i=0;i<node->getNumInEdges();i++) {
+					CycleNode * prevnode = node->getInEdge(i);
+					ModelAction * prevact = prevnode->getAction();
+					if (prevact->get_type() != READY_FREE) {
+						prevact->set_free();
+						queue->push_back(prevnode);
+					}
+				}
+			}
+		}
 	}
 
-
 	delete cvmin;
+	delete queue;
 }
+
+
 
 Fuzzer * ModelExecution::getFuzzer() {
 	return fuzzer;
