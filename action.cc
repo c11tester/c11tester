@@ -305,6 +305,11 @@ bool ModelAction::is_write() const
 	return type == ATOMIC_WRITE || type == ATOMIC_RMW || type == ATOMIC_INIT || type == NONATOMIC_WRITE;
 }
 
+bool ModelAction::is_free() const
+{
+	return type == READY_FREE;
+}
+
 bool ModelAction::could_be_write() const
 {
 	return is_write() || is_rmwr();

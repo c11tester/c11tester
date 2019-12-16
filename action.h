@@ -143,6 +143,7 @@ public:
 	bool is_atomic_var() const;
 	bool is_read() const;
 	bool is_write() const;
+	bool is_free() const;
 	bool is_yield() const;
 	bool could_be_write() const;
 	bool is_rmwr() const;

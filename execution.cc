@@ -1697,7 +1697,7 @@ void ModelExecution::collectActions() {
 	//Compute minimal clock vector for all live threads
 	ClockVector *cvmin = computeMinimalCV();
 	SnapVector<CycleNode *> * queue = new SnapVector<CycleNode *>();
-	//walk action trace...  When we hit an action ,see if it is
+	//walk action trace...  When we hit an action, see if it is
 	//invisible (e.g., earlier than the first before the minimum
 	//clock for the thread...  if so erase it and all previous
 	//actions in cyclegraph
@@ -1729,6 +1729,52 @@ void ModelExecution::collectActions() {
 					}
 				}
 			}
+		}
+	}
+	for (sllnode<ModelAction*>* it = action_trace.end();it != NULL;it=it->getPrev()) {
+		ModelAction *act = it->getVal();
+		if (act->is_free()) {
+			removeAction(act);
+			delete act;
+		} else if (act->is_read()) {
+			if (act->get_reads_from()->is_free()) {
+				removeAction(act);
+				delete act;
+			} else {
+				const ModelAction *rel_fence =act->get_last_fence_release();
+				if (rel_fence != NULL) {
+					modelclock_t relfenceseq = rel_fence->get_seq_number();
+					thread_id_t relfence_tid = rel_fence->get_tid();
+					modelclock_t tid_clock = cvmin->getClock(relfence_tid);
+					//Remove references to irrelevant release fences
+					if (relfenceseq <= tid_clock)
+						act->set_last_fence_release(NULL);
+				}
+			}
+		} else if (act->is_fence()) {
+			//Note that acquire fences can always be safely
+			//removed, but could incur extra overheads in
+			//traversals.  Removing them before the cvmin seems
+			//like a good compromise.
+
+			//Release fences before the cvmin don't do anything
+			//because everyone has already synchronized.
+
+			//Sequentially fences before cvmin are redundant
+			//because happens-before will enforce same
+			//orderings.
+
+			modelclock_t actseq = act->get_seq_number();
+			thread_id_t act_tid = act->get_tid();
+			modelclock_t tid_clock = cvmin->getClock(act_tid);
+			if (actseq <= tid_clock) {
+				removeAction(act);
+				delete act;
+			}
+		} else {
+			//need to deal with lock, annotation, wait, notify, thread create, start, join, yield, finish
+			//lock, notify thread create, thread finish, yield, finish are dead as soon as they are in the trace
+			//need to keep most recent unlock/wait for each lock
 		}
 	}
 
