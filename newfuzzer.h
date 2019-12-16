@@ -49,10 +49,10 @@ private:
 	SnapVector<Predicate *> thrd_selected_child_branch;
 	SnapVector< SnapVector<ModelAction *> *> thrd_pruned_writes;
 
-	bool check_store_visibility(Predicate * curr_pred, FuncInst * read_inst, inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set);
+	bool check_branch_inst(Predicate * curr_pred, FuncInst * read_inst, inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set);
 	Predicate * selectBranch(thread_id_t tid, Predicate * curr_pred, FuncInst * read_inst);
 	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map);
-	int choose_index(SnapVector<Predicate *> * branches);
+	int choose_branch_index(SnapVector<Predicate *> * branches);
 
 	/* The set of Threads put to sleep by NewFuzzer because no writes in rf_set satisfies the selected predicate. Only used by selectWrite.
 	 */

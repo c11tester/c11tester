@@ -295,6 +295,7 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 	}
 
 	// Remove writes that violate read modification order
+	/*
 	uint i = 0;
 	while (i < rf_set->size()) {
 		ModelAction * rf = (*rf_set)[i];
@@ -303,7 +304,7 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 			rf_set->pop_back();
 		} else
 			i++;
-	}
+	}*/
 
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
@@ -326,9 +327,6 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 			}
 			return true;
 		}
-
-		ASSERT(false);
-		/* TODO: Following code not needed anymore */
 		priorset->clear();
 		(*rf_set)[index] = rf_set->back();
 		rf_set->pop_back();

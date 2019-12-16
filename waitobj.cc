@@ -168,6 +168,8 @@ void WaitObj::clear_waiting_for()
 		target_nodes->reset();
 	}
 
+	delete iter;
+
 	waiting_for.reset();
 	/* waited_by relation should be kept */
 }
@@ -185,6 +187,7 @@ void WaitObj::print_waiting_for(bool verbose)
 		model_print("%d ", waiting_for_id);
 	}
 	model_print("\n");
+	delete it;
 
 	if (verbose) {
 		/* Print out the distances from each thread to target nodes */
@@ -204,6 +207,8 @@ void WaitObj::print_waiting_for(bool verbose)
 				}
 				model_print(") ");
 			}
+
+			delete node_iter;
 		}
 		model_print("\n");
 	}
@@ -222,4 +227,6 @@ void WaitObj::print_waited_by()
 		model_print("%d ", thread_id);
 	}
 	model_print("\n");
+
+	delete it;
 }

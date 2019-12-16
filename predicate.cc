@@ -76,6 +76,8 @@ void Predicate::copy_predicate_expr(Predicate * other)
 		struct pred_expr * copy = new pred_expr(ptr->token, ptr->func_inst, ptr->value);
 		pred_expressions.add(copy);
 	}
+
+	delete it;
 }
 
 /* Follow the child if any child whose FuncInst matches with inst
@@ -126,6 +128,7 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 		concrete->add_expression(ptr->token, value, ptr->value);
 	}
 
+	delete it;
 	return concrete;
 }
 
@@ -174,8 +177,10 @@ void Predicate::print_predicate()
 
 	double prob = (double) store_visible_count / total_checking_count;
 	model_print("Total checks: %d, visible count: %d; prob: %f\n", total_checking_count, store_visible_count, prob);
-	model_print("Exploration count: %d", exploration_count);
+	model_print("Exploration count: %d, failure count: %d", exploration_count, failure_count);
 	model_print("\"];\n");
+
+	delete it;
 }
 
 void Predicate::print_pred_subtree()
@@ -196,4 +201,6 @@ void Predicate::print_pred_subtree()
 	if (exit) {
 		model_print("\"%p\" -> \"%p\"[style=dashed, color=red]\n", this, exit);
 	}
+
+	delete it;
 }
