@@ -89,7 +89,7 @@ public:
 	void setFinished() {isfinished = true;}
 	void restore_last_seq_num();
 	void collectActions();
-
+	modelclock_t get_curr_seq_num();
 #ifdef TLS
 	pthread_key_t getPthreadKey() {return pthreadkey;}
 #endif

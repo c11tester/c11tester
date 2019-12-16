@@ -21,7 +21,9 @@ void param_defaults(struct model_params *params)
 {
 	params->verbose = !!DBG_ENABLED();
 	params->maxexecutions = 10;
-	params->tracebound = 0;
+	params->traceminsize = 0;
+	params->checkthreshold = 500000;
+	params->removevisible = false;
 	params->nofork = false;
 }
 
@@ -52,9 +54,16 @@ static void print_usage(struct model_params *params)
 		"-x, --maxexec=NUM           Maximum number of executions.\n"
 		"                            Default: %u\n"
 		"                            -o help for a list of options\n"
-		"-n                          No fork\n\n",
+		"-n                          No fork\n"
+		"-m, --minsize=NUM           Minimum number of actions to keep\n",
+		"                            Default: %u\n"
+		"-f, --freqfree=NUM          Frequency to free actions\n"
+		"                            Default: %u\n"
+		"-r, --removevisible         Free visible writes\n",
 		params->verbose,
-		params->maxexecutions);
+		params->maxexecutions,
+		params->traceminsize,
+		params->checkthreshold);
 	model_print("Analysis plugins:\n");
 	for(unsigned int i=0;i<registeredanalysis->size();i++) {
 		TraceAnalysis * analysis=(*registeredanalysis)[i];
@@ -79,13 +88,16 @@ bool install_plugin(char * name) {
 }
 
 void parse_options(struct model_params *params) {
-	const char *shortopts = "hnt:o:x:v::";
+	const char *shortopts = "hrnt:o:x:v:m:f::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"verbose", optional_argument, NULL, 'v'},
 		{"analysis", required_argument, NULL, 't'},
 		{"options", required_argument, NULL, 'o'},
 		{"maxexecutions", required_argument, NULL, 'x'},
+		{"minsize", required_argument, NULL, 'm'},
+		{"freqfree", required_argument, NULL, 'f'},
+		{"removevisible", no_argument, NULL, 'r'},
 		{0, 0, 0, 0}	/* Terminator */
 	};
 	int opt, longindex;
@@ -132,6 +144,15 @@ void parse_options(struct model_params *params) {
 		case 't':
 			if (install_plugin(optarg))
 				error = true;
+			break;
+		case 'm':
+			params->traceminsize = atoi(optarg);
+			break;
+		case 'f':
+			params->checkthreshold = atoi(optarg);
+			break;
+		case 'r':
+			params->removevisible = true;
 			break;
 		case 'o':
 		{

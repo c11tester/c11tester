@@ -392,11 +392,19 @@ void ModelChecker::run()
 	//Need to initial random number generator state to avoid resets on rollback
 	char random_state[256];
 	initstate(423121, random_state, sizeof(random_state));
-
+	modelclock_t checkfree = params.checkthreshold;
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
 		Thread * t = init_thread;
 
 		do {
+			/* Check whether we need to free model actions. */
+
+			if (params.traceminsize != 0 &&
+					execution->get_curr_seq_num() > checkfree) {
+				checkfree += params.checkthreshold;
+				execution->collectActions();
+			}
+
 			/*
 			 * Stash next pending action(s) for thread(s). There
 			 * should only need to stash one thread's action--the

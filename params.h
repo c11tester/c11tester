@@ -8,7 +8,9 @@
 struct model_params {
 	int maxexecutions;
 	bool nofork;
-	unsigned int tracebound;
+	modelclock_t traceminsize;
+	modelclock_t checkthreshold;
+	bool removevisible;
 
 	/** @brief Verbosity (0 = quiet; 1 = noisy; 2 = noisier) */
 	int verbose;

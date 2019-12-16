@@ -129,6 +129,12 @@ modelclock_t ModelExecution::get_next_seq_num()
 	return ++priv->used_sequence_numbers;
 }
 
+/** @return a sequence number for a new ModelAction */
+modelclock_t ModelExecution::get_curr_seq_num()
+{
+	return priv->used_sequence_numbers;
+}
+
 /** Restore the last used sequence number when actions of a thread are postponed by Fuzzer */
 void ModelExecution::restore_last_seq_num()
 {
@@ -378,18 +384,19 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		break;
 	}
 	case ATOMIC_WAIT: {
-		/* wake up the other threads */
-		for (unsigned int i = 0;i < get_num_threads();i++) {
-			Thread *t = get_thread(int_to_id(i));
-			Thread *curr_thrd = get_thread(curr);
-			if (t->waiting_on() == curr_thrd && t->get_pending()->is_lock())
-				scheduler->wake(t);
-		}
-
-		/* unlock the lock - after checking who was waiting on it */
-		state->locked = NULL;
-
+		//TODO: DOESN'T REALLY IMPLEMENT SPURIOUS WAKEUPS CORRECTLY
 		if (fuzzer->shouldWait(curr)) {
+			/* wake up the other threads */
+			for (unsigned int i = 0;i < get_num_threads();i++) {
+				Thread *t = get_thread(int_to_id(i));
+				Thread *curr_thrd = get_thread(curr);
+				if (t->waiting_on() == curr_thrd && t->get_pending()->is_lock())
+					scheduler->wake(t);
+			}
+
+			/* unlock the lock - after checking who was waiting on it */
+			state->locked = NULL;
+
 			/* disable this thread */
 			get_safe_ptr_action(&condvar_waiters_map, curr->get_location())->push_back(curr);
 			scheduler->sleep(get_thread(curr));
@@ -399,7 +406,14 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	}
 	case ATOMIC_TIMEDWAIT:
 	case ATOMIC_UNLOCK: {
-		//TODO: FIX WAIT SITUATION...WAITS CAN SPURIOUSLY FAIL...TIMED WAITS SHOULD PROBABLY JUST BE THE SAME AS NORMAL WAITS...THINK ABOUT PROBABILITIES THOUGH....AS IN TIMED WAIT MUST FAIL TO GUARANTEE PROGRESS...NORMAL WAIT MAY FAIL...SO NEED NORMAL WAIT TO WORK CORRECTLY IN THE CASE IT SPURIOUSLY FAILS AND IN THE CASE IT DOESN'T...  TIMED WAITS MUST EVENMTUALLY RELEASE...
+		//TODO: FIX WAIT SITUATION...WAITS CAN SPURIOUSLY
+		//FAIL...TIMED WAITS SHOULD PROBABLY JUST BE THE SAME
+		//AS NORMAL WAITS...THINK ABOUT PROBABILITIES
+		//THOUGH....AS IN TIMED WAIT MUST FAIL TO GUARANTEE
+		//PROGRESS...NORMAL WAIT MAY FAIL...SO NEED NORMAL
+		//WAIT TO WORK CORRECTLY IN THE CASE IT SPURIOUSLY
+		//FAILS AND IN THE CASE IT DOESN'T...  TIMED WAITS
+		//MUST EVENMTUALLY RELEASE...
 
 		/* wake up the other threads */
 		for (unsigned int i = 0;i < get_num_threads();i++) {
@@ -1693,20 +1707,33 @@ ClockVector * ModelExecution::computeMinimalCV() {
 	return cvmin;
 }
 
+//Options...
+//How often to check for memory
+//How much of the trace to always keep
+//Whether to sacrifice completeness...i.e., remove visible writes
+
 void ModelExecution::collectActions() {
 	//Compute minimal clock vector for all live threads
 	ClockVector *cvmin = computeMinimalCV();
 	SnapVector<CycleNode *> * queue = new SnapVector<CycleNode *>();
-	//walk action trace...  When we hit an action, see if it is
+	modelclock_t maxtofree = priv->used_sequence_numbers - params->traceminsize;
+
+	//Next walk action trace...  When we hit an action, see if it is
 	//invisible (e.g., earlier than the first before the minimum
 	//clock for the thread...  if so erase it and all previous
 	//actions in cyclegraph
-	for (sllnode<ModelAction*>* it = action_trace.begin();it != NULL;it=it->getNext()) {
+	sllnode<ModelAction*> * it;
+	for (it = action_trace.begin();it != NULL;it=it->getNext()) {
 		ModelAction *act = it->getVal();
 		modelclock_t actseq = act->get_seq_number();
+
+		//See if we are done
+		if (actseq > maxtofree)
+			break;
+
 		thread_id_t act_tid = act->get_tid();
 		modelclock_t tid_clock = cvmin->getClock(act_tid);
-		if (actseq <= tid_clock) {
+		if (actseq <= tid_clock || params->removevisible) {
 			ModelAction * write;
 			if (act->is_write()) {
 				write = act;
@@ -1716,7 +1743,8 @@ void ModelExecution::collectActions() {
 				continue;
 
 			//Mark everything earlier in MO graph to be freed
-			queue->push_back(mo_graph->getNode_noCreate(write));
+			CycleNode * cn = mo_graph->getNode_noCreate(write);
+			queue->push_back(cn);
 			while(!queue->empty()) {
 				CycleNode * node = queue->back();
 				queue->pop_back();
@@ -1731,7 +1759,7 @@ void ModelExecution::collectActions() {
 			}
 		}
 	}
-	for (sllnode<ModelAction*>* it = action_trace.end();it != NULL;it=it->getPrev()) {
+	for (;it != NULL;it=it->getPrev()) {
 		ModelAction *act = it->getVal();
 		if (act->is_free()) {
 			removeAction(act);
@@ -1775,6 +1803,16 @@ void ModelExecution::collectActions() {
 			//need to deal with lock, annotation, wait, notify, thread create, start, join, yield, finish
 			//lock, notify thread create, thread finish, yield, finish are dead as soon as they are in the trace
 			//need to keep most recent unlock/wait for each lock
+			if(act->is_unlock() || act->is_wait()) {
+				ModelAction * lastlock = get_last_unlock(act);
+				if (lastlock != act) {
+					removeAction(act);
+					delete act;
+				}
+			} else {
+				removeAction(act);
+				delete act;
+			}
 		}
 	}
 
