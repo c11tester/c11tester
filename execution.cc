@@ -1219,8 +1219,9 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 	}
 	act->setThrdMapRef(insertIntoActionList(&(*vec)[tid],act));
 
+	ModelAction * lastact = thrd_last_action[tid];
 	// Update thrd_last_action, the last action taken by each thrad
-	if (thrd_last_action[tid]->get_seq_number() == act->get_seq_number())
+	if (lastact == NULL || lastact->get_seq_number() == act->get_seq_number())
 		thrd_last_action[tid] = act;
 }
 
@@ -1394,46 +1395,47 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 	SnapVector<ModelAction *> * rf_set = new SnapVector<ModelAction *>();
 
 	/* Iterate over all threads */
-	for (i = 0;i < thrd_lists->size();i++) {
-		/* Iterate over actions in thread, starting from most recent */
-		action_list_t *list = &(*thrd_lists)[i];
-		sllnode<ModelAction *> * rit;
-		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
-			ModelAction *act = rit->getVal();
+	if (thrd_lists != NULL)
+		for (i = 0;i < thrd_lists->size();i++) {
+			/* Iterate over actions in thread, starting from most recent */
+			action_list_t *list = &(*thrd_lists)[i];
+			sllnode<ModelAction *> * rit;
+			for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
+				ModelAction *act = rit->getVal();
 
-			if (act == curr)
-				continue;
+				if (act == curr)
+					continue;
 
-			/* Don't consider more than one seq_cst write if we are a seq_cst read. */
-			bool allow_read = true;
+				/* Don't consider more than one seq_cst write if we are a seq_cst read. */
+				bool allow_read = true;
 
-			if (curr->is_seqcst() && (act->is_seqcst() || (last_sc_write != NULL && act->happens_before(last_sc_write))) && act != last_sc_write)
-				allow_read = false;
+				if (curr->is_seqcst() && (act->is_seqcst() || (last_sc_write != NULL && act->happens_before(last_sc_write))) && act != last_sc_write)
+					allow_read = false;
 
-			/* Need to check whether we will have two RMW reading from the same value */
-			if (curr->is_rmwr()) {
-				/* It is okay if we have a failing CAS */
-				if (!curr->is_rmwrcas() ||
-						valequals(curr->get_value(), act->get_value(), curr->getSize())) {
-					//Need to make sure we aren't the second RMW
-					CycleNode * node = mo_graph->getNode_noCreate(act);
-					if (node != NULL && node->getRMW() != NULL) {
-						//we are the second RMW
-						allow_read = false;
+				/* Need to check whether we will have two RMW reading from the same value */
+				if (curr->is_rmwr()) {
+					/* It is okay if we have a failing CAS */
+					if (!curr->is_rmwrcas() ||
+							valequals(curr->get_value(), act->get_value(), curr->getSize())) {
+						//Need to make sure we aren't the second RMW
+						CycleNode * node = mo_graph->getNode_noCreate(act);
+						if (node != NULL && node->getRMW() != NULL) {
+							//we are the second RMW
+							allow_read = false;
+						}
 					}
 				}
-			}
 
-			if (allow_read) {
-				/* Only add feasible reads */
-				rf_set->push_back(act);
-			}
+				if (allow_read) {
+					/* Only add feasible reads */
+					rf_set->push_back(act);
+				}
 
-			/* Include at most one act per-thread that "happens before" curr */
-			if (act->happens_before(curr))
-				break;
+				/* Include at most one act per-thread that "happens before" curr */
+				if (act->happens_before(curr))
+					break;
+			}
 		}
-	}
 
 	if (DBG_ENABLED()) {
 		model_print("Reached read action:\n");

@@ -69,7 +69,7 @@ bool hasNonAtomicStore(const void *address) {
 		return !(ATOMICMASK & shadowval);
 	} else {
 		if (shadowval == 0)
-			return false;
+			return true;
 		struct RaceRecord *record = (struct RaceRecord *)shadowval;
 		return !record->isAtomic;
 	}
@@ -81,8 +81,10 @@ void setAtomicStoreFlag(const void *address) {
 	if (ISSHORTRECORD(shadowval)) {
 		*shadow = shadowval | ATOMICMASK;
 	} else {
-		if (shadowval == 0)
+		if (shadowval == 0) {
+			*shadow = ATOMICMASK | ENCODEOP(0, 0, 0, 0);
 			return;
+		}
 		struct RaceRecord *record = (struct RaceRecord *)shadowval;
 		record->isAtomic = 1;
 	}
@@ -91,7 +93,7 @@ void setAtomicStoreFlag(const void *address) {
 void getStoreThreadAndClock(const void *address, thread_id_t * thread, modelclock_t * clock) {
 	uint64_t * shadow = lookupAddressEntry(address);
 	uint64_t shadowval = *shadow;
-	if (ISSHORTRECORD(shadowval)) {
+	if (ISSHORTRECORD(shadowval) || shadowval == 0) {
 		//Do we have a non atomic write with a non-zero clock
 		*thread = WRTHREADID(shadowval);
 		*clock = WRITEVECTOR(shadowval);
