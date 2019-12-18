@@ -789,16 +789,24 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 																					SnapVector<ModelAction *> * priorset, bool * canprune, bool check_only)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
-	unsigned int i;
 	ASSERT(curr->is_read());
 
 	/* Last SC fence in the current thread */
 	ModelAction *last_sc_fence_local = get_last_seq_cst_fence(curr->get_tid(), NULL);
 
 	int tid = curr->get_tid();
+
+	/* Need to ensure thrd_lists is big enough because we have not added the curr actions yet.  */
+	if ((int)thrd_lists->size() <= tid) {
+		uint oldsize = thrd_lists->size();
+		thrd_lists->resize(priv->next_thread_id);
+		for(uint i = oldsize;i < priv->next_thread_id;i++)
+			new (&(*thrd_lists)[i]) action_list_t();
+	}
+	
 	ModelAction *prev_same_thread = NULL;
 	/* Iterate over all threads */
-	for (i = 0;i < thrd_lists->size();i++, tid = (((unsigned int)(tid+1)) == thrd_lists->size()) ? 0 : tid + 1) {
+	for (unsigned int i = 0;i < thrd_lists->size();i++, tid = (((unsigned int)(tid+1)) == thrd_lists->size()) ? 0 : tid + 1) {
 		/* Last SC fence in thread tid */
 		ModelAction *last_sc_fence_thread_local = NULL;
 		if (i != 0)
