@@ -316,10 +316,10 @@ CycleNode::~CycleNode() {
 }
 
 void CycleNode::removeInEdge(CycleNode *src) {
-	for(unsigned int i=0;i < edges.size();i++) {
-		if (edges[i] == src) {
-			edges[i] = edges[edges.size()-1];
-			edges.pop_back();
+	for(unsigned int i=0;i < inedges.size();i++) {
+		if (inedges[i] == src) {
+			inedges[i] = inedges[inedges.size()-1];
+			inedges.pop_back();
 			break;
 		}
 	}

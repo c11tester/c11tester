@@ -55,7 +55,7 @@ static void print_usage(struct model_params *params)
 		"                            Default: %u\n"
 		"                            -o help for a list of options\n"
 		"-n                          No fork\n"
-		"-m, --minsize=NUM           Minimum number of actions to keep\n",
+		"-m, --minsize=NUM           Minimum number of actions to keep\n"
 		"                            Default: %u\n"
 		"-f, --freqfree=NUM          Frequency to free actions\n"
 		"                            Default: %u\n"

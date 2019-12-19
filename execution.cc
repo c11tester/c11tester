@@ -296,15 +296,15 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 
 	// Remove writes that violate read modification order
 	/*
-	uint i = 0;
-	while (i < rf_set->size()) {
-		ModelAction * rf = (*rf_set)[i];
-		if (!r_modification_order(curr, rf, NULL, NULL, true)) {
-			(*rf_set)[i] = rf_set->back();
-			rf_set->pop_back();
-		} else
-			i++;
-	}*/
+	   uint i = 0;
+	   while (i < rf_set->size()) {
+	        ModelAction * rf = (*rf_set)[i];
+	        if (!r_modification_order(curr, rf, NULL, NULL, true)) {
+	                (*rf_set)[i] = rf_set->back();
+	                rf_set->pop_back();
+	        } else
+	                i++;
+	   }*/
 
 	while(true) {
 		int index = fuzzer->selectWrite(curr, rf_set);
@@ -803,7 +803,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*thrd_lists)[i]) action_list_t();
 	}
-	
+
 	ModelAction *prev_same_thread = NULL;
 	/* Iterate over all threads */
 	for (unsigned int i = 0;i < thrd_lists->size();i++, tid = (((unsigned int)(tid+1)) == thrd_lists->size()) ? 0 : tid + 1) {
@@ -1701,7 +1701,8 @@ void ModelExecution::removeAction(ModelAction *act) {
 
 ClockVector * ModelExecution::computeMinimalCV() {
 	ClockVector *cvmin = NULL;
-	for(unsigned int i = 0;i < thread_map.size();i++) {
+	//Thread 0 isn't a real thread, so skip it..
+	for(unsigned int i = 1;i < thread_map.size();i++) {
 		Thread * t = thread_map[i];
 		if (t->get_state() == THREAD_COMPLETED)
 			continue;
@@ -1723,6 +1724,7 @@ ClockVector * ModelExecution::computeMinimalCV() {
 void ModelExecution::collectActions() {
 	//Compute minimal clock vector for all live threads
 	ClockVector *cvmin = computeMinimalCV();
+	cvmin->print();
 	SnapVector<CycleNode *> * queue = new SnapVector<CycleNode *>();
 	modelclock_t maxtofree = priv->used_sequence_numbers - params->traceminsize;
 
@@ -1752,27 +1754,28 @@ void ModelExecution::collectActions() {
 
 			//Mark everything earlier in MO graph to be freed
 			CycleNode * cn = mo_graph->getNode_noCreate(write);
-			queue->push_back(cn);
-			while(!queue->empty()) {
-				CycleNode * node = queue->back();
-				queue->pop_back();
-				for(unsigned int i=0;i<node->getNumInEdges();i++) {
-					CycleNode * prevnode = node->getInEdge(i);
-					ModelAction * prevact = prevnode->getAction();
-					if (prevact->get_type() != READY_FREE) {
-						prevact->set_free();
-						queue->push_back(prevnode);
+			if (cn != NULL) {
+				queue->push_back(cn);
+				while(!queue->empty()) {
+					CycleNode * node = queue->back();
+					queue->pop_back();
+					for(unsigned int i=0;i<node->getNumInEdges();i++) {
+						CycleNode * prevnode = node->getInEdge(i);
+						ModelAction * prevact = prevnode->getAction();
+						if (prevact->get_type() != READY_FREE) {
+							prevact->set_free();
+							queue->push_back(prevnode);
+						}
 					}
 				}
 			}
 		}
 	}
-	for (;it != NULL;it=it->getPrev()) {
+	for (;it != NULL;) {
 		ModelAction *act = it->getVal();
-		if (act->is_free()) {
-			removeAction(act);
-			delete act;
-		} else if (act->is_read()) {
+		//Do iteration early since we may delete node...
+		it=it->getPrev();
+		if (act->is_read()) {
 			if (act->get_reads_from()->is_free()) {
 				removeAction(act);
 				delete act;
@@ -1787,6 +1790,11 @@ void ModelExecution::collectActions() {
 						act->set_last_fence_release(NULL);
 				}
 			}
+		} else if (act->is_free()) {
+			removeAction(act);
+			delete act;
+		} else if (act->is_write()) {
+			//Do nothing with write that hasn't been marked to be freed
 		} else if (act->is_fence()) {
 			//Note that acquire fences can always be safely
 			//removed, but could incur extra overheads in
