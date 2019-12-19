@@ -554,10 +554,16 @@ SnapVector<struct half_pred_expr *> * half_pred_expressions)
 bool FuncNode::amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst, ModelAction * next_act)
 {
 	ModelVector<Predicate *> * children = curr_pred->get_children();
-	ASSERT(children->size() == 1);
 
-	// there should only be only child
-	Predicate * unset_pred = (*children)[0];
+	Predicate * unset_pred = NULL;
+	for (uint i = 0; i < children->size(); i++) {
+		Predicate * child = (*children)[i];
+		if (child->get_func_inst() == next_inst) {
+			unset_pred = child;
+			break;
+		}
+	}
+
 	uint64_t read_val = next_act->get_reads_from_value();
 
 	// only generate NULLITY predicate when it is actually NULL.
