@@ -35,9 +35,6 @@ public:
 	model_params * getParams();
 	void run();
 
-	/** Restart the model checker, intended for pluggins. */
-	void restart();
-
 	/** Exit the model checker, intended for pluggins. */
 	void exit_model_checker();
 
@@ -69,9 +66,6 @@ public:
 	Scheduler * getScheduler() {return scheduler;}
 	MEMALLOC
 private:
-	/** Flag indicates whether to restart the model checker. */
-	bool restart_flag;
-
 	/** Snapshot id we return to restart. */
 	snapshot_id snapshot;
 
@@ -85,7 +79,7 @@ private:
 
 	unsigned int get_num_threads() const;
 
-	bool next_execution();
+	void finish_execution(bool moreexecutions);
 	bool should_terminate_execution();
 
 	Thread * get_next_thread();
@@ -95,8 +89,6 @@ private:
 
 	ModelVector<TraceAnalysis *> trace_analyses;
 
-	/** @bref Implement restart. */
-	void do_restart();
 	/** @bref Plugin that can inspect new actions. */
 	TraceAnalysis *inspect_plugin;
 	/** @brief The cumulative execution stats */

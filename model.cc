@@ -30,7 +30,6 @@ void placeholder(void *) {
 ModelChecker::ModelChecker() :
 	/* Initialize default scheduler */
 	params(),
-	restart_flag(false),
 	scheduler(new Scheduler()),
 	history(new ModelHistory()),
 	execution(new ModelExecution(this, scheduler)),
@@ -237,7 +236,7 @@ void ModelChecker::print_execution(bool printbugs) const
  * @return If there are more executions to explore, return true. Otherwise,
  * return false.
  */
-bool ModelChecker::next_execution()
+void ModelChecker::finish_execution(bool more_executions)
 {
 	DBG();
 	/* Is this execution a feasible execution that's worth bug-checking? */
@@ -259,15 +258,11 @@ bool ModelChecker::next_execution()
 	else
 		clear_program_output();
 
-	if (restart_flag) {
-		do_restart();
-		return true;
-	}
 // test code
 	execution_number ++;
-	reset_to_initial_state();
+	if (more_executions)
+	  reset_to_initial_state();
 	history->set_new_exec_flag();
-	return false;
 }
 
 /** @brief Run trace analyses on complete trace */
@@ -371,21 +366,6 @@ bool ModelChecker::should_terminate_execution()
 	return false;
 }
 
-/** @brief Restart ModelChecker upon returning to the run loop of the
- *	model checker. */
-void ModelChecker::restart()
-{
-	restart_flag = true;
-}
-
-void ModelChecker::do_restart()
-{
-	restart_flag = false;
-	reset_to_initial_state();
-	memset(&stats,0,sizeof(struct execution_stats));
-	execution_number = 1;
-}
-
 /** @brief Run ModelChecker for the user program */
 void ModelChecker::run()
 {
@@ -472,7 +452,7 @@ void ModelChecker::run()
 			t->set_pending(NULL);
 			t = execution->take_step(curr);
 		} while (!should_terminate_execution());
-		next_execution();
+		finish_execution((exec+1) < params.maxexecutions);
 		//restore random number generator state after rollback
 		setstate(random_state);
 	}
