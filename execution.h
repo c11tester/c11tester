@@ -109,7 +109,7 @@ private:
 	void process_thread_action(ModelAction *curr);
 	void read_from(ModelAction *act, ModelAction *rf);
 	bool synchronize(const ModelAction *first, ModelAction *second);
-	void add_action_to_lists(ModelAction *act);
+	void add_action_to_lists(ModelAction *act, bool canprune);
 	void add_normal_write_to_lists(ModelAction *act);
 	void add_write_to_lists(ModelAction *act);
 	ModelAction * get_last_fence_release(thread_id_t tid) const;

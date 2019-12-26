@@ -261,7 +261,7 @@ void ModelChecker::finish_execution(bool more_executions)
 // test code
 	execution_number ++;
 	if (more_executions)
-	  reset_to_initial_state();
+		reset_to_initial_state();
 	history->set_new_exec_flag();
 }
 

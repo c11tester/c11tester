@@ -283,7 +283,7 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
  * Processes a read model action.
  * @param curr is the read model action to process.
  * @param rf_set is the set of model actions we can possibly read from
- * @return True if processing this read updates the mo_graph.
+ * @return True if the read can be pruned from the thread map list.
  */
 bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set)
 {
@@ -320,12 +320,7 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 			read_from(curr, rf);
 			get_thread(curr)->set_return_value(curr->get_return_value());
 			delete priorset;
-			if (canprune && curr->get_type() == ATOMIC_READ) {
-				int tid = id_to_int(curr->get_tid());
-				(*obj_thrd_map.get(curr->get_location()))[tid].pop_back();
-				curr->setThrdMapRef(NULL);
-			}
-			return true;
+			return canprune && curr->get_type() == ATOMIC_READ;
 		}
 		priorset->clear();
 		(*rf_set)[index] = rf_set->back();
@@ -728,15 +723,17 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	if (newly_explored && curr->is_read())
 		rf_set = build_may_read_from(curr);
 
+	bool canprune = false;
+
 	if (curr->is_read() && !second_part_of_rmw) {
-		process_read(curr, rf_set);
+		canprune = process_read(curr, rf_set);
 		delete rf_set;
 	} else
 		ASSERT(rf_set == NULL);
 
 	/* Add the action to lists */
 	if (!second_part_of_rmw)
-		add_action_to_lists(curr);
+		add_action_to_lists(curr, canprune);
 
 	if (curr->is_write())
 		add_write_to_lists(curr);
@@ -1118,7 +1115,7 @@ ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
  *
  * @param act is the ModelAction to add.
  */
-void ModelExecution::add_action_to_lists(ModelAction *act)
+void ModelExecution::add_action_to_lists(ModelAction *act, bool canprune)
 {
 	int tid = id_to_int(act->get_tid());
 	if ((act->is_fence() && act->is_seqcst()) || act->is_unlock()) {
@@ -1138,7 +1135,8 @@ void ModelExecution::add_action_to_lists(ModelAction *act)
 		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
 	}
-	act->setThrdMapRef((*vec)[tid].add_back(act));
+	if (!canprune)
+		act->setThrdMapRef((*vec)[tid].add_back(act));
 
 	// Update thrd_last_action, the last action taken by each thread
 	if ((int)thrd_last_action.size() <= tid)
