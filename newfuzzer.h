@@ -34,7 +34,7 @@ public:
 	bool shouldWake(const ModelAction * sleep);
 	bool shouldWait(const ModelAction * wait);
 
-	void register_engine(ModelHistory * history, ModelExecution * execution);
+	void register_engine(ModelExecution * execution);
 	Predicate * get_selected_child_branch(thread_id_t tid);
 
 	SNAPSHOTALLOC

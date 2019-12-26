@@ -38,3 +38,8 @@ bool Fuzzer::shouldWake(const ModelAction *sleep) {
 
 	return ((sleep->get_time()+sleep->get_value()) < lcurrtime);
 }
+
+bool Fuzzer::shouldWait(const ModelAction * act)
+{
+	return random() & 1;
+}

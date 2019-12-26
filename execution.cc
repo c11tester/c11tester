@@ -69,7 +69,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	/* Initialize a model-checker thread, for special ModelActions */
 	model_thread = new Thread(get_next_id());
 	add_thread(model_thread);
-	fuzzer->register_engine(m->get_history(), this);
+	fuzzer->register_engine(this);
 	scheduler->register_engine(this);
 #ifdef TLS
 	pthread_key_create(&pthreadkey, tlsdestructor);
@@ -320,7 +320,7 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 			read_from(curr, rf);
 			get_thread(curr)->set_return_value(curr->get_return_value());
 			delete priorset;
-			return canprune && curr->get_type() == ATOMIC_READ;
+			return canprune && (curr->get_type() == ATOMIC_READ);
 		}
 		priorset->clear();
 		(*rf_set)[index] = rf_set->back();
@@ -1686,7 +1686,7 @@ void ModelExecution::removeAction(ModelAction *act) {
 			void *mutex_loc = (void *) act->get_value();
 			get_safe_ptr_action(&obj_map, mutex_loc)->erase(listref);
 		}
-	} else if (act->is_write()) {
+	} else if (act->is_free()) {
 		sllnode<ModelAction *> * listref = act->getActionRef();
 		if (listref != NULL) {
 			SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());

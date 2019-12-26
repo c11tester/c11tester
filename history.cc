@@ -190,7 +190,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		func_node->update_inst_act_map(tid, act);
 
 		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
-		Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
+		Predicate * selected_branch = ((NewFuzzer *)fuzzer)->get_selected_child_branch(tid);
 		func_node->set_predicate_tree_position(tid, selected_branch);
 	}
 
@@ -363,7 +363,7 @@ void ModelHistory::check_waiting_write(ModelAction * write_act)
 			Thread * thread = model->get_thread(tid);
 
 			//model_print("** thread %d is woken up\n", thread->get_id());
-			model->get_execution()->getFuzzer()->notify_paused_thread(thread);
+			((NewFuzzer *)model->get_execution()->getFuzzer())->notify_paused_thread(thread);
 		}
 
 		index++;
@@ -431,7 +431,7 @@ void ModelHistory::stop_waiting_for_node(thread_id_t self_id,
 			// model_print("\tthread %d waits for nobody, wake up\n", self_id);
 			ModelExecution * execution = model->get_execution();
 			Thread * thread = execution->get_thread(self_id);
-			execution->getFuzzer()->notify_paused_thread(thread);
+			((NewFuzzer *)execution->getFuzzer())->notify_paused_thread(thread);
 		}
 	}
 }
@@ -533,7 +533,7 @@ void ModelHistory::monitor_waiting_thread_counter(thread_id_t tid)
 				// model_print("\tthread %d waits for nobody, wake up\n", self_id);
 				ModelExecution * execution = model->get_execution();
 				Thread * thread = execution->get_thread(waited_by_id);
-				execution->getFuzzer()->notify_paused_thread(thread);
+				((NewFuzzer *)execution->getFuzzer())->notify_paused_thread(thread);
 			}
 		}
 	}
