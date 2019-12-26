@@ -1783,8 +1783,8 @@ void ModelExecution::collectActions() {
 		if (act->is_read()) {
 			if (islastact) {
 				act->set_read_from(NULL);
-			}
-			if (act->get_reads_from()->is_free()) {
+				continue;
+			} else if (act->get_reads_from()->is_free()) {
 				removeAction(act);
 				delete act;
 			} else {
@@ -1798,9 +1798,7 @@ void ModelExecution::collectActions() {
 						act->set_last_fence_release(NULL);
 				}
 			}
-		}
-
-		if (islastact) {
+		} else if (islastact) {
 			continue;
 		} else if (act->is_free()) {
 			removeAction(act);
