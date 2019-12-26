@@ -297,6 +297,10 @@ void CycleGraph::freeAction(const ModelAction * act) {
 		CycleNode *dst = cn->edges[i];
 		dst->removeInEdge(cn);
 	}
+	for(unsigned int i=0;i<cn->inedges.size();i++) {
+		CycleNode *src = cn->inedges[i];
+		src->removeEdge(cn);
+	}
 	delete cn;
 }
 
@@ -320,6 +324,16 @@ void CycleNode::removeInEdge(CycleNode *src) {
 		if (inedges[i] == src) {
 			inedges[i] = inedges[inedges.size()-1];
 			inedges.pop_back();
+			break;
+		}
+	}
+}
+
+void CycleNode::removeEdge(CycleNode *dst) {
+	for(unsigned int i=0;i < edges.size();i++) {
+		if (edges[i] == dst) {
+			edges[i] = edges[edges.size()-1];
+			edges.pop_back();
 			break;
 		}
 	}

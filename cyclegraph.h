@@ -70,6 +70,7 @@ public:
 	void clearRMW() { hasRMW = NULL; }
 	ModelAction * getAction() const { return action; }
 	void removeInEdge(CycleNode *src);
+	void removeEdge(CycleNode *dst);
 	~CycleNode();
 
 	SNAPSHOTALLOC

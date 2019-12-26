@@ -63,7 +63,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
 	mo_graph(new CycleGraph()),
-	fuzzer(new NewFuzzer()),
+	fuzzer(new Fuzzer()),
 	isfinished(false)
 {
 	/* Initialize a model-checker thread, for special ModelActions */
@@ -1820,6 +1820,11 @@ void ModelExecution::collectActions() {
 			if(act->is_unlock() || act->is_wait()) {
 				ModelAction * lastlock = get_last_unlock(act);
 				if (lastlock != act) {
+					removeAction(act);
+					delete act;
+				}
+			} else if (act->is_create()) {
+				if (act->get_thread_operand()->get_state()==THREAD_COMPLETED) {
 					removeAction(act);
 					delete act;
 				}
