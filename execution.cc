@@ -1773,7 +1773,17 @@ void ModelExecution::collectActions() {
 		ModelAction *act = it->getVal();
 		//Do iteration early since we may delete node...
 		it=it->getPrev();
+		bool islastact = false;
+		ModelAction *lastact = get_last_action(act->get_tid());
+		if (act == lastact) {
+			Thread * th = get_thread(act);
+			islastact = !th->is_complete();
+		}
+
 		if (act->is_read()) {
+			if (islastact) {
+				act->set_read_from(NULL);
+			}
 			if (act->get_reads_from()->is_free()) {
 				removeAction(act);
 				delete act;
@@ -1788,6 +1798,10 @@ void ModelExecution::collectActions() {
 						act->set_last_fence_release(NULL);
 				}
 			}
+		}
+
+		if (islastact) {
+			continue;
 		} else if (act->is_free()) {
 			removeAction(act);
 			delete act;
@@ -1824,7 +1838,7 @@ void ModelExecution::collectActions() {
 					delete act;
 				}
 			} else if (act->is_create()) {
-				if (act->get_thread_operand()->get_state()==THREAD_COMPLETED) {
+				if (act->get_thread_operand()->is_complete()) {
 					removeAction(act);
 					delete act;
 				}
