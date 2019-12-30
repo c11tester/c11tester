@@ -124,6 +124,7 @@ private:
 	ModelAction * convertNonAtomicStore(void*);
 	ClockVector * computeMinimalCV();
 	void removeAction(ModelAction *act);
+	void fixupLastAct(ModelAction *act);
 
 #ifdef TLS
 	pthread_key_t pthreadkey;

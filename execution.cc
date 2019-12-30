@@ -1720,10 +1720,14 @@ ClockVector * ModelExecution::computeMinimalCV() {
 	return cvmin;
 }
 
-//Options...
-//How often to check for memory
-//How much of the trace to always keep
-//Whether to sacrifice completeness...i.e., remove visible writes
+void ModelExecution::fixupLastAct(ModelAction *act) {
+//Create a standin ModelAction
+	ModelAction *newact = new ModelAction(ATOMIC_NOP, std::memory_order_seq_cst, get_thread(act->get_tid()));
+	newact->set_seq_number(get_next_seq_num());
+	newact->create_cv(act);
+	newact->set_last_fence_release(act->get_last_fence_release());
+	add_action_to_lists(newact, false);
+}
 
 void ModelExecution::collectActions() {
 	//Compute minimal clock vector for all live threads
@@ -1777,8 +1781,19 @@ void ModelExecution::collectActions() {
 	}
 	for (sllnode<ModelAction*> * it2 = action_trace.end();it2 != it;it2=it2->getPrev()) {
 		ModelAction *act = it2->getVal();
+		bool islastact = false;
+		ModelAction *lastact = get_last_action(act->get_tid());
+		if (act == lastact) {
+			Thread * th = get_thread(act);
+			islastact = !th->is_complete();
+		}
+
 		if (act->is_read() && act->get_reads_from()->is_free()) {
-			act->set_read_from(NULL);
+			removeAction(act);
+			if (islastact) {
+				fixupLastAct(act);
+			}
+			delete act;
 		}
 	}
 	for (;it != NULL;) {
@@ -1793,31 +1808,33 @@ void ModelExecution::collectActions() {
 		}
 
 		if (act->is_read()) {
-			if (!islastact && act->get_reads_from()->is_free()) {
+			if (act->get_reads_from()->is_free()) {
 				removeAction(act);
+				if (islastact) {
+					fixupLastAct(act);
+				}
 				delete act;
-				continue;
+			} else {
+				const ModelAction *rel_fence =act->get_last_fence_release();
+				if (rel_fence != NULL) {
+					modelclock_t relfenceseq = rel_fence->get_seq_number();
+					thread_id_t relfence_tid = rel_fence->get_tid();
+					modelclock_t tid_clock = cvmin->getClock(relfence_tid);
+					//Remove references to irrelevant release fences
+					if (relfenceseq <= tid_clock)
+						act->set_last_fence_release(NULL);
+				}
 			}
-			if (islastact && act->get_reads_from()->is_free()) {
-				act->set_read_from(NULL);
-			}
-
-			const ModelAction *rel_fence =act->get_last_fence_release();
-			if (rel_fence != NULL) {
-				modelclock_t relfenceseq = rel_fence->get_seq_number();
-				thread_id_t relfence_tid = rel_fence->get_tid();
-				modelclock_t tid_clock = cvmin->getClock(relfence_tid);
-				//Remove references to irrelevant release fences
-				if (relfenceseq <= tid_clock)
-					act->set_last_fence_release(NULL);
-			}
-		} else if (islastact) {
-			continue;
 		} else if (act->is_free()) {
 			removeAction(act);
+			if (islastact) {
+				fixupLastAct(act);
+			}
 			delete act;
 		} else if (act->is_write()) {
 			//Do nothing with write that hasn't been marked to be freed
+		} else if (islastact) {
+			//Keep the last action for non-read/write actions
 		} else if (act->is_fence()) {
 			//Note that acquire fences can always be safely
 			//removed, but could incur extra overheads in
@@ -1839,7 +1856,7 @@ void ModelExecution::collectActions() {
 				delete act;
 			}
 		} else {
-			//need to deal with lock, annotation, wait, notify, thread create, start, join, yield, finish
+			//need to deal with lock, annotation, wait, notify, thread create, start, join, yield, finish, nops
 			//lock, notify thread create, thread finish, yield, finish are dead as soon as they are in the trace
 			//need to keep most recent unlock/wait for each lock
 			if(act->is_unlock() || act->is_wait()) {

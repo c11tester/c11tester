@@ -77,7 +77,8 @@ typedef enum action_type {
 	ATOMIC_WAIT,	// < A wait action
 	ATOMIC_TIMEDWAIT,	// < A timed wait action
 	ATOMIC_ANNOTATION,	// < An annotation action to pass information to a trace analysis
-	READY_FREE
+	READY_FREE,	// < Write is ready to be freed
+	ATOMIC_NOP	// < Placeholder
 } action_type_t;
 
 
