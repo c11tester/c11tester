@@ -1692,6 +1692,12 @@ void ModelExecution::removeAction(ModelAction *act) {
 			SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
 			(*vec)[act->get_tid()].erase(listref);
 		}
+		//Clear it from last_sc_map
+		if (obj_last_sc_map.get(act->get_location()) == act) {
+			obj_last_sc_map.remove(act->get_location());
+		}
+
+
 		//Remove from Cyclegraph
 		mo_graph->freeAction(act);
 	}
@@ -1769,6 +1775,12 @@ void ModelExecution::collectActions() {
 			}
 		}
 	}
+	for (sllnode<ModelAction*> * it2 = action_trace.end();it2 != it;it2=it2->getPrev()) {
+		ModelAction *act = it2->getVal();
+		if (act->is_read() && act->get_reads_from()->is_free()) {
+			act->set_read_from(NULL);
+		}
+	}
 	for (;it != NULL;) {
 		ModelAction *act = it->getVal();
 		//Do iteration early since we may delete node...
@@ -1781,22 +1793,23 @@ void ModelExecution::collectActions() {
 		}
 
 		if (act->is_read()) {
-			if (islastact) {
-				act->set_read_from(NULL);
-				continue;
-			} else if (act->get_reads_from()->is_free()) {
+			if (!islastact && act->get_reads_from()->is_free()) {
 				removeAction(act);
 				delete act;
-			} else {
-				const ModelAction *rel_fence =act->get_last_fence_release();
-				if (rel_fence != NULL) {
-					modelclock_t relfenceseq = rel_fence->get_seq_number();
-					thread_id_t relfence_tid = rel_fence->get_tid();
-					modelclock_t tid_clock = cvmin->getClock(relfence_tid);
-					//Remove references to irrelevant release fences
-					if (relfenceseq <= tid_clock)
-						act->set_last_fence_release(NULL);
-				}
+				continue;
+			}
+			if (islastact && act->get_reads_from()->is_free()) {
+				act->set_read_from(NULL);
+			}
+
+			const ModelAction *rel_fence =act->get_last_fence_release();
+			if (rel_fence != NULL) {
+				modelclock_t relfenceseq = rel_fence->get_seq_number();
+				thread_id_t relfence_tid = rel_fence->get_tid();
+				modelclock_t tid_clock = cvmin->getClock(relfence_tid);
+				//Remove references to irrelevant release fences
+				if (relfenceseq <= tid_clock)
+					act->set_last_fence_release(NULL);
 			}
 		} else if (islastact) {
 			continue;

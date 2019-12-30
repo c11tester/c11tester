@@ -91,17 +91,16 @@ void parse_options(struct model_params *params) {
 	const char *shortopts = "hrnt:o:x:v:m:f::";
 	const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
-		{"verbose", optional_argument, NULL, 'v'},
+		{"removevisible", no_argument, NULL, 'r'},
 		{"analysis", required_argument, NULL, 't'},
 		{"options", required_argument, NULL, 'o'},
 		{"maxexecutions", required_argument, NULL, 'x'},
+		{"verbose", optional_argument, NULL, 'v'},
 		{"minsize", required_argument, NULL, 'm'},
 		{"freqfree", required_argument, NULL, 'f'},
-		{"removevisible", no_argument, NULL, 'r'},
 		{0, 0, 0, 0}	/* Terminator */
 	};
 	int opt, longindex;
-	int tmpoptind = optind;
 	bool error = false;
 	char * options = getenv("C11TESTER");
 
@@ -167,8 +166,8 @@ void parse_options(struct model_params *params) {
 		}
 	}
 
-	/* Restore (global) optind for potential use by user program */
-	optind = tmpoptind;
+	/* Special value to reset implementation as described by Linux man page.  */
+	optind = 0;
 
 	if (error)
 		print_usage(params);
