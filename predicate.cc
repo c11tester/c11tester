@@ -89,7 +89,7 @@ Predicate * Predicate::follow_write_child(FuncInst * inst)
 {
 	ASSERT(inst->get_type() == ATOMIC_WRITE);
 
-	for (uint i = 0; i < children.size(); i++) {
+	for (uint i = 0;i < children.size();i++) {
 		Predicate * child = children[i];
 		if (child->get_func_inst() == inst)
 			return child;

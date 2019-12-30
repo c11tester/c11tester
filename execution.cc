@@ -1168,11 +1168,11 @@ void ModelExecution::add_action_to_lists(ModelAction *act, bool canprune)
 sllnode<ModelAction *>* insertIntoActionList(action_list_t *list, ModelAction *act) {
 	sllnode<ModelAction*> * rit = list->end();
 	modelclock_t next_seq = act->get_seq_number();
-	if (rit == NULL || (rit->getVal()->get_seq_number() == next_seq))
+	if (rit == NULL || (rit->getVal()->get_seq_number() <= next_seq))
 		return list->add_back(act);
 	else {
 		for(;rit != NULL;rit=rit->getPrev()) {
-			if (rit->getVal()->get_seq_number() == next_seq) {
+			if (rit->getVal()->get_seq_number() <= next_seq) {
 				return list->insertAfter(rit, act);
 			}
 		}
@@ -1186,12 +1186,12 @@ sllnode<ModelAction *>* insertIntoActionListAndSetCV(action_list_t *list, ModelA
 	if (rit == NULL) {
 		act->create_cv(NULL);
 		return NULL;
-	} else if (rit->getVal()->get_seq_number() == next_seq) {
+	} else if (rit->getVal()->get_seq_number() <= next_seq) {
 		act->create_cv(rit->getVal());
 		return list->add_back(act);
 	} else {
 		for(;rit != NULL;rit=rit->getPrev()) {
-			if (rit->getVal()->get_seq_number() == next_seq) {
+			if (rit->getVal()->get_seq_number() <= next_seq) {
 				act->create_cv(rit->getVal());
 				return list->insertAfter(rit, act);
 			}

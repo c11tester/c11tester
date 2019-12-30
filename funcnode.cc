@@ -359,7 +359,7 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
  * @return true if branch found, false otherwise.
  */
 bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
-ModelAction * next_act, Predicate ** unset_predicate)
+														 ModelAction * next_act, Predicate ** unset_predicate)
 {
 	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
@@ -391,34 +391,34 @@ ModelAction * next_act, Predicate ** unset_predicate)
 			bool equality;
 
 			switch(pred_expression->token) {
-				case NOPREDICATE:
-					predicate_correct = true;
-					break;
-				case EQUALITY:
-					FuncInst * to_be_compared;
-					ModelAction * last_act;
+			case NOPREDICATE:
+				predicate_correct = true;
+				break;
+			case EQUALITY:
+				FuncInst * to_be_compared;
+				ModelAction * last_act;
 
-					to_be_compared = pred_expression->func_inst;
-					last_act = to_be_compared->get_associated_act(marker);
+				to_be_compared = pred_expression->func_inst;
+				last_act = to_be_compared->get_associated_act(marker);
 
-					last_read = last_act->get_reads_from_value();
-					next_read = next_act->get_reads_from_value();
-					equality = (last_read == next_read);
-					if (equality != pred_expression->value)
-						predicate_correct = false;
-
-					break;
-				case NULLITY:
-					next_read = next_act->get_reads_from_value();
-					// TODO: implement likely to be null
-					equality = ( (void*) (next_read & 0xffffffff) == NULL);
-					if (equality != pred_expression->value)
-						predicate_correct = false;
-					break;
-				default:
+				last_read = last_act->get_reads_from_value();
+				next_read = next_act->get_reads_from_value();
+				equality = (last_read == next_read);
+				if (equality != pred_expression->value)
 					predicate_correct = false;
-					model_print("unkown predicate token\n");
-					break;
+
+				break;
+			case NULLITY:
+				next_read = next_act->get_reads_from_value();
+				// TODO: implement likely to be null
+				equality = ( (void*) (next_read & 0xffffffff) == NULL);
+				if (equality != pred_expression->value)
+					predicate_correct = false;
+				break;
+			default:
+				predicate_correct = false;
+				model_print("unkown predicate token\n");
+				break;
 			}
 		}
 
@@ -436,7 +436,7 @@ ModelAction * next_act, Predicate ** unset_predicate)
 
 /* Infer predicate expressions, which are generated in FuncNode::generate_predicates */
 void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
-SnapVector<struct half_pred_expr *> * half_pred_expressions)
+																SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	void * loc = next_act->get_location();
 
@@ -483,7 +483,7 @@ SnapVector<struct half_pred_expr *> * half_pred_expressions)
 
 /* Able to generate complex predicates when there are multiple predciate expressions */
 void FuncNode::generate_predicates(Predicate * curr_pred, FuncInst * next_inst,
-SnapVector<struct half_pred_expr *> * half_pred_expressions)
+																	 SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	if (half_pred_expressions->size() == 0) {
 		Predicate * new_pred = new Predicate(next_inst);
@@ -556,7 +556,7 @@ bool FuncNode::amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst,
 	ModelVector<Predicate *> * children = curr_pred->get_children();
 
 	Predicate * unset_pred = NULL;
-	for (uint i = 0; i < children->size(); i++) {
+	for (uint i = 0;i < children->size();i++) {
 		Predicate * child = (*children)[i];
 		if (child->get_func_inst() == next_inst) {
 			unset_pred = child;
@@ -777,12 +777,12 @@ void FuncNode::add_failed_predicate(Predicate * pred)
 template<typename _Tp>
 static int partition(ModelVector<_Tp *> * arr, int low, int high)
 {
-	unsigned int pivot = (*arr)[high]->get_depth();
+	unsigned int pivot = (*arr)[high] -> get_depth();
 	int i = low - 1;
 
-	for (int j = low; j <= high - 1; j++) {
-		if ( (*arr)[j]->get_depth() < pivot ) {
-			i++;
+	for (int j = low;j <= high - 1;j ++) {
+		if ( (*arr)[j] -> get_depth() < pivot ) {
+			i ++;
 			_Tp * tmp = (*arr)[i];
 			(*arr)[i] = (*arr)[j];
 			(*arr)[j] = tmp;
@@ -839,7 +839,7 @@ void FuncNode::assign_initial_weight()
 			double weight_sum = 0;
 			bool has_unassigned_node = false;
 
-			for (uint i = 0; i < children->size(); i++) {
+			for (uint i = 0;i < children->size();i++) {
 				Predicate * child = (*children)[i];
 
 				// If a child has unassigned weight
@@ -882,7 +882,7 @@ void FuncNode::update_predicate_tree_weight()
 	failed_predicates.reset();
 
 	quickSort(&leaves_tmp_storage, 0, leaves_tmp_storage.size() - 1);
-	for (uint i = 0; i < leaves_tmp_storage.size(); i++) {
+	for (uint i = 0;i < leaves_tmp_storage.size();i++) {
 		Predicate * pred = leaves_tmp_storage[i];
 		double weight = 100.0 / sqrt(pred->get_expl_count() + pred->get_fail_count() + 1);
 		pred->set_weight(weight);
@@ -899,7 +899,7 @@ void FuncNode::update_predicate_tree_weight()
 			double weight_sum = 0;
 			bool has_unassigned_node = false;
 
-			for (uint i = 0; i < children->size(); i++) {
+			for (uint i = 0;i < children->size();i++) {
 				Predicate * child = (*children)[i];
 
 				double weight = child->get_weight();
@@ -928,7 +928,7 @@ void FuncNode::update_predicate_tree_weight()
 		}
 	}
 
-	for (uint i = 0; i < weight_debug_vec.size(); i++) {
+	for (uint i = 0;i < weight_debug_vec.size();i++) {
 		Predicate * tmp = weight_debug_vec[i];
 		ASSERT( tmp->get_weight() != 0 );
 	}
