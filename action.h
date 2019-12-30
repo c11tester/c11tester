@@ -102,6 +102,7 @@ public:
 
 	thread_id_t get_tid() const { return tid; }
 	action_type get_type() const { return type; }
+	void set_type(action_type _type) { type = _type; }
 	void set_free() { type = READY_FREE; }
 	memory_order get_mo() const { return order; }
 	memory_order get_original_mo() const { return original_order; }

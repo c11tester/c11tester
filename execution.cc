@@ -1779,8 +1779,10 @@ void ModelExecution::collectActions() {
 			}
 		}
 	}
-	for (sllnode<ModelAction*> * it2 = action_trace.end();it2 != it;it2=it2->getPrev()) {
+	for (sllnode<ModelAction*> * it2 = action_trace.end();it2 != it;) {
 		ModelAction *act = it2->getVal();
+		//Do iteration early in case we delete the act
+		it2=it2->getPrev();
 		bool islastact = false;
 		ModelAction *lastact = get_last_action(act->get_tid());
 		if (act == lastact) {
@@ -1789,6 +1791,9 @@ void ModelExecution::collectActions() {
 		}
 
 		if (act->is_read() && act->get_reads_from()->is_free()) {
+			if (act->is_rmw()) {
+				act->set_type(ATOMIC_WRITE);
+			}
 			removeAction(act);
 			if (islastact) {
 				fixupLastAct(act);
@@ -1808,7 +1813,9 @@ void ModelExecution::collectActions() {
 		}
 
 		if (act->is_read()) {
-			if (act->get_reads_from()->is_free()) {
+			if (act->is_rmw()) {
+				act->set_type(ATOMIC_WRITE);
+			} else if (act->get_reads_from()->is_free()) {
 				removeAction(act);
 				if (islastact) {
 					fixupLastAct(act);
