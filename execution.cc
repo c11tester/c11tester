@@ -1660,6 +1660,8 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	return action_select_next_thread(curr);
 }
 
+/** This method removes references to an Action before we delete it. */
+
 void ModelExecution::removeAction(ModelAction *act) {
 	{
 		sllnode<ModelAction *> * listref = act->getTraceRef();
@@ -1697,11 +1699,12 @@ void ModelExecution::removeAction(ModelAction *act) {
 			obj_last_sc_map.remove(act->get_location());
 		}
 
-
 		//Remove from Cyclegraph
 		mo_graph->freeAction(act);
 	}
 }
+
+/** Computes clock vector that all running threads have already synchronized to.  */
 
 ClockVector * ModelExecution::computeMinimalCV() {
 	ClockVector *cvmin = NULL;
@@ -1720,14 +1723,18 @@ ClockVector * ModelExecution::computeMinimalCV() {
 	return cvmin;
 }
 
+
+/** Sometimes we need to remove an action that is the most recent in the thread.  This happens if it is mo before action in other threads.  In that case we need to create a replacement latest ModelAction */
+
 void ModelExecution::fixupLastAct(ModelAction *act) {
-//Create a standin ModelAction
 	ModelAction *newact = new ModelAction(ATOMIC_NOP, std::memory_order_seq_cst, get_thread(act->get_tid()));
 	newact->set_seq_number(get_next_seq_num());
 	newact->create_cv(act);
 	newact->set_last_fence_release(act->get_last_fence_release());
 	add_action_to_lists(newact, false);
 }
+
+/** Compute which actions to free.  */
 
 void ModelExecution::collectActions() {
 	//Compute minimal clock vector for all live threads
@@ -1750,6 +1757,8 @@ void ModelExecution::collectActions() {
 
 		thread_id_t act_tid = act->get_tid();
 		modelclock_t tid_clock = cvmin->getClock(act_tid);
+
+		//Free if it is invisible or we have set a flag to remove visible actions.
 		if (actseq <= tid_clock || params->removevisible) {
 			ModelAction * write;
 			if (act->is_write()) {
@@ -1778,6 +1787,9 @@ void ModelExecution::collectActions() {
 			}
 		}
 	}
+
+	//We may need to remove read actions in the window we don't delete to preserve correctness.
+
 	for (sllnode<ModelAction*> * it2 = action_trace.end();it2 != it;) {
 		ModelAction *act = it2->getVal();
 		//Do iteration early in case we delete the act
@@ -1792,7 +1804,7 @@ void ModelExecution::collectActions() {
 		if (act->is_read()) {
 			if (act->get_reads_from()->is_free()) {
 				if (act->is_rmw()) {
-					//weaken to write
+					//Weaken a RMW from a freed store to a write
 					act->set_type(ATOMIC_WRITE);
 				} else {
 					removeAction(act);
@@ -1804,6 +1816,8 @@ void ModelExecution::collectActions() {
 				}
 			}
 		}
+		//If we don't delete the action, we should remove references to release fences
+
 		const ModelAction *rel_fence =act->get_last_fence_release();
 		if (rel_fence != NULL) {
 			modelclock_t relfenceseq = rel_fence->get_seq_number();
@@ -1814,6 +1828,7 @@ void ModelExecution::collectActions() {
 				act->set_last_fence_release(NULL);
 		}
 	}
+	//Now we are in the window of old actions that we remove if possible
 	for (;it != NULL;) {
 		ModelAction *act = it->getVal();
 		//Do iteration early since we may delete node...
@@ -1892,6 +1907,8 @@ void ModelExecution::collectActions() {
 				delete act;
 				continue;
 			}
+
+			//If we don't delete the action, we should remove references to release fences
 			const ModelAction *rel_fence =act->get_last_fence_release();
 			if (rel_fence != NULL) {
 				modelclock_t relfenceseq = rel_fence->get_seq_number();
@@ -1908,8 +1925,6 @@ void ModelExecution::collectActions() {
 	delete cvmin;
 	delete queue;
 }
-
-
 
 Fuzzer * ModelExecution::getFuzzer() {
 	return fuzzer;
