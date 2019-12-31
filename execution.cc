@@ -1176,7 +1176,7 @@ sllnode<ModelAction *>* insertIntoActionList(action_list_t *list, ModelAction *a
 				return list->insertAfter(rit, act);
 			}
 		}
-		return NULL;
+		return list->add_front(act);
 	}
 }
 
@@ -1185,7 +1185,7 @@ sllnode<ModelAction *>* insertIntoActionListAndSetCV(action_list_t *list, ModelA
 	modelclock_t next_seq = act->get_seq_number();
 	if (rit == NULL) {
 		act->create_cv(NULL);
-		return NULL;
+		return list->add_back(act);
 	} else if (rit->getVal()->get_seq_number() <= next_seq) {
 		act->create_cv(rit->getVal());
 		return list->add_back(act);
@@ -1196,7 +1196,7 @@ sllnode<ModelAction *>* insertIntoActionListAndSetCV(action_list_t *list, ModelA
 				return list->insertAfter(rit, act);
 			}
 		}
-		return NULL;
+		return list->add_front(act);
 	}
 }
 
