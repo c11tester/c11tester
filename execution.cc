@@ -1732,7 +1732,6 @@ void ModelExecution::fixupLastAct(ModelAction *act) {
 void ModelExecution::collectActions() {
 	//Compute minimal clock vector for all live threads
 	ClockVector *cvmin = computeMinimalCV();
-	cvmin->print();
 	SnapVector<CycleNode *> * queue = new SnapVector<CycleNode *>();
 	modelclock_t maxtofree = priv->used_sequence_numbers - params->traceminsize;
 
@@ -1790,15 +1789,29 @@ void ModelExecution::collectActions() {
 			islastact = !th->is_complete();
 		}
 
-		if (act->is_read() && act->get_reads_from()->is_free()) {
-			if (act->is_rmw()) {
-				act->set_type(ATOMIC_WRITE);
+		if (act->is_read()) {
+			if (act->get_reads_from()->is_free()) {
+				if (act->is_rmw()) {
+					//weaken to write
+					act->set_type(ATOMIC_WRITE);
+				} else {
+					removeAction(act);
+					if (islastact) {
+						fixupLastAct(act);
+					}
+					delete act;
+					continue;
+				}
 			}
-			removeAction(act);
-			if (islastact) {
-				fixupLastAct(act);
-			}
-			delete act;
+		}
+		const ModelAction *rel_fence =act->get_last_fence_release();
+		if (rel_fence != NULL) {
+			modelclock_t relfenceseq = rel_fence->get_seq_number();
+			thread_id_t relfence_tid = rel_fence->get_tid();
+			modelclock_t tid_clock = cvmin->getClock(relfence_tid);
+			//Remove references to irrelevant release fences
+			if (relfenceseq <= tid_clock)
+				act->set_last_fence_release(NULL);
 		}
 	}
 	for (;it != NULL;) {
@@ -1813,23 +1826,16 @@ void ModelExecution::collectActions() {
 		}
 
 		if (act->is_read()) {
-			if (act->is_rmw()) {
-				act->set_type(ATOMIC_WRITE);
-			} else if (act->get_reads_from()->is_free()) {
-				removeAction(act);
-				if (islastact) {
-					fixupLastAct(act);
-				}
-				delete act;
-			} else {
-				const ModelAction *rel_fence =act->get_last_fence_release();
-				if (rel_fence != NULL) {
-					modelclock_t relfenceseq = rel_fence->get_seq_number();
-					thread_id_t relfence_tid = rel_fence->get_tid();
-					modelclock_t tid_clock = cvmin->getClock(relfence_tid);
-					//Remove references to irrelevant release fences
-					if (relfenceseq <= tid_clock)
-						act->set_last_fence_release(NULL);
+			if (act->get_reads_from()->is_free()) {
+				if (act->is_rmw()) {
+					act->set_type(ATOMIC_WRITE);
+				} else {
+					removeAction(act);
+					if (islastact) {
+						fixupLastAct(act);
+					}
+					delete act;
+					continue;
 				}
 			}
 		} else if (act->is_free()) {
@@ -1838,6 +1844,7 @@ void ModelExecution::collectActions() {
 				fixupLastAct(act);
 			}
 			delete act;
+			continue;
 		} else if (act->is_write()) {
 			//Do nothing with write that hasn't been marked to be freed
 		} else if (islastact) {
@@ -1861,6 +1868,7 @@ void ModelExecution::collectActions() {
 			if (actseq <= tid_clock) {
 				removeAction(act);
 				delete act;
+				continue;
 			}
 		} else {
 			//need to deal with lock, annotation, wait, notify, thread create, start, join, yield, finish, nops
@@ -1871,16 +1879,29 @@ void ModelExecution::collectActions() {
 				if (lastlock != act) {
 					removeAction(act);
 					delete act;
+					continue;
 				}
 			} else if (act->is_create()) {
 				if (act->get_thread_operand()->is_complete()) {
 					removeAction(act);
 					delete act;
+					continue;
 				}
 			} else {
 				removeAction(act);
 				delete act;
+				continue;
 			}
+			const ModelAction *rel_fence =act->get_last_fence_release();
+			if (rel_fence != NULL) {
+				modelclock_t relfenceseq = rel_fence->get_seq_number();
+				thread_id_t relfence_tid = rel_fence->get_tid();
+				modelclock_t tid_clock = cvmin->getClock(relfence_tid);
+				//Remove references to irrelevant release fences
+				if (relfenceseq <= tid_clock)
+					act->set_last_fence_release(NULL);
+			}
+
 		}
 	}
 

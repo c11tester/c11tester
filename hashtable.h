@@ -182,24 +182,38 @@ public:
 			resize(capacity << 1);
 
 		struct hashlistnode<_Key, _Val> *search;
+		struct hashlistnode<_Key, _Val> *first = NULL;
 
-		unsigned int index = hash_function(key);
+		unsigned int index = hash_function(key) & capacitymask;
+		unsigned int oindex = index;
 		do {
-			index &= capacitymask;
 			search = &table[index];
 			if (!search->key) {
 				//key is null, probably done
-				break;
+				if (!search->val)
+					break;
+				if (first == NULL)
+					first = search;
 			}
 			if (equals(search->key, key)) {
 				search->val = val;
 				return;
 			}
-			index++;
+			index = (index + 1) & capacitymask;
+			if (index == oindex) {
+				if (first == NULL)
+					exit(-1);
+				break;
+			}
 		} while (true);
 
-		search->key = key;
-		search->val = val;
+		if (first != NULL) {
+			first->key = key;
+			first->val = val;
+		} else {
+			search->key = key;
+			search->val = val;
+		}
 		size++;
 	}
 
@@ -220,7 +234,7 @@ public:
 		}
 
 		unsigned int oindex = hash_function(key) & capacitymask;
-		unsigned int index=oindex;
+		unsigned int index = oindex;
 		do {
 			search = &table[index];
 			if (!search->key) {
