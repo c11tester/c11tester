@@ -1671,9 +1671,17 @@ void ModelExecution::removeAction(ModelAction *act) {
 	}
 	{
 		sllnode<ModelAction *> * listref = act->getThrdMapRef();
-		if (listref != NULL) {
-			SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
-			(*vec)[act->get_tid()].erase(listref);
+		if (act->is_wait()) {
+			if (listref != NULL) {
+				void *mutex_loc = (void *) act->get_value();
+				SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, mutex_loc);
+				(*vec)[act->get_tid()].erase(listref);
+			}
+		} else {
+			if (listref != NULL) {
+				SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_thrd_map, act->get_location());
+				(*vec)[act->get_tid()].erase(listref);
+			}
 		}
 	}
 	if ((act->is_fence() && act->is_seqcst()) || act->is_unlock()) {
