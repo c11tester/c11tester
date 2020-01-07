@@ -73,7 +73,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	/* Initialize a model-checker thread, for special ModelActions */
 	model_thread = new Thread(get_next_id());
 	add_thread(model_thread);
-	fuzzer->register_engine(this);
+	fuzzer->register_engine(m, this);
 	scheduler->register_engine(this);
 #ifdef TLS
 	pthread_key_create(&pthreadkey, tlsdestructor);

@@ -16,7 +16,7 @@ public:
 	bool shouldSleep(const ModelAction *sleep);
 	bool shouldWake(const ModelAction *sleep);
 	virtual bool shouldWait(const ModelAction *wait);
-	virtual void register_engine(ModelExecution * execution) {}
+	virtual void register_engine(ModelChecker * _model, ModelExecution * execution) {}
 	SNAPSHOTALLOC
 private:
 };

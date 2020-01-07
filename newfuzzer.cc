@@ -26,9 +26,9 @@ NewFuzzer::NewFuzzer() :
 /**
  * @brief Register the ModelHistory and ModelExecution engine
  */
-void NewFuzzer::register_engine(ModelExecution *execution)
+void NewFuzzer::register_engine(ModelChecker *_model, ModelExecution *execution)
 {
-	this->history = model->get_history();
+	this->history = _model->get_history();
 	this->execution = execution;
 }
 
