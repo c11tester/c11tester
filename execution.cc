@@ -63,7 +63,11 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
 	mo_graph(new CycleGraph()),
+#ifdef NEWFUZZER
+	fuzzer(new NewFuzzer()),
+#else
 	fuzzer(new Fuzzer()),
+#endif
 	isfinished(false)
 {
 	/* Initialize a model-checker thread, for special ModelActions */
@@ -275,7 +279,9 @@ ModelAction * ModelExecution::convertNonAtomicStore(void * location) {
 	add_normal_write_to_lists(act);
 	add_write_to_lists(act);
 	w_modification_order(act);
+#ifdef NEWFUZZER
 	model->get_history()->process_action(act, act->get_tid());
+#endif
 	return act;
 }
 
@@ -1643,8 +1649,9 @@ Thread * ModelExecution::take_step(ModelAction *curr)
 	ASSERT(curr);
 
 	/* Process this action in ModelHistory for records */
+#ifdef NEWFUZZER
 	model->get_history()->process_action( curr, curr->get_tid() );
-
+#endif
 	if (curr_thrd->is_blocked() || curr_thrd->is_complete())
 		scheduler->remove_thread(curr_thrd);
 

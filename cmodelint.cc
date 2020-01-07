@@ -97,7 +97,7 @@ void model_rmwc_action_helper(void *obj, int atomic_index, const char *position)
 #define VOLATILELOAD(size) \
 	uint ## size ## _t cds_volatile_load ## size(void * obj, const char * position) { \
 		ensureModel();                                                      \
-		return (uint ## size ## _t)model->switch_to_master(new ModelAction(ATOMIC_READ, position, memory_order_relaxed, obj)); \
+		return (uint ## size ## _t)model->switch_to_master(new ModelAction(ATOMIC_READ, position, memory_order_volatile_load, obj)); \
 	}
 
 VOLATILELOAD(8)
@@ -109,7 +109,7 @@ VOLATILELOAD(64)
 #define VOLATILESTORE(size) \
 	void cds_volatile_store ## size (void * obj, uint ## size ## _t val, const char * position) { \
 		ensureModel();                                                      \
-		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, memory_order_relaxed, obj, (uint64_t) val)); \
+		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, memory_order_volatile_store, obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;            \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                         \
@@ -340,6 +340,7 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
  */
 
 void cds_func_entry(const char * funcName) {
+#ifdef NEWFUZZER
 	ensureModel();
 	Thread * th = thread_current();
 	uint32_t func_id;
@@ -362,9 +363,11 @@ void cds_func_entry(const char * funcName) {
 	}
 
 	history->enter_function(func_id, th->get_id());
+#endif
 }
 
 void cds_func_exit(const char * funcName) {
+#ifdef NEWFUZZER
 	ensureModel();
 
 	Thread * th = thread_current();
@@ -382,4 +385,5 @@ void cds_func_exit(const char * funcName) {
 		return;
 
 	history->exit_function(func_id, th->get_id());
+#endif
 }

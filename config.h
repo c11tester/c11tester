@@ -53,4 +53,14 @@
 /** Enable mitigations against fork handlers that call into locks...  */
 #define FORK_HANDLER_HACK
 
+/** Enable smart fuzzer */
+//#define NEWFUZZER
+
+/** Define semantics of volatile memory operations. */
+#define memory_order_volatile_load memory_order_acquire
+#define memory_order_volatile_store memory_order_release
+
+//#define memory_order_volatile_load memory_order_relaxed
+//#define memory_order_volatile_store memory_order_relaxed
+
 #endif
