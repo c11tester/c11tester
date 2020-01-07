@@ -1725,7 +1725,7 @@ ClockVector * ModelExecution::computeMinimalCV() {
 /** Sometimes we need to remove an action that is the most recent in the thread.  This happens if it is mo before action in other threads.  In that case we need to create a replacement latest ModelAction */
 
 void ModelExecution::fixupLastAct(ModelAction *act) {
-	ModelAction *newact = new ModelAction(ATOMIC_NOP, std::memory_order_seq_cst, get_thread(act->get_tid()));
+	ModelAction *newact = new ModelAction(ATOMIC_NOP, std::memory_order_seq_cst, NULL, VALUE_NONE, get_thread(act->get_tid()));
 	newact->set_seq_number(get_next_seq_num());
 	newact->create_cv(act);
 	newact->set_last_fence_release(act->get_last_fence_release());

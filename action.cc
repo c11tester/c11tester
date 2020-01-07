@@ -48,7 +48,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	seq_number(ACTION_INITIAL_CLOCK)
 {
 	/* References to NULL atomic variables can end up here */
-	ASSERT(loc || type == ATOMIC_FENCE);
+	ASSERT(loc || type == ATOMIC_FENCE || type == ATOMIC_NOP);
 
 	Thread *t = thread ? thread : thread_current();
 	this->tid = t!= NULL ? t->get_id() : -1;
