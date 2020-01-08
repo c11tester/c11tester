@@ -1880,6 +1880,11 @@ void ModelExecution::collectActions() {
 			modelclock_t tid_clock = cvmin->getClock(act_tid);
 			if (actseq <= tid_clock) {
 				removeAction(act);
+				// Remove reference to act from thrd_last_fence_release
+				int thread_id = id_to_int( act->get_tid() );
+				if (thrd_last_fence_release[thread_id] == act) {
+					thrd_last_fence_release[thread_id] = NULL;
+				}
 				delete act;
 				continue;
 			}
@@ -1905,18 +1910,17 @@ void ModelExecution::collectActions() {
 				delete act;
 				continue;
 			}
+		}
 
-			//If we don't delete the action, we should remove references to release fences
-			const ModelAction *rel_fence =act->get_last_fence_release();
-			if (rel_fence != NULL) {
-				modelclock_t relfenceseq = rel_fence->get_seq_number();
-				thread_id_t relfence_tid = rel_fence->get_tid();
-				modelclock_t tid_clock = cvmin->getClock(relfence_tid);
-				//Remove references to irrelevant release fences
-				if (relfenceseq <= tid_clock)
-					act->set_last_fence_release(NULL);
-			}
-
+		//If we don't delete the action, we should remove references to release fences
+		const ModelAction *rel_fence =act->get_last_fence_release();
+		if (rel_fence != NULL) {
+			modelclock_t relfenceseq = rel_fence->get_seq_number();
+			thread_id_t relfence_tid = rel_fence->get_tid();
+			modelclock_t tid_clock = cvmin->getClock(relfence_tid);
+			//Remove references to irrelevant release fences
+			if (relfenceseq <= tid_clock)
+				act->set_last_fence_release(NULL);
 		}
 	}
 
