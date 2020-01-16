@@ -202,7 +202,6 @@ private:
 	Fuzzer * fuzzer;
 
 	Thread * action_select_next_thread(const ModelAction *curr) const;
-	bool paused_by_fuzzer(const ModelAction * act) const;
 
 	bool isfinished;
 };

@@ -79,7 +79,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	}
 
 	/* Monitor the statuses of threads waiting for tid */
-	monitor_waiting_thread(func_id, tid);
+	// monitor_waiting_thread(func_id, tid);
 }
 
 /* @param func_id a non-zero value */
@@ -146,7 +146,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		return;
 
 	/* Monitor the statuses of threads waiting for tid */
-	monitor_waiting_thread_counter(tid);
+	// monitor_waiting_thread_counter(tid);
 
 	/* Every write action should be processed, including
 	 * nonatomic writes (which have no position) */
@@ -181,7 +181,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		return;
 
 	/* Add to curr_inst_list */
-	curr_act_list->push_back(act);
+	act->setFuncActRef(curr_act_list->add_back(act));
 
 	FuncNode * func_node = func_nodes[func_id];
 	func_node->add_inst(act);

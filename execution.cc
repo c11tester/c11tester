@@ -58,7 +58,10 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	obj_map(),
 	condvar_waiters_map(),
 	obj_thrd_map(),
+	obj_wr_thrd_map(),
+	obj_last_sc_map(),
 	mutex_map(),
+	cond_map(),
 	thrd_last_action(1),
 	thrd_last_fence_release(),
 	priv(new struct model_snapshot_members ()),
@@ -1612,7 +1615,7 @@ bool ModelExecution::is_enabled(thread_id_t tid) const
 Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) const
 {
 	/* Do not split atomic RMW */
-	if (curr->is_rmwr() && !paused_by_fuzzer(curr))
+	if (curr->is_rmwr())
 		return get_thread(curr);
 	/* Follow CREATE with the created thread */
 	/* which is not needed, because model.cc takes care of this */
@@ -1622,15 +1625,6 @@ Thread * ModelExecution::action_select_next_thread(const ModelAction *curr) cons
 		return curr->get_thread_operand();
 	}
 	return NULL;
-}
-
-/** @param act A read atomic action */
-bool ModelExecution::paused_by_fuzzer(const ModelAction * act) const
-{
-	ASSERT(act->is_read());
-
-	// Actions paused by fuzzer have their sequence number reset to 0
-	return act->get_seq_number() == 0;
 }
 
 /**
@@ -1735,6 +1729,9 @@ void ModelExecution::fixupLastAct(ModelAction *act) {
 /** Compute which actions to free.  */
 
 void ModelExecution::collectActions() {
+	if (priv->used_sequence_numbers < params->traceminsize)
+		return;
+
 	//Compute minimal clock vector for all live threads
 	ClockVector *cvmin = computeMinimalCV();
 	SnapVector<CycleNode *> * queue = new SnapVector<CycleNode *>();
@@ -1758,6 +1755,13 @@ void ModelExecution::collectActions() {
 
 		//Free if it is invisible or we have set a flag to remove visible actions.
 		if (actseq <= tid_clock || params->removevisible) {
+			// For read actions being used by ModelHistory, mark the reads_from as being used. 
+			if (act->is_read() && act->getFuncActRef() != NULL) {
+				ModelAction * reads_from = act->get_reads_from();
+				if (reads_from->getFuncActRef() == NULL)
+					reads_from->setFuncActRef(HAS_REFERENCE);
+			}
+
 			ModelAction * write;
 			if (act->is_write()) {
 				write = act;
@@ -1777,6 +1781,10 @@ void ModelExecution::collectActions() {
 						CycleNode * prevnode = node->getInEdge(i);
 						ModelAction * prevact = prevnode->getAction();
 						if (prevact->get_type() != READY_FREE) {
+							if (prevact->getFuncActRef() != NULL) {
+								// Copy the original type if being used by ModelHistory
+								prevact->set_original_type(prevact->get_type());
+							}
 							prevact->set_free();
 							queue->push_back(prevnode);
 						}
@@ -1800,8 +1808,19 @@ void ModelExecution::collectActions() {
 		}
 
 		if (act->is_read()) {
+			// For read actions being used by ModelHistory, mark the reads_from as being used. 
+			if (act->getFuncActRef() != NULL) {
+				ModelAction * reads_from = act->get_reads_from();
+				if (reads_from->getFuncActRef() == NULL)
+					reads_from->setFuncActRef(HAS_REFERENCE);
+			}
+
 			if (act->get_reads_from()->is_free()) {
 				if (act->is_rmw()) {
+					if (act->getFuncActRef() != NULL) {
+						// Copy the original type if being used by ModelHistory
+						act->set_original_type(act->get_type());
+					}
 					//Weaken a RMW from a freed store to a write
 					act->set_type(ATOMIC_WRITE);
 				} else {
@@ -1809,8 +1828,13 @@ void ModelExecution::collectActions() {
 					if (islastact) {
 						fixupLastAct(act);
 					}
-					delete act;
-					continue;
+
+					//Only delete this action if not being using by ModelHistory.
+					//Otherwise, the deletion of action is deferred. 
+					if (act->getFuncActRef() == NULL) {
+						delete act;
+						continue;
+					}
 				}
 			}
 		}
@@ -1841,14 +1865,20 @@ void ModelExecution::collectActions() {
 		if (act->is_read()) {
 			if (act->get_reads_from()->is_free()) {
 				if (act->is_rmw()) {
+					if (act->getFuncActRef() != NULL) {
+						// Copy the original type if being used by ModelHistory
+						act->set_original_type(act->get_type());
+					}
 					act->set_type(ATOMIC_WRITE);
 				} else {
 					removeAction(act);
 					if (islastact) {
 						fixupLastAct(act);
 					}
-					delete act;
-					continue;
+					if (act->getFuncActRef() == NULL) {
+						delete act;
+						continue;
+					}
 				}
 			}
 		} else if (act->is_free()) {
@@ -1856,8 +1886,10 @@ void ModelExecution::collectActions() {
 			if (islastact) {
 				fixupLastAct(act);
 			}
-			delete act;
-			continue;
+			if (act->getFuncActRef() == NULL) {
+				delete act;
+				continue;
+			}
 		} else if (act->is_write()) {
 			//Do nothing with write that hasn't been marked to be freed
 		} else if (islastact) {

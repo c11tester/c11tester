@@ -184,6 +184,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 
 	for (sllnode<ModelAction *> * it = act_list->begin();it != NULL;it = it->getNext()) {
 		ModelAction * act = it->getVal();
+		act->setFuncActRef(NULL);	// Remove func_act_ref so that this action can be removed
 		FuncInst * func_inst = get_inst(act);
 		void * loc = act->get_location();
 

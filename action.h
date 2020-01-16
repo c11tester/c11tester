@@ -34,6 +34,7 @@ using std::memory_order_seq_cst;
  * iteself does not indicate no value.
  */
 #define VALUE_NONE 0xdeadbeef
+#define HAS_REFERENCE ((void *)0x1)
 
 /**
  * @brief The "location" at which a fence occurs
@@ -103,6 +104,8 @@ public:
 	thread_id_t get_tid() const { return tid; }
 	action_type get_type() const { return type; }
 	void set_type(action_type _type) { type = _type; }
+	action_type get_original_type() const { return type; }
+	void set_original_type(action_type _type) { original_type = _type; }
 	void set_free() { type = READY_FREE; }
 	memory_order get_mo() const { return order; }
 	memory_order get_original_mo() const { return original_order; }
@@ -188,15 +191,20 @@ public:
 	bool equals(const ModelAction *x) const { return this == x; }
 	void set_value(uint64_t val) { value = val; }
 
+	void use_original_type();
+
 	/* to accomodate pthread create and join */
 	Thread * thread_operand;
 	void set_thread_operand(Thread *th) { thread_operand = th; }
 	void setTraceRef(sllnode<ModelAction *> *ref) { trace_ref = ref; }
 	void setThrdMapRef(sllnode<ModelAction *> *ref) { thrdmap_ref = ref; }
 	void setActionRef(sllnode<ModelAction *> *ref) { action_ref = ref; }
+	void setFuncActRef(void *ref) { func_act_ref = ref; }
 	sllnode<ModelAction *> * getTraceRef() { return trace_ref; }
 	sllnode<ModelAction *> * getThrdMapRef() { return thrdmap_ref; }
 	sllnode<ModelAction *> * getActionRef() { return action_ref; }
+	void * getFuncActRef() { return func_act_ref; }
+
 	SNAPSHOTALLOC
 private:
 	const char * get_type_str() const;
@@ -234,13 +242,17 @@ private:
 	sllnode<ModelAction *> * trace_ref;
 	sllnode<ModelAction *> * thrdmap_ref;
 	sllnode<ModelAction *> * action_ref;
-
+	void * func_act_ref;
 
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;
 
 	/** @brief Type of action (read, write, RMW, fence, thread create, etc.) */
 	action_type type;
+
+	/** @brief The original type of action (read, write, RMW) before it was 
+	 * set as READY_FREE or weaken from a RMW to a write */
+	action_type original_type;
 
 	/** @brief The memory order for this operation. */
 	memory_order order;
