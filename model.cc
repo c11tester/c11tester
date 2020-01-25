@@ -26,6 +26,37 @@ void placeholder(void *) {
 	ASSERT(0);
 }
 
+#include <signal.h>
+
+#define SIGSTACKSIZE 65536
+static void mprot_handle_pf(int sig, siginfo_t *si, void *unused)
+{
+	model_print("Segmentation fault at %p\n", si->si_addr);
+	model_print("For debugging, place breakpoint at: %s:%d\n",
+							__FILE__, __LINE__);
+	print_trace();	// Trace printing may cause dynamic memory allocation
+	while(1)
+		;
+}
+
+void install_handler() {
+	stack_t ss;
+	ss.ss_sp = model_malloc(SIGSTACKSIZE);
+	ss.ss_size = SIGSTACKSIZE;
+	ss.ss_flags = 0;
+	sigaltstack(&ss, NULL);
+	struct sigaction sa;
+	sa.sa_flags = SA_SIGINFO | SA_NODEFER | SA_RESTART | SA_ONSTACK;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_sigaction = mprot_handle_pf;
+
+	if (sigaction(SIGSEGV, &sa, NULL) == -1) {
+		perror("sigaction(SIGSEGV)");
+		exit(EXIT_FAILURE);
+	}
+
+}
+
 /** @brief Constructor */
 ModelChecker::ModelChecker() :
 	/* Initialize default scheduler */
@@ -56,6 +87,7 @@ ModelChecker::ModelChecker() :
 	/* Configure output redirection for the model-checker */
 	redirect_output();
 	install_trace_analyses(get_execution());
+	install_handler();
 }
 
 /** @brief Destructor */
