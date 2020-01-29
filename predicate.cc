@@ -87,7 +87,8 @@ void Predicate::copy_predicate_expr(Predicate * other)
  */
 Predicate * Predicate::follow_write_child(FuncInst * inst)
 {
-	ASSERT(inst->get_type() == ATOMIC_WRITE);
+	action_type type = inst->get_type();
+	ASSERT(type == ATOMIC_WRITE || type == ATOMIC_INIT);
 
 	for (uint i = 0;i < children.size();i++) {
 		Predicate * child = children[i];

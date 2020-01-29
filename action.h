@@ -34,7 +34,7 @@ using std::memory_order_seq_cst;
  * iteself does not indicate no value.
  */
 #define VALUE_NONE 0xdeadbeef
-#define HAS_REFERENCE ((void *)0x1)
+#define WRITE_REFERENCED ((void *)0x1)
 
 /**
  * @brief The "location" at which a fence occurs
@@ -104,7 +104,7 @@ public:
 	thread_id_t get_tid() const { return tid; }
 	action_type get_type() const { return type; }
 	void set_type(action_type _type) { type = _type; }
-	action_type get_original_type() const { return type; }
+	action_type get_original_type() const { return original_type; }
 	void set_original_type(action_type _type) { original_type = _type; }
 	void set_free() { type = READY_FREE; }
 	memory_order get_mo() const { return order; }
@@ -120,6 +120,7 @@ public:
 	ModelAction * get_reads_from() const { return reads_from; }
 	uint64_t get_time() const {return time;}
 	cdsc::mutex * get_mutex() const;
+	bool get_swap_flag() const { return swap_flag; }
 
 	void set_read_from(ModelAction *act);
 
@@ -253,6 +254,10 @@ private:
 	/** @brief The original type of action (read, write, RMW) before it was 
 	 * set as READY_FREE or weaken from a RMW to a write */
 	action_type original_type;
+
+	/** @brief Indicate whether the action type and the original action type 
+	 *  has been swapped. */
+	bool swap_flag;
 
 	/** @brief The memory order for this operation. */
 	memory_order order;

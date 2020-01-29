@@ -1755,11 +1755,25 @@ void ModelExecution::collectActions() {
 
 		//Free if it is invisible or we have set a flag to remove visible actions.
 		if (actseq <= tid_clock || params->removevisible) {
-			// For read actions being used by ModelHistory, mark the reads_from as being used. 
-			if (act->is_read() && act->getFuncActRef() != NULL) {
-				ModelAction * reads_from = act->get_reads_from();
-				if (reads_from->getFuncActRef() == NULL)
-					reads_from->setFuncActRef(HAS_REFERENCE);
+			// For read or rmw actions being used by ModelHistory, mark the reads_from as being used. 
+			if (act->is_read()) {
+				if (act->is_rmw()) {
+					void * func_act_ref = act->getFuncActRef();
+					if (func_act_ref == WRITE_REFERENCED) {
+						// Only the write part of this rmw is referenced, do nothing
+					} else if (func_act_ref != NULL) {
+						// The read part of rmw is potentially referenced
+						ModelAction * reads_from = act->get_reads_from();
+						if (reads_from->getFuncActRef() == NULL)
+							reads_from->setFuncActRef(WRITE_REFERENCED);
+					}
+				} else {
+					if (act->getFuncActRef() != NULL) {
+						ModelAction * reads_from = act->get_reads_from();
+						if (reads_from->getFuncActRef() == NULL)
+							reads_from->setFuncActRef(WRITE_REFERENCED);
+					}
+				}
 			}
 
 			ModelAction * write;
@@ -1781,10 +1795,8 @@ void ModelExecution::collectActions() {
 						CycleNode * prevnode = node->getInEdge(i);
 						ModelAction * prevact = prevnode->getAction();
 						if (prevact->get_type() != READY_FREE) {
-							if (prevact->getFuncActRef() != NULL) {
-								// Copy the original type if being used by ModelHistory
-								prevact->set_original_type(prevact->get_type());
-							}
+							// Save the original action type
+							prevact->set_original_type(prevact->get_type());
 							prevact->set_free();
 							queue->push_back(prevnode);
 						}
@@ -1808,19 +1820,29 @@ void ModelExecution::collectActions() {
 		}
 
 		if (act->is_read()) {
-			// For read actions being used by ModelHistory, mark the reads_from as being used. 
-			if (act->getFuncActRef() != NULL) {
-				ModelAction * reads_from = act->get_reads_from();
-				if (reads_from->getFuncActRef() == NULL)
-					reads_from->setFuncActRef(HAS_REFERENCE);
+			// For read or rmw actions being used by ModelHistory, mark the reads_from as being used. 
+			if (act->is_rmw()) {
+				void * func_act_ref = act->getFuncActRef();
+				if (func_act_ref == WRITE_REFERENCED) {
+					// Only the write part of this rmw is referenced, do nothing
+				} else if (func_act_ref != NULL) {
+					// The read part of rmw is potentially referenced
+					ModelAction * reads_from = act->get_reads_from();
+					if (reads_from->getFuncActRef() == NULL)
+						reads_from->setFuncActRef(WRITE_REFERENCED);
+				}
+			} else {
+				if (act->getFuncActRef() != NULL) {
+					ModelAction * reads_from = act->get_reads_from();
+					if (reads_from->getFuncActRef() == NULL)
+						reads_from->setFuncActRef(WRITE_REFERENCED);
+				}
 			}
 
 			if (act->get_reads_from()->is_free()) {
 				if (act->is_rmw()) {
-					if (act->getFuncActRef() != NULL) {
-						// Copy the original type if being used by ModelHistory
-						act->set_original_type(act->get_type());
-					}
+					// Save the original action type
+					act->set_original_type(act->get_type());
 					//Weaken a RMW from a freed store to a write
 					act->set_type(ATOMIC_WRITE);
 				} else {
@@ -1829,8 +1851,8 @@ void ModelExecution::collectActions() {
 						fixupLastAct(act);
 					}
 
-					//Only delete this action if not being using by ModelHistory.
-					//Otherwise, the deletion of action is deferred. 
+					// Only delete this action if not being using by ModelHistory.
+					// Otherwise, the deletion of action is deferred.
 					if (act->getFuncActRef() == NULL) {
 						delete act;
 						continue;
@@ -1865,10 +1887,8 @@ void ModelExecution::collectActions() {
 		if (act->is_read()) {
 			if (act->get_reads_from()->is_free()) {
 				if (act->is_rmw()) {
-					if (act->getFuncActRef() != NULL) {
-						// Copy the original type if being used by ModelHistory
-						act->set_original_type(act->get_type());
-					}
+					// Save the original action type
+					act->set_original_type(act->get_type());
 					act->set_type(ATOMIC_WRITE);
 				} else {
 					removeAction(act);
