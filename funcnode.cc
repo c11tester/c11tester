@@ -185,20 +185,20 @@ void FuncNode::update_tree(action_list_t * act_list)
 	for (sllnode<ModelAction *> * it = act_list->begin();it != NULL;it = it->getNext()) {
 		ModelAction * act = it->getVal();
 
-		// Only ATOMIC_RMW or ATOMIC_WRITE may be swapped with their original types,
-		// which are later added to rw_act_list. Therefore, it is safe to only revert
-		// back action types for actions in rw_act_list whose types have been swapped.
 		if (act->get_original_type() != ATOMIC_NOP && act->get_swap_flag() == false)
 			act->use_original_type();
 
 		// Remove func_act_ref so that actions can be deleted by Execution::collectActions
-		act->setFuncActRef(NULL);
 		if (act->is_read()) {
-			// For every read or rmw actions in this list, the reads_from is not deleted.
+			// For every read or rmw actions in this list, the reads_from was marked, and not deleted.
 			// So it is safe to call get_reads_from
 			ModelAction * rf = act->get_reads_from();
+			if (rf->get_original_type() != ATOMIC_NOP && rf->get_swap_flag() == false)
+				rf->use_original_type();
+
 			rf->setFuncActRef(NULL);
 		}
+		act->setFuncActRef(NULL);
 
 		FuncInst * func_inst = get_inst(act);
 		void * loc = act->get_location();
@@ -242,33 +242,34 @@ void FuncNode::update_tree(action_list_t * act_list)
 	update_predicate_tree(&rw_act_list);
 
 	// Revert back action types and free
-	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL; it = it->getNext()) {
+	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL;) {
 		ModelAction * act = it->getVal();
+		// Do iteration early in case we delete act
+		it = it->getNext();
 
 		// Revert back action types for actions whose types have been changed. 
+		if (act->is_read()) {
+			ModelAction * rf = act->get_reads_from();
+			if (rf->get_swap_flag() == true)
+				rf->use_original_type();
+		}
+
 		if (act->get_swap_flag() == true)
 			act->use_original_type();
 
-		/**  Free actions
-		 * case 1. READY_FREE -> delete
-		 * case 2. Read action whose read from is READY_FREE -> delete both actions
-		 * In both cases, the actions have already been removed from core model
-		 * action lists.
-		 */
-
-		/* Problematic: could double free actions
 		if (act->is_free()) {
-			model_print("delete free act %d\n", act->get_seq_number());
-			delete act;
+			// TODO
 		} else if (act->is_read()) {
-			ModelAction * rf = act->get_reads_from();
-			if (rf->is_free()) {
-				model_print("delete act %d\n", act->get_seq_number());
-				model_print("delete act %d\n", rf->get_seq_number());
-				delete rf;
-				delete act;
+			if (act->is_rmw()) {
+				// reads_from can not be READY_FREE
+			} else {
+				ModelAction *rf = act->get_reads_from();
+				if (rf->is_free()) {
+					model_print("delete read %d; %p\n", act->get_seq_number(), act);
+					delete act;
+				}
 			}
-		}*/
+		}
 	}
 
 //	print_predicate_tree();

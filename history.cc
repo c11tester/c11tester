@@ -182,6 +182,15 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 
 	/* Add to curr_inst_list */
 	act->setFuncActRef(curr_act_list->add_back(act));
+	if (act->is_read()) {
+		ModelAction * rf = act->get_reads_from();
+		void * func_act_ref = rf->getFuncActRef();
+		if (func_act_ref == WRITE_REFERENCED) {
+			// do nothing
+		} else if (func_act_ref == NULL) {
+			rf->setFuncActRef(WRITE_REFERENCED);
+		}
+	}
 
 	FuncNode * func_node = func_nodes[func_id];
 	func_node->add_inst(act);

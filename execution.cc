@@ -1755,27 +1755,6 @@ void ModelExecution::collectActions() {
 
 		//Free if it is invisible or we have set a flag to remove visible actions.
 		if (actseq <= tid_clock || params->removevisible) {
-			// For read or rmw actions being used by ModelHistory, mark the reads_from as being used. 
-			if (act->is_read()) {
-				if (act->is_rmw()) {
-					void * func_act_ref = act->getFuncActRef();
-					if (func_act_ref == WRITE_REFERENCED) {
-						// Only the write part of this rmw is referenced, do nothing
-					} else if (func_act_ref != NULL) {
-						// The read part of rmw is potentially referenced
-						ModelAction * reads_from = act->get_reads_from();
-						if (reads_from->getFuncActRef() == NULL)
-							reads_from->setFuncActRef(WRITE_REFERENCED);
-					}
-				} else {
-					if (act->getFuncActRef() != NULL) {
-						ModelAction * reads_from = act->get_reads_from();
-						if (reads_from->getFuncActRef() == NULL)
-							reads_from->setFuncActRef(WRITE_REFERENCED);
-					}
-				}
-			}
-
 			ModelAction * write;
 			if (act->is_write()) {
 				write = act;
@@ -1820,25 +1799,6 @@ void ModelExecution::collectActions() {
 		}
 
 		if (act->is_read()) {
-			// For read or rmw actions being used by ModelHistory, mark the reads_from as being used. 
-			if (act->is_rmw()) {
-				void * func_act_ref = act->getFuncActRef();
-				if (func_act_ref == WRITE_REFERENCED) {
-					// Only the write part of this rmw is referenced, do nothing
-				} else if (func_act_ref != NULL) {
-					// The read part of rmw is potentially referenced
-					ModelAction * reads_from = act->get_reads_from();
-					if (reads_from->getFuncActRef() == NULL)
-						reads_from->setFuncActRef(WRITE_REFERENCED);
-				}
-			} else {
-				if (act->getFuncActRef() != NULL) {
-					ModelAction * reads_from = act->get_reads_from();
-					if (reads_from->getFuncActRef() == NULL)
-						reads_from->setFuncActRef(WRITE_REFERENCED);
-				}
-			}
-
 			if (act->get_reads_from()->is_free()) {
 				if (act->is_rmw()) {
 					// Save the original action type

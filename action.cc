@@ -623,7 +623,7 @@ uint64_t ModelAction::get_reads_from_value() const
  */
 uint64_t ModelAction::get_write_value() const
 {
-	ASSERT(is_write() || is_free());
+	ASSERT(is_write());
 	return value;
 }
 
