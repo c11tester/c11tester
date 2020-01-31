@@ -184,10 +184,10 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	curr_act_list->push_back(act);
 
 	// Increment ref count for every action and reads_froms
-	act->incr_read_ref_count();
+	act->incr_func_ref_count();
 	if (act->is_read()) {
 		ModelAction * rf = act->get_reads_from();
-		rf->incr_read_ref_count();
+		rf->incr_func_ref_count();
 	}
 
 	FuncNode * func_node = func_nodes[func_id];

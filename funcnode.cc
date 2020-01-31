@@ -191,7 +191,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 		if (act->get_original_type() != ATOMIC_NOP && act->get_swap_flag() == false)
 			act->use_original_type();
 
-		act->decr_read_ref_count();
+		act->decr_func_ref_count();
 
 		if (act->is_read()) {
 			// For every read or rmw actions in this list, the reads_from was marked, and not deleted.
@@ -200,7 +200,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 			if (rf->get_original_type() != ATOMIC_NOP && rf->get_swap_flag() == false)
 				rf->use_original_type();
 
-			rf->decr_read_ref_count();
+			rf->decr_func_ref_count();
 		}
 
 		FuncInst * func_inst = get_inst(act);
@@ -291,7 +291,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 	while (it->hasNext()) {
 		ModelAction * act = it->next();
 
-		if (act->is_free() && act->get_read_ref_count() == 0)
+		if (act->is_free() && act->get_func_ref_count() == 0)
 			delete act;
 	}
 	delete it;
