@@ -177,6 +177,7 @@ void FuncNode::update_tree(action_list_t * act_list)
 		return;
 
 	HashTable<void *, value_set_t *, uintptr_t, 0> * write_history = history->getWriteHistory();
+	HashSet<ModelAction *, uintptr_t, 2> write_actions;
 
 	/* build inst_list from act_list for later processing */
 	func_inst_list_t inst_list;
@@ -185,10 +186,13 @@ void FuncNode::update_tree(action_list_t * act_list)
 	for (sllnode<ModelAction *> * it = act_list->begin();it != NULL;it = it->getNext()) {
 		ModelAction * act = it->getVal();
 
+		// Use the original action type and decrement ref count
+		// so that actions may be deleted by Execution::collectActions
 		if (act->get_original_type() != ATOMIC_NOP && act->get_swap_flag() == false)
 			act->use_original_type();
 
-		// Remove func_act_ref so that actions can be deleted by Execution::collectActions
+		act->decr_read_ref_count();
+
 		if (act->is_read()) {
 			// For every read or rmw actions in this list, the reads_from was marked, and not deleted.
 			// So it is safe to call get_reads_from
@@ -196,9 +200,8 @@ void FuncNode::update_tree(action_list_t * act_list)
 			if (rf->get_original_type() != ATOMIC_NOP && rf->get_swap_flag() == false)
 				rf->use_original_type();
 
-			rf->setFuncActRef(NULL);
+			rf->decr_read_ref_count();
 		}
-		act->setFuncActRef(NULL);
 
 		FuncInst * func_inst = get_inst(act);
 		void * loc = act->get_location();
@@ -244,10 +247,22 @@ void FuncNode::update_tree(action_list_t * act_list)
 	// Revert back action types and free
 	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL;) {
 		ModelAction * act = it->getVal();
-		// Do iteration early in case we delete act
+		// Do iteration early in case we delete read actions
 		it = it->getNext();
 
-		// Revert back action types for actions whose types have been changed. 
+		// Collect write actions and reads_froms
+		if (act->is_read()) {
+			if (act->is_rmw()) {
+				write_actions.add(act);
+			}
+
+			ModelAction * rf = act->get_reads_from();
+			write_actions.add(rf);
+		} else if (act->is_write()) {
+			write_actions.add(act);
+		}
+
+		// Revert back action types
 		if (act->is_read()) {
 			ModelAction * rf = act->get_reads_from();
 			if (rf->get_swap_flag() == true)
@@ -257,11 +272,10 @@ void FuncNode::update_tree(action_list_t * act_list)
 		if (act->get_swap_flag() == true)
 			act->use_original_type();
 
-		if (act->is_free()) {
-			// TODO
-		} else if (act->is_read()) {
+		//  Free read actions
+		if (act->is_read()) {
 			if (act->is_rmw()) {
-				// reads_from can not be READY_FREE
+				// Do nothing. Its reads_from can not be READY_FREE
 			} else {
 				ModelAction *rf = act->get_reads_from();
 				if (rf->is_free()) {
@@ -271,6 +285,16 @@ void FuncNode::update_tree(action_list_t * act_list)
 			}
 		}
 	}
+
+	// Free write actions if possible
+	HSIterator<ModelAction *, uintptr_t, 2> * it = write_actions.iterator();
+	while (it->hasNext()) {
+		ModelAction * act = it->next();
+
+		if (act->is_free() && act->get_read_ref_count() == 0)
+			delete act;
+	}
+	delete it;
 
 //	print_predicate_tree();
 }

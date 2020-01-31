@@ -200,11 +200,13 @@ public:
 	void setTraceRef(sllnode<ModelAction *> *ref) { trace_ref = ref; }
 	void setThrdMapRef(sllnode<ModelAction *> *ref) { thrdmap_ref = ref; }
 	void setActionRef(sllnode<ModelAction *> *ref) { action_ref = ref; }
-	void setFuncActRef(void *ref) { func_act_ref = ref; }
 	sllnode<ModelAction *> * getTraceRef() { return trace_ref; }
 	sllnode<ModelAction *> * getThrdMapRef() { return thrdmap_ref; }
 	sllnode<ModelAction *> * getActionRef() { return action_ref; }
-	void * getFuncActRef() { return func_act_ref; }
+
+	void incr_func_ref_count() { func_ref_count++; }
+	void decr_func_ref_count() { if (func_ref_count > 0) func_ref_count--; }
+	uint32_t get_func_ref_count() { return func_ref_count; }
 
 	SNAPSHOTALLOC
 private:
@@ -243,7 +245,9 @@ private:
 	sllnode<ModelAction *> * trace_ref;
 	sllnode<ModelAction *> * thrdmap_ref;
 	sllnode<ModelAction *> * action_ref;
-	void * func_act_ref;
+
+	/** @brief Number of read actions that are reading from this store */
+	uint32_t func_ref_count;
 
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;

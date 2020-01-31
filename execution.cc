@@ -1813,7 +1813,7 @@ void ModelExecution::collectActions() {
 
 					// Only delete this action if not being using by ModelHistory.
 					// Otherwise, the deletion of action is deferred.
-					if (act->getFuncActRef() == NULL) {
+					if (act->get_func_ref_count() == 0) {
 						delete act;
 						continue;
 					}
@@ -1855,7 +1855,7 @@ void ModelExecution::collectActions() {
 					if (islastact) {
 						fixupLastAct(act);
 					}
-					if (act->getFuncActRef() == NULL) {
+					if (act->get_func_ref_count() == 0) {
 						delete act;
 						continue;
 					}
@@ -1866,7 +1866,7 @@ void ModelExecution::collectActions() {
 			if (islastact) {
 				fixupLastAct(act);
 			}
-			if (act->getFuncActRef() == NULL) {
+			if (act->get_func_ref_count() == 0) {
 				delete act;
 				continue;
 			}
