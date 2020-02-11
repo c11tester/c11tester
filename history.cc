@@ -69,8 +69,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		resize_func_nodes( func_id + 1 );
 
 	FuncNode * func_node = func_nodes[func_id];
-	func_node->init_predicate_tree_position(tid);
-	func_node->init_inst_act_map(tid);
+	func_node->function_entry_handler(tid);
 
 	/* Add edges between FuncNodes */
 	if (last_entered_func_id != 0) {
@@ -92,26 +91,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 
 	if (last_func_id == func_id) {
 		FuncNode * func_node = func_nodes[func_id];
-		func_node->set_predicate_tree_position(tid, NULL);
-		func_node->reset_inst_act_map(tid);
-
-		action_list_t * curr_act_list = func_act_lists->back();
-
-		/* defer the processing of curr_act_list until the function has exits a few times
-		 * (currently twice) so that more information can be gathered to infer nullity predicates.
-		 */
-		func_node->incr_exit_count();
-		if (func_node->get_exit_count() >= 2) {
-			SnapList<action_list_t *> * action_list_buffer = func_node->get_action_list_buffer();
-			while (action_list_buffer->size() > 0) {
-				action_list_t * act_list = action_list_buffer->back();
-				action_list_buffer->pop_back();
-				func_node->update_tree(act_list);
-			}
-
-			func_node->update_tree(curr_act_list);
-		} else
-			func_node->get_action_list_buffer()->push_front(curr_act_list);
+		func_node->function_exit_handler(tid);
 
 		(*thrd_func_list)[id].pop_back();
 		func_act_lists->pop_back();
@@ -183,24 +163,17 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	/* Add to curr_inst_list */
 	curr_act_list->push_back(act);
 
-	// Increment ref count for every action and reads_froms
-	act->incr_func_ref_count();
-	if (act->is_read()) {
-		ModelAction * rf = act->get_reads_from();
-		rf->incr_func_ref_count();
-	}
-
 	FuncNode * func_node = func_nodes[func_id];
 	func_node->add_inst(act);
 
 	if (act->is_read()) {
 		func_node->update_inst_act_map(tid, act);
 
-		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
-		Predicate * selected_branch = ((NewFuzzer *)fuzzer)->get_selected_child_branch(tid);
-		func_node->set_predicate_tree_position(tid, selected_branch);
+//		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
+//		Predicate * selected_branch = ((NewFuzzer *)fuzzer)->get_selected_child_branch(tid);
+//		func_node->set_predicate_tree_position(tid, selected_branch);
 	}
-
+/*
 	if (act->is_write()) {
 		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
 		FuncInst * curr_inst = func_node->get_inst(act);
@@ -211,6 +184,9 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		}
 		func_node->set_predicate_tree_position(tid, curr_pred);
 	}
+*/
+
+	func_node->update_tree(act);
 }
 
 /* Return the FuncNode given its func_id  */
@@ -582,15 +558,15 @@ void ModelHistory::print_func_node()
 		func_node->print_predicate_tree();
 
 /*
-                func_inst_list_mt * entry_insts = func_node->get_entry_insts();
-                model_print("function %s has entry actions\n", func_node->get_func_name());
+		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
+		model_print("function %s has entry actions\n", func_node->get_func_name());
 
-                mllnode<FuncInst*>* it;
-                for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
-                        FuncInst *inst = it->getVal();
-                        model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
-                }
- */
+		mllnode<FuncInst*>* it;
+		for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
+			FuncInst *inst = it->getVal();
+			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
+		}
+*/
 	}
 }
 

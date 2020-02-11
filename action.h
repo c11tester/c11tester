@@ -104,8 +104,6 @@ public:
 	thread_id_t get_tid() const { return tid; }
 	action_type get_type() const { return type; }
 	void set_type(action_type _type) { type = _type; }
-	action_type get_original_type() const { return original_type; }
-	void set_original_type(action_type _type) { original_type = _type; }
 	void set_free() { type = READY_FREE; }
 	memory_order get_mo() const { return order; }
 	memory_order get_original_mo() const { return original_order; }
@@ -120,7 +118,6 @@ public:
 	ModelAction * get_reads_from() const { return reads_from; }
 	uint64_t get_time() const {return time;}
 	cdsc::mutex * get_mutex() const;
-	bool get_swap_flag() const { return swap_flag; }
 
 	void set_read_from(ModelAction *act);
 
@@ -192,8 +189,6 @@ public:
 	bool equals(const ModelAction *x) const { return this == x; }
 	void set_value(uint64_t val) { value = val; }
 
-	void use_original_type();
-
 	/* to accomodate pthread create and join */
 	Thread * thread_operand;
 	void set_thread_operand(Thread *th) { thread_operand = th; }
@@ -203,10 +198,6 @@ public:
 	sllnode<ModelAction *> * getTraceRef() { return trace_ref; }
 	sllnode<ModelAction *> * getThrdMapRef() { return thrdmap_ref; }
 	sllnode<ModelAction *> * getActionRef() { return action_ref; }
-
-	void incr_func_ref_count() { func_ref_count++; }
-	void decr_func_ref_count() { if (func_ref_count > 0) func_ref_count--; }
-	uint32_t get_func_ref_count() { return func_ref_count; }
 
 	SNAPSHOTALLOC
 private:
@@ -246,22 +237,11 @@ private:
 	sllnode<ModelAction *> * thrdmap_ref;
 	sllnode<ModelAction *> * action_ref;
 
-	/** @brief Number of read actions that are reading from this store */
-	uint32_t func_ref_count;
-
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;
 
 	/** @brief Type of action (read, write, RMW, fence, thread create, etc.) */
 	action_type type;
-
-	/** @brief The original type of action (read, write, RMW) before it was 
-	 * set as READY_FREE or weaken from a RMW to a write */
-	action_type original_type;
-
-	/** @brief Indicate whether the action type and the original action type 
-	 *  has been swapped. */
-	bool swap_flag;
 
 	/** @brief The memory order for this operation. */
 	memory_order order;

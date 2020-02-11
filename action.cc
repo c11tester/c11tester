@@ -41,11 +41,8 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	trace_ref(NULL),
 	thrdmap_ref(NULL),
 	action_ref(NULL),
-	func_ref_count(0),
 	value(value),
 	type(type),
-	original_type(ATOMIC_NOP),
-	swap_flag(false),
 	order(order),
 	original_order(order),
 	seq_number(ACTION_INITIAL_CLOCK)
@@ -78,11 +75,8 @@ ModelAction::ModelAction(action_type_t type, memory_order order, uint64_t value,
 	trace_ref(NULL),
 	thrdmap_ref(NULL),
 	action_ref(NULL),
-	func_ref_count(0),
 	value(value),
 	type(type),
-	original_type(ATOMIC_NOP),
-	swap_flag(false),
 	order(order),
 	original_order(order),
 	seq_number(ACTION_INITIAL_CLOCK)
@@ -114,11 +108,8 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	trace_ref(NULL),
 	thrdmap_ref(NULL),
 	action_ref(NULL),
-	func_ref_count(0),
 	value(value),
 	type(type),
-	original_type(ATOMIC_NOP),
-	swap_flag(false),
 	order(order),
 	original_order(order),
 	seq_number(ACTION_INITIAL_CLOCK)
@@ -154,11 +145,8 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	trace_ref(NULL),
 	thrdmap_ref(NULL),
 	action_ref(NULL),
-	func_ref_count(0),
 	value(value),
 	type(type),
-	original_type(ATOMIC_NOP),
-	swap_flag(false),
 	order(order),
 	original_order(order),
 	seq_number(ACTION_INITIAL_CLOCK)
@@ -195,11 +183,8 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	trace_ref(NULL),
 	thrdmap_ref(NULL),
 	action_ref(NULL),
-	func_ref_count(0),
 	value(value),
 	type(type),
-	original_type(ATOMIC_NOP),
-	swap_flag(false),
 	order(order),
 	original_order(order),
 	seq_number(ACTION_INITIAL_CLOCK)
@@ -786,17 +771,4 @@ cdsc::mutex * ModelAction::get_mutex() const
 		return (cdsc::mutex *)get_value();
 	else
 		return NULL;
-}
-
-/** @brief Swap type with original type */
-void ModelAction::use_original_type()
-{
-	action_type_t tmp = type;
-	type = original_type;
-	original_type = tmp;
-
-	if (swap_flag)
-		swap_flag = false;
-	else
-		swap_flag = true;
 }

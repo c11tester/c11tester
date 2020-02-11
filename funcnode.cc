@@ -12,12 +12,13 @@ FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
 	exit_count(0),
 	marker(1),
+	inst_counter(1),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	inst_pred_map(128),
-	inst_id_map(128),
-	loc_act_map(128),
+	thrd_inst_pred_map(),
+	thrd_inst_id_map(),
+	thrd_loc_act_map(),
 	predicate_tree_position(),
 	predicate_leaves(),
 	leaves_tmp_storage(),
@@ -33,7 +34,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 	predicate_tree_exit->set_depth(MAX_DEPTH);
 
 	/* Snapshot data structures below */
-	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	write_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0, snapshot_malloc, snapshot_calloc, snapshot_free, int64_hash>();
@@ -45,7 +45,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 /* Reallocate snapshotted memories when new executions start */
 void FuncNode::set_new_exec_flag()
 {
-	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	write_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0, snapshot_malloc, snapshot_calloc, snapshot_free, int64_hash>();
@@ -152,7 +151,6 @@ FuncInst * FuncNode::get_inst(ModelAction *act)
 	}
 }
 
-
 void FuncNode::add_entry_inst(FuncInst * inst)
 {
 	if (inst == NULL)
@@ -167,134 +165,80 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	entry_insts.push_back(inst);
 }
 
+void FuncNode::function_entry_handler(thread_id_t tid)
+{
+	marker++;
+
+	init_predicate_tree_position(tid);
+	init_inst_act_map(tid);
+	init_maps(tid);
+}
+
+void FuncNode::function_exit_handler(thread_id_t tid)
+{
+	exit_count++;
+
+	reset_inst_act_map(tid);
+	reset_maps(tid);
+
+	Predicate * exit_pred = get_predicate_tree_position(tid);
+	if (exit_pred->get_exit() == NULL) {
+		// Exit predicate is unset yet
+		exit_pred->set_exit(predicate_tree_exit);
+	}
+
+	set_predicate_tree_position(tid, NULL);
+}
+
 /**
  * @brief Convert ModelAdtion list to FuncInst list
  * @param act_list A list of ModelActions
  */
-void FuncNode::update_tree(action_list_t * act_list)
+void FuncNode::update_tree(ModelAction * act)
 {
-	if (act_list == NULL || act_list->size() == 0)
-		return;
-
 	HashTable<void *, value_set_t *, uintptr_t, 0> * write_history = history->getWriteHistory();
 	HashSet<ModelAction *, uintptr_t, 2> write_actions;
 
 	/* build inst_list from act_list for later processing */
-	func_inst_list_t inst_list;
-	action_list_t rw_act_list;
+//	func_inst_list_t inst_list;
 
-	for (sllnode<ModelAction *> * it = act_list->begin();it != NULL;it = it->getNext()) {
-		ModelAction * act = it->getVal();
+	FuncInst * func_inst = get_inst(act);
+	void * loc = act->get_location();
 
-		// Use the original action type and decrement ref count
-		// so that actions may be deleted by Execution::collectActions
-		if (act->get_original_type() != ATOMIC_NOP && act->get_swap_flag() == false)
-			act->use_original_type();
+	if (func_inst == NULL)
+		return;
 
-		act->decr_func_ref_count();
+//	inst_list.push_back(func_inst);
 
-		if (act->is_read()) {
-			// For every read or rmw actions in this list, the reads_from was marked, and not deleted.
-			// So it is safe to call get_reads_from
-			ModelAction * rf = act->get_reads_from();
-			if (rf->get_original_type() != ATOMIC_NOP && rf->get_swap_flag() == false)
-				rf->use_original_type();
-
-			rf->decr_func_ref_count();
+	if (act->is_write()) {
+		if (!write_locations->contains(loc)) {
+			write_locations->add(loc);
+			history->update_loc_wr_func_nodes_map(loc, this);
 		}
 
-		FuncInst * func_inst = get_inst(act);
-		void * loc = act->get_location();
+		// Do not process writes for now
+		return;
+	}
 
-		if (func_inst == NULL)
-			continue;
+	if (act->is_read()) {
 
-		inst_list.push_back(func_inst);
-		bool act_added = false;
-
-		if (act->is_write()) {
-			rw_act_list.push_back(act);
-			act_added = true;
-			if (!write_locations->contains(loc)) {
-				write_locations->add(loc);
-				history->update_loc_wr_func_nodes_map(loc, this);
-			}
-		}
-
-		if (act->is_read()) {
-			if (!act_added)
-				rw_act_list.push_back(act);
-
-			/* If func_inst may only read_from a single location, then:
-			 *
-			 * The first time an action reads from some location,
-			 * import all the values that have been written to this
-			 * location from ModelHistory and notify ModelHistory
-			 * that this FuncNode may read from this location.
-			 */
-			if (!read_locations->contains(loc) && func_inst->is_single_location()) {
-				read_locations->add(loc);
-				value_set_t * write_values = write_history->get(loc);
-				add_to_val_loc_map(write_values, loc);
-				history->update_loc_rd_func_nodes_map(loc, this);
-			}
+		/* If func_inst may only read_from a single location, then:
+		 *
+		 * The first time an action reads from some location,
+		 * import all the values that have been written to this
+		 * location from ModelHistory and notify ModelHistory
+		 * that this FuncNode may read from this location.
+		 */
+		if (!read_locations->contains(loc) && func_inst->is_single_location()) {
+			read_locations->add(loc);
+			value_set_t * write_values = write_history->get(loc);
+			add_to_val_loc_map(write_values, loc);
+			history->update_loc_rd_func_nodes_map(loc, this);
 		}
 	}
 
-	update_inst_tree(&inst_list);
-	update_predicate_tree(&rw_act_list);
-
-	// Revert back action types and free
-	for (sllnode<ModelAction *> * it = act_list->begin(); it != NULL;) {
-		ModelAction * act = it->getVal();
-		// Do iteration early in case we delete read actions
-		it = it->getNext();
-
-		// Collect write actions and reads_froms
-		if (act->is_read()) {
-			if (act->is_rmw()) {
-				write_actions.add(act);
-			}
-
-			ModelAction * rf = act->get_reads_from();
-			write_actions.add(rf);
-		} else if (act->is_write()) {
-			write_actions.add(act);
-		}
-
-		// Revert back action types
-		if (act->is_read()) {
-			ModelAction * rf = act->get_reads_from();
-			if (rf->get_swap_flag() == true)
-				rf->use_original_type();
-		}
-
-		if (act->get_swap_flag() == true)
-			act->use_original_type();
-
-		//  Free read actions
-		if (act->is_read()) {
-			if (act->is_rmw()) {
-				// Do nothing. Its reads_from can not be READY_FREE
-			} else {
-				ModelAction *rf = act->get_reads_from();
-				if (rf->is_free()) {
-					model_print("delete read %d; %p\n", act->get_seq_number(), act);
-					delete act;
-				}
-			}
-		}
-	}
-
-	// Free write actions if possible
-	HSIterator<ModelAction *, uintptr_t, 2> * it = write_actions.iterator();
-	while (it->hasNext()) {
-		ModelAction * act = it->next();
-
-		if (act->is_free() && act->get_func_ref_count() == 0)
-			delete act;
-	}
-	delete it;
+//	update_inst_tree(&inst_list); TODO
+	update_predicate_tree(act);
 
 //	print_predicate_tree();
 }
@@ -332,26 +276,21 @@ void FuncNode::update_inst_tree(func_inst_list_t * inst_list)
 	}
 }
 
-void FuncNode::update_predicate_tree(action_list_t * act_list)
+void FuncNode::update_predicate_tree(ModelAction * next_act)
 {
-	if (act_list == NULL || act_list->size() == 0)
-		return;
-
-	incr_marker();
-	uint32_t inst_counter = 0;
+	thread_id_t tid = next_act->get_tid();
+	int thread_id = id_to_int(tid);
 
 	// Clear hashtables
-	loc_act_map.reset();
-	inst_pred_map.reset();
-	inst_id_map.reset();
+	loc_act_map_t * loc_act_map = thrd_loc_act_map[thread_id];
+	inst_pred_map_t * inst_pred_map = thrd_inst_pred_map[thread_id];
+	inst_id_map_t * inst_id_map = thrd_inst_id_map[thread_id];
 
 	// Clear the set of leaves encountered in this path
-	leaves_tmp_storage.clear();
+	// leaves_tmp_storage.clear();
 
-	sllnode<ModelAction *> *it = act_list->begin();
-	Predicate * curr_pred = predicate_tree_entry;
-	while (it != NULL) {
-		ModelAction * next_act = it->getVal();
+	Predicate * curr_pred = get_predicate_tree_position(tid);
+	while (true) {
 		FuncInst * next_inst = get_inst(next_act);
 		next_inst->set_associated_act(next_act, marker);
 
@@ -370,13 +309,13 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		}
 
 		// Detect loops
-		if (!branch_found && inst_id_map.contains(next_inst)) {
+		if (!branch_found && inst_id_map->contains(next_inst)) {
 			FuncInst * curr_inst = curr_pred->get_func_inst();
-			uint32_t curr_id = inst_id_map.get(curr_inst);
-			uint32_t next_id = inst_id_map.get(next_inst);
+			uint32_t curr_id = inst_id_map->get(curr_inst);
+			uint32_t next_id = inst_id_map->get(next_inst);
 
 			if (curr_id >= next_id) {
-				Predicate * old_pred = inst_pred_map.get(next_inst);
+				Predicate * old_pred = inst_pred_map->get(next_inst);
 				Predicate * back_pred = old_pred->get_parent();
 
 				// For updating weights
@@ -402,24 +341,21 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 
 		if (next_act->is_read()) {
 			/* Only need to store the locations of read actions */
-			loc_act_map.put(next_act->get_location(), next_act);
+			loc_act_map->put(next_act->get_location(), next_act);
 		}
 
-		inst_pred_map.put(next_inst, curr_pred);
-		if (!inst_id_map.contains(next_inst))
-			inst_id_map.put(next_inst, inst_counter++);
+		inst_pred_map->put(next_inst, curr_pred);
+		set_predicate_tree_position(tid, curr_pred);
 
-		it = it->getNext();
+		if (!inst_id_map->contains(next_inst))
+			inst_id_map->put(next_inst, inst_counter++);
+
 		curr_pred->incr_expl_count();
+		break;
 	}
 
-	if (curr_pred->get_exit() == NULL) {
-		// Exit predicate is unset yet
-		curr_pred->set_exit(predicate_tree_exit);
-	}
-
-	leaves_tmp_storage.push_back(curr_pred);
-	update_predicate_tree_weight();
+//	leaves_tmp_storage.push_back(curr_pred);
+//	update_predicate_tree_weight();
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -444,6 +380,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 		/* Only read and rmw actions my have unset predicate expressions */
 		if (pred_expressions->getSize() == 0) {
 			predicate_correct = false;
+
 			if (*unset_predicate == NULL)
 				*unset_predicate = branch;
 			else
@@ -507,11 +444,13 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 																SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	void * loc = next_act->get_location();
+	int thread_id = id_to_int(next_act->get_tid());
+	loc_act_map_t * loc_act_map = thrd_loc_act_map[thread_id];
 
 	if (next_inst->is_read()) {
 		/* read + rmw */
-		if ( loc_act_map.contains(loc) ) {
-			ModelAction * last_act = loc_act_map.get(loc);
+		if ( loc_act_map->contains(loc) ) {
+			ModelAction * last_act = loc_act_map->get(loc);
 			FuncInst * last_inst = get_inst(last_act);
 			struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
 			half_pred_expressions->push_back(expression);
@@ -522,8 +461,8 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 				loc_set_iter * loc_it = loc_may_equal->iterator();
 				while (loc_it->hasNext()) {
 					void * neighbor = loc_it->next();
-					if (loc_act_map.contains(neighbor)) {
-						ModelAction * last_act = loc_act_map.get(neighbor);
+					if (loc_act_map->contains(neighbor)) {
+						ModelAction * last_act = loc_act_map->get(neighbor);
 						FuncInst * last_inst = get_inst(last_act);
 
 						struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
@@ -738,7 +677,7 @@ void FuncNode::init_inst_act_map(thread_id_t tid)
 	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
 	uint old_size = thrd_inst_act_map->size();
 
-	if (thrd_inst_act_map->size() <= (uint) thread_id) {
+	if (old_size <= (uint) thread_id) {
 		uint new_size = thread_id + 1;
 		thrd_inst_act_map->resize(new_size);
 
@@ -773,6 +712,35 @@ inst_act_map_t * FuncNode::get_inst_act_map(thread_id_t tid)
 	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
 
 	return (*thrd_inst_act_map)[thread_id];
+}
+
+/* Make sure elements of thrd_loc_act_map are initialized properly when threads enter functions */
+void FuncNode::init_maps(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	uint old_size = thrd_loc_act_map.size();
+
+	if (old_size <= (uint) thread_id) {
+		uint new_size = thread_id + 1;
+		thrd_loc_act_map.resize(new_size);
+		thrd_inst_id_map.resize(new_size);
+		thrd_inst_pred_map.resize(new_size);
+
+		for (uint i = old_size; i < new_size;i++) {
+			thrd_loc_act_map[i] = new loc_act_map_t(128);
+			thrd_inst_id_map[i] = new inst_id_map_t(128);
+			thrd_inst_pred_map[i] = new inst_pred_map_t(128);
+		}
+	}
+}
+
+/* Reset elements of thrd_loc_act_map when threads exit functions */
+void FuncNode::reset_maps(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	thrd_loc_act_map[thread_id]->reset();
+	thrd_inst_id_map[thread_id]->reset();
+	thrd_inst_pred_map[thread_id]->reset();
 }
 
 /* Add FuncNodes that this node may follow */

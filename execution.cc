@@ -1774,8 +1774,6 @@ void ModelExecution::collectActions() {
 						CycleNode * prevnode = node->getInEdge(i);
 						ModelAction * prevact = prevnode->getAction();
 						if (prevact->get_type() != READY_FREE) {
-							// Save the original action type
-							prevact->set_original_type(prevact->get_type());
 							prevact->set_free();
 							queue->push_back(prevnode);
 						}
@@ -1801,8 +1799,6 @@ void ModelExecution::collectActions() {
 		if (act->is_read()) {
 			if (act->get_reads_from()->is_free()) {
 				if (act->is_rmw()) {
-					// Save the original action type
-					act->set_original_type(act->get_type());
 					//Weaken a RMW from a freed store to a write
 					act->set_type(ATOMIC_WRITE);
 				} else {
@@ -1811,12 +1807,8 @@ void ModelExecution::collectActions() {
 						fixupLastAct(act);
 					}
 
-					// Only delete this action if not being using by ModelHistory.
-					// Otherwise, the deletion of action is deferred.
-					if (act->get_func_ref_count() == 0) {
-						delete act;
-						continue;
-					}
+					delete act;
+					continue;
 				}
 			}
 		}
@@ -1847,18 +1839,14 @@ void ModelExecution::collectActions() {
 		if (act->is_read()) {
 			if (act->get_reads_from()->is_free()) {
 				if (act->is_rmw()) {
-					// Save the original action type
-					act->set_original_type(act->get_type());
 					act->set_type(ATOMIC_WRITE);
 				} else {
 					removeAction(act);
 					if (islastact) {
 						fixupLastAct(act);
 					}
-					if (act->get_func_ref_count() == 0) {
-						delete act;
-						continue;
-					}
+					delete act;
+					continue;
 				}
 			}
 		} else if (act->is_free()) {
@@ -1866,10 +1854,8 @@ void ModelExecution::collectActions() {
 			if (islastact) {
 				fixupLastAct(act);
 			}
-			if (act->get_func_ref_count() == 0) {
-				delete act;
-				continue;
-			}
+			delete act;
+			continue;
 		} else if (act->is_write()) {
 			//Do nothing with write that hasn't been marked to be freed
 		} else if (islastact) {

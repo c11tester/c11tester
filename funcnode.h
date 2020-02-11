@@ -9,6 +9,10 @@
 #define MAX_DIST 10
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
+typedef HashTable<void *, ModelAction *, uintptr_t, 0, model_malloc, model_calloc, model_free> loc_act_map_t;
+typedef HashTable<FuncInst *, uint32_t, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_id_map_t;
+typedef HashTable<FuncInst *, Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_pred_map_t;
+
 typedef enum edge_type {
 	IN_EDGE, OUT_EDGE, BI_EDGE
 } edge_type_t;
@@ -33,15 +37,15 @@ public:
 	func_inst_list_mt * get_entry_insts() { return &entry_insts; }
 	void add_entry_inst(FuncInst * inst);
 
-	void update_tree(action_list_t * act_list);
+	void function_entry_handler(thread_id_t tid);
+	void function_exit_handler(thread_id_t tid);
+
+	void update_tree(ModelAction * act);
 	void update_inst_tree(func_inst_list_t * inst_list);
-	void update_predicate_tree(action_list_t * act_list);
+	void update_predicate_tree(ModelAction * act);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, Predicate ** unset_predicate);
 
-	void incr_exit_count() { exit_count++; }
 	uint32_t get_exit_count() { return exit_count; }
-
-	SnapList<action_list_t *> * get_action_list_buffer() { return action_list_buffer; }
 
 	void add_to_val_loc_map(uint64_t val, void * loc);
 	void add_to_val_loc_map(value_set_t * values, void * loc);
@@ -74,8 +78,7 @@ private:
 
 	uint32_t exit_count;
 	uint32_t marker;
-
-	void incr_marker() { marker++; }
+	uint32_t inst_counter;
 
 	/* Use source line number as the key of hashtable, to check if
 	 * atomic operation with this line number has been added or not
@@ -89,20 +92,20 @@ private:
 	func_inst_list_mt entry_insts;
 
 	/* Map a FuncInst to the its predicate when updating predicate trees */
-	HashTable<FuncInst *, Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_pred_map;
+	SnapVector<inst_pred_map_t *> thrd_inst_pred_map;
 
 	/* Number FuncInsts to detect loops when updating predicate trees */
-	HashTable<FuncInst *, uint32_t, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_id_map;
+	SnapVector<inst_id_map_t *> thrd_inst_id_map;
 
 	/* Delect read actions at the same locations when updating predicate trees */
-	HashTable<void *, ModelAction *, uintptr_t, 0, model_malloc, model_calloc, model_free> loc_act_map;
+	SnapVector<loc_act_map_t *> thrd_loc_act_map;
+
+	void init_maps(thread_id_t tid);
+	void reset_maps(thread_id_t tid);
 
 	void infer_predicates(FuncInst * next_inst, ModelAction * next_act, SnapVector<struct half_pred_expr *> * half_pred_expressions);
 	void generate_predicates(Predicate * curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
 	bool amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst, ModelAction * next_act);
-
-	/* Store action_lists when calls to update_tree are deferred */
-	SnapList<action_list_t *> * action_list_buffer;
 
 	/* Set of locations read by this FuncNode */
 	loc_set_t * read_locations;
