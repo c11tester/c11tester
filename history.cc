@@ -16,14 +16,14 @@ ModelHistory::ModelHistory() :
 	func_counter(1),	/* function id starts with 1 */
 	func_map(),
 	func_map_rev(),
-	func_nodes()
+	func_nodes(),
+	last_action(NULL)
 {
 	/* The following are snapshot data structures */
 	write_history = new HashTable<void *, value_set_t *, uintptr_t, 0>();
 	loc_rd_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
 	loc_wr_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
 	loc_waiting_writes_map = new HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0>();
-	thrd_func_act_lists = new SnapVector< SnapList<action_list_t *> *>();
 	thrd_func_list = new SnapVector<func_id_list_t>();
 	thrd_last_entered_func = new SnapVector<uint32_t>();
 	thrd_waiting_write = new SnapVector<ConcretePredicate *>();
@@ -46,20 +46,14 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	if ( thrd_func_list->size() <= id ) {
 		uint oldsize = thrd_func_list->size();
 		thrd_func_list->resize( id + 1 );
-		thrd_func_act_lists->resize( id + 1 );
 
 		for (uint i = oldsize;i < id + 1;i++) {
 			// push 0 as a dummy function id to a void seg fault
 			new (&(*thrd_func_list)[i]) func_id_list_t();
 			(*thrd_func_list)[i].push_back(0);
-
-			(*thrd_func_act_lists)[i] = new SnapList<action_list_t *>();
 			thrd_last_entered_func->push_back(0);
 		}
 	}
-
-	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
-	func_act_lists->push_back( new action_list_t() );
 
 	uint32_t last_entered_func_id = (*thrd_last_entered_func)[id];
 	(*thrd_last_entered_func)[id] = func_id;
@@ -85,8 +79,6 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 {
 	uint32_t id = id_to_int(tid);
-
-	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 	uint32_t last_func_id = (*thrd_func_list)[id].back();
 
 	if (last_func_id == func_id) {
@@ -94,7 +86,6 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 		func_node->function_exit_handler(tid);
 
 		(*thrd_func_list)[id].pop_back();
-		func_act_lists->pop_back();
 	} else {
 		model_print("trying to exit with a wrong function id\n");
 		model_print("--- last_func: %d, func_id: %d\n", last_func_id, func_id);
@@ -152,16 +143,8 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (func_id == 0 || act->get_position() == NULL)
 		return;
 
-	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[thread_id];
-
-	/* The list of actions that thread tid has taken in its current function */
-	action_list_t * curr_act_list = func_act_lists->back();
-
-	if (skip_action(act, curr_act_list))
+	if (skip_action(act))
 		return;
-
-	/* Add to curr_inst_list */
-	curr_act_list->push_back(act);
 
 	FuncNode * func_node = func_nodes[func_id];
 	func_node->add_inst(act);
@@ -187,6 +170,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 */
 
 	func_node->update_tree(act);
+	last_action = act;
 }
 
 /* Return the FuncNode given its func_id  */
@@ -432,10 +416,8 @@ SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
 	return maps;
 }
 
-bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list)
+bool ModelHistory::skip_action(ModelAction * act)
 {
-	ASSERT(curr_act_list != NULL);
-
 	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
 	modelclock_t curr_seq_number = act->get_seq_number();
 
@@ -444,9 +426,8 @@ bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr
 		return true;
 
 	/* Skip actions with the same sequence number */
-	if (curr_act_list->size() != 0) {
-		ModelAction * last_act = curr_act_list->back();
-		if (last_act->get_seq_number() == curr_seq_number)
+	if (last_action != NULL) {
+		if (last_action->get_seq_number() == curr_seq_number)
 			return true;
 	}
 

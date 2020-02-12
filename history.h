@@ -74,11 +74,8 @@ private:
 
 	HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0> * loc_waiting_writes_map;
 
-	/* Keeps track of atomic actions that thread i has performed in some
-	 * function. Index of SnapVector is thread id. SnapList simulates
-	 * the call stack.
-	 */
-	SnapVector< SnapList<action_list_t *> *> * thrd_func_act_lists;
+	/* The last action processed by ModelHistory */
+	ModelAction * last_action;
 
 	/* thrd_func_list stores a list of function ids for each thread.
 	 * Each element in thrd_func_list stores the functions that
@@ -95,7 +92,7 @@ private:
 	 * Manipulated by FuncNode, and needed by NewFuzzer */
 	HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0> * func_inst_act_maps;
 
-	bool skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list);
+	bool skip_action(ModelAction * act);
 	void monitor_waiting_thread(uint32_t func_id, thread_id_t tid);
 	void monitor_waiting_thread_counter(thread_id_t tid);
 

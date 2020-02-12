@@ -9,7 +9,7 @@
 #define MAX_DIST 10
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
-typedef HashTable<void *, ModelAction *, uintptr_t, 0, model_malloc, model_calloc, model_free> loc_act_map_t;
+typedef HashTable<void *, FuncInst *, uintptr_t, 0, model_malloc, model_calloc, model_free> loc_inst_map_t;
 typedef HashTable<FuncInst *, uint32_t, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_id_map_t;
 typedef HashTable<FuncInst *, Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_pred_map_t;
 
@@ -51,7 +51,6 @@ public:
 	void add_to_val_loc_map(value_set_t * values, void * loc);
 	void update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations);
 
-	void init_predicate_tree_position(thread_id_t tid);
 	void set_predicate_tree_position(thread_id_t tid, Predicate * pred);
 	Predicate * get_predicate_tree_position(thread_id_t tid);
 
@@ -77,8 +76,11 @@ private:
 	Predicate * predicate_tree_exit;	// A dummy node
 
 	uint32_t exit_count;
-	uint32_t marker;
 	uint32_t inst_counter;
+	uint32_t marker;
+	ModelVector<uint32_t> thrd_marker;
+
+	void set_marker(thread_id_t tid);
 
 	/* Use source line number as the key of hashtable, to check if
 	 * atomic operation with this line number has been added or not
@@ -92,13 +94,13 @@ private:
 	func_inst_list_mt entry_insts;
 
 	/* Map a FuncInst to the its predicate when updating predicate trees */
-	SnapVector<inst_pred_map_t *> thrd_inst_pred_map;
+	ModelVector<inst_pred_map_t *> thrd_inst_pred_map;
 
 	/* Number FuncInsts to detect loops when updating predicate trees */
-	SnapVector<inst_id_map_t *> thrd_inst_id_map;
+	ModelVector<inst_id_map_t *> thrd_inst_id_map;
 
 	/* Delect read actions at the same locations when updating predicate trees */
-	SnapVector<loc_act_map_t *> thrd_loc_act_map;
+	ModelVector<loc_inst_map_t *> thrd_loc_inst_map;
 
 	void init_maps(thread_id_t tid);
 	void reset_maps(thread_id_t tid);
