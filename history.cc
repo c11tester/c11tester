@@ -87,8 +87,7 @@ void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 
 		(*thrd_func_list)[id].pop_back();
 	} else {
-		model_print("trying to exit with a wrong function id\n");
-		model_print("--- last_func: %d, func_id: %d\n", last_func_id, func_id);
+		ASSERT(false);
 	}
 	//model_print("thread %d exiting func %d\n", tid, func_id);
 }

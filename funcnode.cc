@@ -169,7 +169,7 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 void FuncNode::function_entry_handler(thread_id_t tid)
 {
 	set_marker(tid);
-	set_predicate_tree_position(tid, predicate_tree_entry);
+	init_predicate_tree_position(tid);
 	init_inst_act_map(tid);
 	init_maps(tid);
 }
@@ -187,7 +187,8 @@ void FuncNode::function_exit_handler(thread_id_t tid)
 		exit_pred->set_exit(predicate_tree_exit);
 	}
 
-	set_predicate_tree_position(tid, NULL);
+	int thread_id = id_to_int(tid);
+	predicate_tree_position[thread_id]->pop_back();
 }
 
 /**
@@ -196,6 +197,10 @@ void FuncNode::function_exit_handler(thread_id_t tid)
  */
 void FuncNode::update_tree(ModelAction * act)
 {
+	bool should_process = act->is_read() || act->is_write();
+	if (!should_process)
+		return;
+
 	HashTable<void *, value_set_t *, uintptr_t, 0> * write_history = history->getWriteHistory();
 
 	/* build inst_list from act_list for later processing */
@@ -647,20 +652,33 @@ void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_location
 	delete loc_it;
 }
 
+void FuncNode::init_predicate_tree_position(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	int old_size = predicate_tree_position.size();
+
+	if (old_size <= thread_id + 1) {
+		predicate_tree_position.resize(thread_id + 1);
+
+		for (int i = old_size; i < thread_id + 1; i++)
+			predicate_tree_position[i] = new ModelVector<Predicate *>();
+	}
+
+	predicate_tree_position[thread_id]->push_back(predicate_tree_entry);
+}
+
 void FuncNode::set_predicate_tree_position(thread_id_t tid, Predicate * pred)
 {
 	int thread_id = id_to_int(tid);
-	if (predicate_tree_position.size() <= (uint) thread_id)
-		predicate_tree_position.resize(thread_id + 1);
-
-	predicate_tree_position[thread_id] = pred;
+	ModelVector<Predicate *> * stack = predicate_tree_position[thread_id];
+	(*stack)[stack->size() - 1] = pred;
 }
 
 /* @return The position of a thread in a predicate tree */
 Predicate * FuncNode::get_predicate_tree_position(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
-	return predicate_tree_position[thread_id];
+	return predicate_tree_position[thread_id]->back();
 }
 
 /* Make sure elements of thrd_inst_act_map are initialized properly when threads enter functions */

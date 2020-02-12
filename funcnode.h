@@ -51,6 +51,7 @@ public:
 	void add_to_val_loc_map(value_set_t * values, void * loc);
 	void update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations);
 
+	void init_predicate_tree_position(thread_id_t tid);
 	void set_predicate_tree_position(thread_id_t tid, Predicate * pred);
 	Predicate * get_predicate_tree_position(thread_id_t tid);
 
@@ -123,8 +124,9 @@ private:
 
 	// value_set_t * values_may_read_from;
 
-	/* Run-time position in the predicate tree for each thread */
-	ModelVector<Predicate *> predicate_tree_position;
+	/* Run-time position in the predicate tree for each thread
+	 * The inner vector is used to deal with recursive functions. */
+	ModelVector< ModelVector<Predicate *> * > predicate_tree_position;
 
 	PredSet predicate_leaves;
 	ModelVector<Predicate *> leaves_tmp_storage;
