@@ -34,7 +34,7 @@ void NewFuzzer::register_engine(ModelChecker *_model, ModelExecution *execution)
 
 int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set)
 {
-//	return random() % rf_set->size();
+	return random() % rf_set->size();
 
 	thread_id_t tid = read->get_tid();
 	int thread_id = id_to_int(tid);
@@ -54,7 +54,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		if (curr_pred != NULL)  {
 			Predicate * selected_branch = NULL;
 
-			if (check_branch_inst(curr_pred, read_inst, inst_act_map, rf_set))
+			if (check_branch_inst(curr_pred, read_inst, rf_set))
 				selected_branch = selectBranch(tid, curr_pred, read_inst);
 			else {
 				// no child of curr_pred matches read_inst, check back edges
@@ -63,7 +63,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 				while (it->hasNext()) {
 					curr_pred = it->next();
-					if (check_branch_inst(curr_pred, read_inst, inst_act_map, rf_set)) {
+					if (check_branch_inst(curr_pred, read_inst, rf_set)) {
 						selected_branch = selectBranch(tid, curr_pred, read_inst);
 						break;
 					}
@@ -119,7 +119,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
  * @return False if no child matches read_inst
  */
 bool NewFuzzer::check_branch_inst(Predicate * curr_pred, FuncInst * read_inst,
-																	inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set)
+																	SnapVector<ModelAction *> * rf_set)
 {
 	available_branches_tmp_storage.clear();
 

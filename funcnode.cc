@@ -20,10 +20,10 @@ FuncNode::FuncNode(ModelHistory * history) :
 	thrd_inst_pred_map(),
 	thrd_inst_id_map(),
 	thrd_loc_inst_map(),
-	predicate_tree_position(),
+	thrd_predicate_tree_position(),
+	thrd_predicate_trace(),
 	predicate_leaves(),
 	leaves_tmp_storage(),
-	weight_debug_vec(),
 	failed_predicates(),
 	edge_table(32),
 	out_edges()
@@ -169,9 +169,9 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 void FuncNode::function_entry_handler(thread_id_t tid)
 {
 	set_marker(tid);
-	init_predicate_tree_position(tid);
 	init_inst_act_map(tid);
-	init_maps(tid);
+	init_local_maps(tid);
+	init_predicate_tree_data_structure(tid);
 }
 
 void FuncNode::function_exit_handler(thread_id_t tid)
@@ -179,7 +179,7 @@ void FuncNode::function_exit_handler(thread_id_t tid)
 	exit_count++;
 
 	reset_inst_act_map(tid);
-	reset_maps(tid);
+	reset_local_maps(tid);
 
 	Predicate * exit_pred = get_predicate_tree_position(tid);
 	if (exit_pred->get_exit() == NULL) {
@@ -187,8 +187,8 @@ void FuncNode::function_exit_handler(thread_id_t tid)
 		exit_pred->set_exit(predicate_tree_exit);
 	}
 
-	int thread_id = id_to_int(tid);
-	predicate_tree_position[thread_id]->pop_back();
+	update_predicate_tree_weight(tid);
+	reset_predicate_tree_data_structure(tid);
 }
 
 /**
@@ -290,9 +290,6 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 	inst_pred_map_t * inst_pred_map = thrd_inst_pred_map[thread_id];
 	inst_id_map_t * inst_id_map = thrd_inst_id_map[thread_id];
 
-	// Clear the set of leaves encountered in this path
-	// leaves_tmp_storage.clear();
-
 	Predicate * curr_pred = get_predicate_tree_position(tid);
 	while (true) {
 		FuncInst * next_inst = get_inst(next_act);
@@ -321,9 +318,6 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 			if (curr_id >= next_id) {
 				Predicate * old_pred = inst_pred_map->get(next_inst);
 				Predicate * back_pred = old_pred->get_parent();
-
-				// For updating weights
-				leaves_tmp_storage.push_back(curr_pred);
 
 				// Add to the set of backedges
 				curr_pred->add_backedge(back_pred);
@@ -356,11 +350,11 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 			inst_id_map->put(next_inst, inst_counter++);
 
 		curr_pred->incr_expl_count();
+		add_predicate_to_trace(tid, curr_pred);
 		break;
 	}
 
 //	leaves_tmp_storage.push_back(curr_pred);
-//	update_predicate_tree_weight();
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -652,25 +646,10 @@ void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_location
 	delete loc_it;
 }
 
-void FuncNode::init_predicate_tree_position(thread_id_t tid)
-{
-	int thread_id = id_to_int(tid);
-	int old_size = predicate_tree_position.size();
-
-	if (old_size <= thread_id + 1) {
-		predicate_tree_position.resize(thread_id + 1);
-
-		for (int i = old_size; i < thread_id + 1; i++)
-			predicate_tree_position[i] = new ModelVector<Predicate *>();
-	}
-
-	predicate_tree_position[thread_id]->push_back(predicate_tree_entry);
-}
-
 void FuncNode::set_predicate_tree_position(thread_id_t tid, Predicate * pred)
 {
 	int thread_id = id_to_int(tid);
-	ModelVector<Predicate *> * stack = predicate_tree_position[thread_id];
+	ModelVector<Predicate *> * stack = thrd_predicate_tree_position[thread_id];
 	(*stack)[stack->size() - 1] = pred;
 }
 
@@ -678,7 +657,13 @@ void FuncNode::set_predicate_tree_position(thread_id_t tid, Predicate * pred)
 Predicate * FuncNode::get_predicate_tree_position(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
-	return predicate_tree_position[thread_id]->back();
+	return thrd_predicate_tree_position[thread_id]->back();
+}
+
+void FuncNode::add_predicate_to_trace(thread_id_t tid, Predicate * pred)
+{
+	int thread_id = id_to_int(tid);
+	thrd_predicate_trace[thread_id]->back()->push_back(pred);
 }
 
 /* Make sure elements of thrd_inst_act_map are initialized properly when threads enter functions */
@@ -737,13 +722,14 @@ void FuncNode::set_marker(thread_id_t tid)
 }
 
 /* Make sure elements of maps are initialized properly when threads enter functions */
-void FuncNode::init_maps(thread_id_t tid)
+void FuncNode::init_local_maps(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
 	uint old_size = thrd_loc_inst_map.size();
 
 	if (old_size <= (uint) thread_id) {
 		uint new_size = thread_id + 1;
+
 		thrd_loc_inst_map.resize(new_size);
 		thrd_inst_id_map.resize(new_size);
 		thrd_inst_pred_map.resize(new_size);
@@ -757,12 +743,41 @@ void FuncNode::init_maps(thread_id_t tid)
 }
 
 /* Reset elements of maps when threads exit functions */
-void FuncNode::reset_maps(thread_id_t tid)
+void FuncNode::reset_local_maps(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
 	thrd_loc_inst_map[thread_id]->reset();
 	thrd_inst_id_map[thread_id]->reset();
 	thrd_inst_pred_map[thread_id]->reset();
+}
+
+void FuncNode::init_predicate_tree_data_structure(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	int old_size = thrd_predicate_tree_position.size();
+
+	if (old_size <= thread_id + 1) {
+		thrd_predicate_tree_position.resize(thread_id + 1);
+		thrd_predicate_trace.resize(thread_id + 1);
+
+		for (int i = old_size; i < thread_id + 1; i++) {
+			thrd_predicate_tree_position[i] = new ModelVector<Predicate *>();
+			thrd_predicate_trace[i] = new ModelVector<predicate_trace_t *>();
+		}
+	}
+
+	thrd_predicate_tree_position[thread_id]->push_back(predicate_tree_entry);
+	thrd_predicate_trace[thread_id]->push_back(new predicate_trace_t());
+}
+
+void FuncNode::reset_predicate_tree_data_structure(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	thrd_predicate_tree_position[thread_id]->pop_back();
+
+	predicate_trace_t * trace = thrd_predicate_trace[thread_id]->back();
+	delete trace;
+	thrd_predicate_trace[thread_id]->pop_back();
 }
 
 /* Add FuncNodes that this node may follow */
@@ -866,129 +881,32 @@ static void quickSort(ModelVector<_Tp *> * arr, int low, int high)
 	}
 }
 
-void FuncNode::assign_initial_weight()
+void FuncNode::update_predicate_tree_weight(thread_id_t tid)
 {
-	PredSetIter * it = predicate_leaves.iterator();
-	leaves_tmp_storage.clear();
-
-	while (it->hasNext()) {
-		Predicate * pred = it->next();
-		double weight = 100.0 / sqrt(pred->get_expl_count() + pred->get_fail_count() + 1);
-		pred->set_weight(weight);
-		leaves_tmp_storage.push_back(pred);
-	}
-	delete it;
-
-	quickSort(&leaves_tmp_storage, 0, leaves_tmp_storage.size() - 1);
-
-	// assign scores for internal nodes;
-	while ( !leaves_tmp_storage.empty() ) {
-		Predicate * leaf = leaves_tmp_storage.back();
-		leaves_tmp_storage.pop_back();
-
-		Predicate * curr = leaf->get_parent();
-		while (curr != NULL) {
-			if (curr->get_weight() != 0) {
-				// Has been exlpored
-				break;
-			}
-
-			ModelVector<Predicate *> * children = curr->get_children();
-			double weight_sum = 0;
-			bool has_unassigned_node = false;
-
-			for (uint i = 0;i < children->size();i++) {
-				Predicate * child = (*children)[i];
-
-				// If a child has unassigned weight
-				double weight = child->get_weight();
-				if (weight == 0) {
-					has_unassigned_node = true;
-					break;
-				} else
-					weight_sum += weight;
-			}
-
-			if (!has_unassigned_node) {
-				double average_weight = (double) weight_sum / (double) children->size();
-				double weight = average_weight * pow(0.9, curr->get_depth());
-				curr->set_weight(weight);
-			} else
-				break;
-
-			curr = curr->get_parent();
-		}
-	}
-}
-
-void FuncNode::update_predicate_tree_weight()
-{
-	if (marker == 2) {
-		// Predicate tree is initially built
-		assign_initial_weight();
-		return;
-	}
-
-	weight_debug_vec.clear();
-
-	PredSetIter * it = failed_predicates.iterator();
-	while (it->hasNext()) {
-		Predicate * pred = it->next();
-		leaves_tmp_storage.push_back(pred);
-	}
-	delete it;
 	failed_predicates.reset();
 
-	quickSort(&leaves_tmp_storage, 0, leaves_tmp_storage.size() - 1);
-	for (uint i = 0;i < leaves_tmp_storage.size();i++) {
-		Predicate * pred = leaves_tmp_storage[i];
-		double weight = 100.0 / sqrt(pred->get_expl_count() + pred->get_fail_count() + 1);
-		pred->set_weight(weight);
-	}
+	predicate_trace_t * trace = thrd_predicate_trace[id_to_int(tid)]->back();
 
-	// Update weights in internal nodes
-	while ( !leaves_tmp_storage.empty() ) {
-		Predicate * leaf = leaves_tmp_storage.back();
-		leaves_tmp_storage.pop_back();
+	// Update predicate weights based on prediate trace
+	for (mllnode<Predicate *> * rit = trace->end(); rit != NULL; rit = rit->getPrev()) {
+		Predicate * node = rit->getVal();
 
-		Predicate * curr = leaf->get_parent();
-		while (curr != NULL) {
-			ModelVector<Predicate *> * children = curr->get_children();
-			double weight_sum = 0;
-			bool has_unassigned_node = false;
-
+		if (predicate_leaves.contains(node)) {
+			double weight = 100.0 / sqrt(node->get_expl_count() + node->get_fail_count() + 1);
+			node->set_weight(weight);
+		} else {
+			double weight_sum = 0.0;
+			ModelVector<Predicate *> * children = node->get_children();
 			for (uint i = 0;i < children->size();i++) {
 				Predicate * child = (*children)[i];
-
 				double weight = child->get_weight();
-				if (weight != 0)
-					weight_sum += weight;
-				else if ( predicate_leaves.contains(child) ) {
-					// If this child is a leaf
-					double weight = 100.0 / sqrt(child->get_expl_count() + 1);
-					child->set_weight(weight);
-					weight_sum += weight;
-				} else {
-					has_unassigned_node = true;
-					weight_debug_vec.push_back(child);	// For debugging purpose
-					break;
-				}
+				weight_sum += weight;
 			}
 
-			if (!has_unassigned_node) {
-				double average_weight = (double) weight_sum / (double) children->size();
-				double weight = average_weight * pow(0.9, curr->get_depth());
-				curr->set_weight(weight);
-			} else
-				break;
-
-			curr = curr->get_parent();
+			double average_weight = (double) weight_sum / (double) children->size();
+			double weight = average_weight * pow(0.9, node->get_depth());
+			node->set_weight(weight);
 		}
-	}
-
-	for (uint i = 0;i < weight_debug_vec.size();i++) {
-		Predicate * tmp = weight_debug_vec[i];
-		ASSERT( tmp->get_weight() != 0 );
 	}
 }
 

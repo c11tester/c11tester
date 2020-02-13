@@ -13,6 +13,8 @@ typedef HashTable<void *, FuncInst *, uintptr_t, 0, model_malloc, model_calloc, 
 typedef HashTable<FuncInst *, uint32_t, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_id_map_t;
 typedef HashTable<FuncInst *, Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_pred_map_t;
 
+typedef ModelList<Predicate *> predicate_trace_t;
+
 typedef enum edge_type {
 	IN_EDGE, OUT_EDGE, BI_EDGE
 } edge_type_t;
@@ -51,9 +53,10 @@ public:
 	void add_to_val_loc_map(value_set_t * values, void * loc);
 	void update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations);
 
-	void init_predicate_tree_position(thread_id_t tid);
 	void set_predicate_tree_position(thread_id_t tid, Predicate * pred);
 	Predicate * get_predicate_tree_position(thread_id_t tid);
+
+	void add_predicate_to_trace(thread_id_t tid, Predicate *pred);
 
 	void init_inst_act_map(thread_id_t tid);
 	void reset_inst_act_map(thread_id_t tid);
@@ -103,8 +106,8 @@ private:
 	/* Delect read actions at the same locations when updating predicate trees */
 	ModelVector<loc_inst_map_t *> thrd_loc_inst_map;
 
-	void init_maps(thread_id_t tid);
-	void reset_maps(thread_id_t tid);
+	void init_local_maps(thread_id_t tid);
+	void reset_local_maps(thread_id_t tid);
 
 	void infer_predicates(FuncInst * next_inst, ModelAction * next_act, SnapVector<struct half_pred_expr *> * half_pred_expressions);
 	void generate_predicates(Predicate * curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
@@ -126,11 +129,15 @@ private:
 
 	/* Run-time position in the predicate tree for each thread
 	 * The inner vector is used to deal with recursive functions. */
-	ModelVector< ModelVector<Predicate *> * > predicate_tree_position;
+	ModelVector< ModelVector<Predicate *> * > thrd_predicate_tree_position;
+
+	ModelVector< ModelVector<predicate_trace_t *> * > thrd_predicate_trace;
+
+	void init_predicate_tree_data_structure(thread_id_t tid);
+	void reset_predicate_tree_data_structure(thread_id_t tid);
 
 	PredSet predicate_leaves;
 	ModelVector<Predicate *> leaves_tmp_storage;
-	ModelVector<Predicate *> weight_debug_vec;
 	PredSet failed_predicates;
 
 	/* Store the relation between this FuncNode and other FuncNodes */
@@ -139,8 +146,7 @@ private:
 	/* FuncNodes that follow this node */
 	ModelList<FuncNode *> out_edges;
 
-	void assign_initial_weight();
-	void update_predicate_tree_weight();
+	void update_predicate_tree_weight(thread_id_t tid);
 };
 
 #endif	/* __FUNCNODE_H__ */
