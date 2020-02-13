@@ -9,11 +9,11 @@
 #define MAX_DIST 10
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
+typedef ModelList<Predicate *> predicate_trace_t;
+
 typedef HashTable<void *, FuncInst *, uintptr_t, 0, model_malloc, model_calloc, model_free> loc_inst_map_t;
 typedef HashTable<FuncInst *, uint32_t, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_id_map_t;
 typedef HashTable<FuncInst *, Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_pred_map_t;
-
-typedef ModelList<Predicate *> predicate_trace_t;
 
 typedef enum edge_type {
 	IN_EDGE, OUT_EDGE, BI_EDGE
@@ -136,8 +136,6 @@ private:
 	void init_predicate_tree_data_structure(thread_id_t tid);
 	void reset_predicate_tree_data_structure(thread_id_t tid);
 
-	PredSet predicate_leaves;
-	ModelVector<Predicate *> leaves_tmp_storage;
 	PredSet failed_predicates;
 
 	/* Store the relation between this FuncNode and other FuncNodes */

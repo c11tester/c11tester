@@ -22,8 +22,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 	thrd_loc_inst_map(),
 	thrd_predicate_tree_position(),
 	thrd_predicate_trace(),
-	predicate_leaves(),
-	leaves_tmp_storage(),
 	failed_predicates(),
 	edge_table(32),
 	out_edges()
@@ -353,8 +351,6 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 		add_predicate_to_trace(tid, curr_pred);
 		break;
 	}
-
-//	leaves_tmp_storage.push_back(curr_pred);
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -496,10 +492,6 @@ void FuncNode::generate_predicates(Predicate * curr_pred, FuncInst * next_inst,
 		curr_pred->add_child(new_pred);
 		new_pred->set_parent(curr_pred);
 
-		/* Maintain predicate leaves */
-		predicate_leaves.add(new_pred);
-		predicate_leaves.remove(curr_pred);
-
 		/* entry predicates and predicates containing pure write actions
 		 * have no predicate expressions */
 		if ( curr_pred->is_entry_predicate() )
@@ -541,13 +533,7 @@ void FuncNode::generate_predicates(Predicate * curr_pred, FuncInst * next_inst,
 		Predicate * pred= predicates[i];
 		curr_pred->add_child(pred);
 		pred->set_parent(curr_pred);
-
-		/* Add new predicate leaves */
-		predicate_leaves.add(pred);
 	}
-
-	/* Remove predicate node that has children */
-	predicate_leaves.remove(curr_pred);
 
 	/* Free memories allocated by infer_predicate */
 	for (uint i = 0;i < half_pred_expressions->size();i++) {
@@ -846,41 +832,6 @@ void FuncNode::add_failed_predicate(Predicate * pred)
 	failed_predicates.add(pred);
 }
 
-/* Implement quick sort to sort leaves before assigning base scores */
-template<typename _Tp>
-static int partition(ModelVector<_Tp *> * arr, int low, int high)
-{
-	unsigned int pivot = (*arr)[high] -> get_depth();
-	int i = low - 1;
-
-	for (int j = low;j <= high - 1;j ++) {
-		if ( (*arr)[j] -> get_depth() < pivot ) {
-			i ++;
-			_Tp * tmp = (*arr)[i];
-			(*arr)[i] = (*arr)[j];
-			(*arr)[j] = tmp;
-		}
-	}
-
-	_Tp * tmp = (*arr)[i + 1];
-	(*arr)[i + 1] = (*arr)[high];
-	(*arr)[high] = tmp;
-
-	return i + 1;
-}
-
-/* Implement quick sort to sort leaves before assigning base scores */
-template<typename _Tp>
-static void quickSort(ModelVector<_Tp *> * arr, int low, int high)
-{
-	if (low < high) {
-		int pi = partition(arr, low, high);
-
-		quickSort(arr, low, pi - 1);
-		quickSort(arr, pi + 1, high);
-	}
-}
-
 void FuncNode::update_predicate_tree_weight(thread_id_t tid)
 {
 	failed_predicates.reset();
@@ -890,13 +841,13 @@ void FuncNode::update_predicate_tree_weight(thread_id_t tid)
 	// Update predicate weights based on prediate trace
 	for (mllnode<Predicate *> * rit = trace->end(); rit != NULL; rit = rit->getPrev()) {
 		Predicate * node = rit->getVal();
+		ModelVector<Predicate *> * children = node->get_children();
 
-		if (predicate_leaves.contains(node)) {
+		if (children->size() == 0) {
 			double weight = 100.0 / sqrt(node->get_expl_count() + node->get_fail_count() + 1);
 			node->set_weight(weight);
 		} else {
 			double weight_sum = 0.0;
-			ModelVector<Predicate *> * children = node->get_children();
 			for (uint i = 0;i < children->size();i++) {
 				Predicate * child = (*children)[i];
 				double weight = child->get_weight();
