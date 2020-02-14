@@ -47,8 +47,6 @@ public:
 	void update_predicate_tree(ModelAction * act);
 	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, Predicate ** unset_predicate);
 
-	uint32_t get_exit_count() { return exit_count; }
-
 	void add_to_val_loc_map(uint64_t val, void * loc);
 	void add_to_val_loc_map(value_set_t * values, void * loc);
 	void update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations);
@@ -67,8 +65,6 @@ public:
 	ModelList<FuncNode *> * get_out_edges() { return &out_edges; }
 	int compute_distance(FuncNode * target, int max_step = MAX_DIST);
 
-	void add_failed_predicate(Predicate * pred);
-
 	void print_predicate_tree();
 
 	MEMALLOC
@@ -79,12 +75,12 @@ private:
 	Predicate * predicate_tree_entry;	// A dummy node whose children are the real entries
 	Predicate * predicate_tree_exit;	// A dummy node
 
-	uint32_t exit_count;
 	uint32_t inst_counter;
 	uint32_t marker;
-	ModelVector<uint32_t> thrd_marker;
+	ModelVector< ModelVector<uint32_t> *> thrd_markers;
+	ModelVector<int> thrd_recursion_depth;
 
-	void set_marker(thread_id_t tid);
+	void init_marker(thread_id_t tid);
 
 	/* Use source line number as the key of hashtable, to check if
 	 * atomic operation with this line number has been added or not
@@ -103,7 +99,7 @@ private:
 	/* Number FuncInsts to detect loops when updating predicate trees */
 	ModelVector<inst_id_map_t *> thrd_inst_id_map;
 
-	/* Delect read actions at the same locations when updating predicate trees */
+	/* Detect read actions at the same locations when updating predicate trees */
 	ModelVector<loc_inst_map_t *> thrd_loc_inst_map;
 
 	void init_local_maps(thread_id_t tid);
@@ -135,8 +131,6 @@ private:
 
 	void init_predicate_tree_data_structure(thread_id_t tid);
 	void reset_predicate_tree_data_structure(thread_id_t tid);
-
-	PredSet failed_predicates;
 
 	/* Store the relation between this FuncNode and other FuncNodes */
 	HashTable<FuncNode *, edge_type_t, uintptr_t, 0, model_malloc, model_calloc, model_free> edge_table;

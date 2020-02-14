@@ -89,7 +89,6 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 		// Add failed predicate to NewFuzzer and FuncNode
 		failed_predicates.put(selected_branch, true);
-		func_node->add_failed_predicate(selected_branch);
 		selected_branch->incr_fail_count();
 
 		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());

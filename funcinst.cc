@@ -5,7 +5,7 @@ FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
 	single_location(true),
 	execution_number(0),
 	associated_reads(),
-	thrd_marker()	/* The marker for FuncNode starts from 1 */
+	thrd_markers()
 {
 	ASSERT(act);
 	ASSERT(func_node);
@@ -48,28 +48,44 @@ bool FuncInst::add_succ(FuncInst * other)
 	return true;
 }
 
-void FuncInst::set_associated_read(thread_id_t tid, uint64_t read_val, uint32_t marker)
+void FuncInst::set_associated_read(thread_id_t tid, int index, uint32_t marker, uint64_t read_val)
 {
 	int thread_id = id_to_int(tid);
-	int old_size = associated_reads.size();
 
-	if (old_size < thread_id + 1) {
-		for (int i = old_size; i < thread_id + 1; i++ ) {
-			associated_reads.push_back(VALUE_NONE);
-			thrd_marker.push_back(0);
+	if (associated_reads.size() < (uint) thread_id + 1) {
+		int old_size = associated_reads.size();
+		int new_size = thread_id + 1;
+
+		associated_reads.resize(new_size);
+		thrd_markers.resize(new_size);
+
+		for (int i = old_size; i < new_size; i++ ) {
+			associated_reads[i] = new ModelVector<uint64_t>();
+			thrd_markers[i] = new ModelVector<uint32_t>();
 		}
 	}
 
-	thrd_marker[thread_id] = marker;
-	associated_reads[thread_id] = read_val;
+	ModelVector<uint64_t> * read_values = associated_reads[thread_id];
+	ModelVector<uint32_t> * markers = thrd_markers[thread_id];
+	if (read_values->size() < (uint) index + 1) {
+		int old_size = read_values->size();
+
+		for (int i = old_size; i < index + 1; i++) {
+			read_values->push_back(VALUE_NONE);
+			markers->push_back(0);
+		}
+	}
+
+	(*read_values)[index] = read_val;
+	(*markers)[index] = marker;
 }
 
-uint64_t FuncInst::get_associated_read(thread_id_t tid, uint32_t marker)
+uint64_t FuncInst::get_associated_read(thread_id_t tid, int index, uint32_t marker)
 {
 	int thread_id = id_to_int(tid);
 
-	if (thrd_marker[thread_id] == marker)
-		return associated_reads[thread_id];
+	if ( (*thrd_markers[thread_id])[index] == marker)
+		return (*associated_reads[thread_id])[index];
 	else
 		return VALUE_NONE;
 }

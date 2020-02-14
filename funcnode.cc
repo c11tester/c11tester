@@ -10,10 +10,10 @@
 
 FuncNode::FuncNode(ModelHistory * history) :
 	history(history),
-	exit_count(0),
 	inst_counter(1),
 	marker(1),
-	thrd_marker(),
+	thrd_markers(),
+	thrd_recursion_depth(),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
@@ -22,7 +22,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 	thrd_loc_inst_map(),
 	thrd_predicate_tree_position(),
 	thrd_predicate_trace(),
-	failed_predicates(),
 	edge_table(32),
 	out_edges()
 {
@@ -166,7 +165,7 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 
 void FuncNode::function_entry_handler(thread_id_t tid)
 {
-	set_marker(tid);
+	init_marker(tid);
 	init_inst_act_map(tid);
 	init_local_maps(tid);
 	init_predicate_tree_data_structure(tid);
@@ -174,7 +173,9 @@ void FuncNode::function_entry_handler(thread_id_t tid)
 
 void FuncNode::function_exit_handler(thread_id_t tid)
 {
-	exit_count++;
+	int thread_id = id_to_int(tid);
+	thrd_recursion_depth[thread_id]--;
+	thrd_markers[thread_id]->pop_back();
 
 	reset_inst_act_map(tid);
 	reset_local_maps(tid);
@@ -282,7 +283,8 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 {
 	thread_id_t tid = next_act->get_tid();
 	int thread_id = id_to_int(tid);
-	int this_marker = thrd_marker[thread_id];
+	uint32_t this_marker = thrd_markers[thread_id]->back();
+	int recursion_depth = thrd_recursion_depth[thread_id];
 
 	loc_inst_map_t * loc_inst_map = thrd_loc_inst_map[thread_id];
 	inst_pred_map_t * inst_pred_map = thrd_inst_pred_map[thread_id];
@@ -291,7 +293,7 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 	Predicate * curr_pred = get_predicate_tree_position(tid);
 	while (true) {
 		FuncInst * next_inst = get_inst(next_act);
-		next_inst->set_associated_read(tid, next_act->get_reads_from_value(), this_marker);
+		next_inst->set_associated_read(tid, recursion_depth, this_marker, next_act->get_reads_from_value());
 
 		Predicate * unset_predicate = NULL;
 		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &unset_predicate);
@@ -363,7 +365,9 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
 	thread_id_t tid = next_act->get_tid();
-	int this_marker = thrd_marker[id_to_int(tid)];
+	int thread_id = id_to_int(tid);
+	uint32_t this_marker = thrd_markers[thread_id]->back();
+	int recursion_depth = thrd_recursion_depth[thread_id];
 
 	ModelVector<Predicate *> * branches = (*curr_pred)->get_children();
 	for (uint i = 0;i < branches->size();i++) {
@@ -401,7 +405,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 				FuncInst * to_be_compared;
 				to_be_compared = pred_expression->func_inst;
 
-				last_read = to_be_compared->get_associated_read(tid, this_marker);
+				last_read = to_be_compared->get_associated_read(tid, recursion_depth, this_marker);
 				ASSERT(last_read != VALUE_NONE);
 
 				next_read = next_act->get_reads_from_value();
@@ -696,31 +700,40 @@ inst_act_map_t * FuncNode::get_inst_act_map(thread_id_t tid)
 	return (*thrd_inst_act_map)[thread_id];
 }
 
-void FuncNode::set_marker(thread_id_t tid)
+void FuncNode::init_marker(thread_id_t tid)
 {
 	marker++;
-	uint thread_id = id_to_int(tid);
-	for (uint i = thrd_marker.size(); i < thread_id + 1; i++) {
-		thrd_marker.push_back(0);
+
+	int thread_id = id_to_int(tid);
+	int old_size = thrd_markers.size();
+
+	if (old_size < thread_id + 1) {
+		thrd_markers.resize(thread_id + 1);
+
+		for (int i = old_size; i < thread_id + 1; i++) {
+			thrd_markers[i] = new ModelVector<uint32_t>();
+			thrd_recursion_depth.push_back(-1);
+		}
 	}
 
-	thrd_marker[thread_id] = marker;
+	thrd_markers[thread_id]->push_back(marker);
+	thrd_recursion_depth[thread_id]++;
 }
 
 /* Make sure elements of maps are initialized properly when threads enter functions */
 void FuncNode::init_local_maps(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
-	uint old_size = thrd_loc_inst_map.size();
+	int old_size = thrd_loc_inst_map.size();
 
-	if (old_size <= (uint) thread_id) {
-		uint new_size = thread_id + 1;
+	if (old_size < thread_id + 1) {
+		int new_size = thread_id + 1;
 
 		thrd_loc_inst_map.resize(new_size);
 		thrd_inst_id_map.resize(new_size);
 		thrd_inst_pred_map.resize(new_size);
 
-		for (uint i = old_size; i < new_size; i++) {
+		for (int i = old_size; i < new_size; i++) {
 			thrd_loc_inst_map[i] = new loc_inst_map_t(128);
 			thrd_inst_id_map[i] = new inst_id_map_t(128);
 			thrd_inst_pred_map[i] = new inst_pred_map_t(128);
@@ -742,7 +755,7 @@ void FuncNode::init_predicate_tree_data_structure(thread_id_t tid)
 	int thread_id = id_to_int(tid);
 	int old_size = thrd_predicate_tree_position.size();
 
-	if (old_size <= thread_id + 1) {
+	if (old_size < thread_id + 1) {
 		thrd_predicate_tree_position.resize(thread_id + 1);
 		thrd_predicate_trace.resize(thread_id + 1);
 
@@ -761,6 +774,7 @@ void FuncNode::reset_predicate_tree_data_structure(thread_id_t tid)
 	int thread_id = id_to_int(tid);
 	thrd_predicate_tree_position[thread_id]->pop_back();
 
+	// Free memories allocated in init_predicate_tree_data_structure
 	predicate_trace_t * trace = thrd_predicate_trace[thread_id]->back();
 	delete trace;
 	thrd_predicate_trace[thread_id]->pop_back();
@@ -827,15 +841,8 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	return -1;
 }
 
-void FuncNode::add_failed_predicate(Predicate * pred)
-{
-	failed_predicates.add(pred);
-}
-
 void FuncNode::update_predicate_tree_weight(thread_id_t tid)
 {
-	failed_predicates.reset();
-
 	predicate_trace_t * trace = thrd_predicate_trace[id_to_int(tid)]->back();
 
 	// Update predicate weights based on prediate trace
