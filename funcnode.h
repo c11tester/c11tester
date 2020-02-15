@@ -56,10 +56,8 @@ public:
 
 	void add_predicate_to_trace(thread_id_t tid, Predicate *pred);
 
-	void init_inst_act_map(thread_id_t tid);
-	void reset_inst_act_map(thread_id_t tid);
-	void update_inst_act_map(thread_id_t tid, ModelAction * read_act);
-	inst_act_map_t * get_inst_act_map(thread_id_t tid);
+	uint32_t get_marker(thread_id_t tid);
+	int get_recursion_depth(thread_id_t tid);
 
 	void add_out_edge(FuncNode * other);
 	ModelList<FuncNode *> * get_out_edges() { return &out_edges; }
@@ -78,7 +76,7 @@ private:
 	uint32_t inst_counter;
 	uint32_t marker;
 	ModelVector< ModelVector<uint32_t> *> thrd_markers;
-	ModelVector<int> thrd_recursion_depth;
+	ModelVector<int> thrd_recursion_depth;	// Recursion depth starts from 0 to match with vector indexes.
 
 	void init_marker(thread_id_t tid);
 
@@ -94,13 +92,13 @@ private:
 	func_inst_list_mt entry_insts;
 
 	/* Map a FuncInst to the its predicate when updating predicate trees */
-	ModelVector<inst_pred_map_t *> thrd_inst_pred_map;
+	ModelVector< ModelVector<inst_pred_map_t *> * > thrd_inst_pred_maps;
 
 	/* Number FuncInsts to detect loops when updating predicate trees */
-	ModelVector<inst_id_map_t *> thrd_inst_id_map;
+	ModelVector< ModelVector<inst_id_map_t *> *> thrd_inst_id_maps;
 
 	/* Detect read actions at the same locations when updating predicate trees */
-	ModelVector<loc_inst_map_t *> thrd_loc_inst_map;
+	ModelVector< ModelVector<loc_inst_map_t *> *> thrd_loc_inst_maps;
 
 	void init_local_maps(thread_id_t tid);
 	void reset_local_maps(thread_id_t tid);

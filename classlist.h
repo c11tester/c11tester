@@ -29,7 +29,6 @@ struct bug_message;
 typedef SnapList<ModelAction *> action_list_t;
 typedef SnapList<uint32_t> func_id_list_t;
 typedef SnapList<FuncInst *> func_inst_list_t;
-typedef HashTable<FuncInst *, ModelAction *, uintptr_t, 0> inst_act_map_t;
 
 typedef HashSet<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> PredSet;
 typedef HSIterator<Predicate *, uintptr_t, 0, model_malloc, model_calloc, model_free> PredSetIter;

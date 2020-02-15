@@ -44,8 +44,6 @@ public:
 	void remove_waiting_thread(thread_id_t tid);
 	void stop_waiting_for_node(thread_id_t self_id, thread_id_t waiting_for_id, FuncNode * target_node);
 
-	SnapVector<inst_act_map_t *> * getThrdInstActMap(uint32_t func_id);
-
 	void set_new_exec_flag();
 	void dump_func_node_graph();
 	void print_func_node();
@@ -87,10 +85,6 @@ private:
 	/* The write values each paused thread is waiting for */
 	SnapVector<ConcretePredicate *> * thrd_waiting_write;
 	SnapVector<WaitObj *> * thrd_wait_obj;
-
-	/* A run-time map from FuncInst to ModelAction per thread, per FuncNode.
-	 * Manipulated by FuncNode, and needed by NewFuzzer */
-	HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0> * func_inst_act_maps;
 
 	bool skip_action(ModelAction * act);
 	void monitor_waiting_thread(uint32_t func_id, thread_id_t tid);

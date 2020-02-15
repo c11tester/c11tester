@@ -51,7 +51,7 @@ private:
 
 	bool check_branch_inst(Predicate * curr_pred, FuncInst * read_inst, SnapVector<ModelAction *> * rf_set);
 	Predicate * selectBranch(thread_id_t tid, Predicate * curr_pred, FuncInst * read_inst);
-	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map);
+	bool prune_writes(thread_id_t tid, int index, uint32_t marker, Predicate * pred, SnapVector<ModelAction *> * rf_set);
 	int choose_branch_index(SnapVector<Predicate *> * branches);
 
 	/* The set of Threads put to sleep by NewFuzzer because no writes in rf_set satisfies the selected predicate. Only used by selectWrite.
@@ -67,7 +67,7 @@ private:
 
 	bool find_threads(ModelAction * pending_read);	//--
 
-	bool check_predicate_expressions(PredExprSet * pred_expressions, inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate);
+	bool check_predicate_expressions(thread_id_t tid, int index, uint32_t marker, PredExprSet * pred_expressions, uint64_t write_val, bool * no_predicate);
 };
 
 #endif	/* end of __NEWFUZZER_H__ */

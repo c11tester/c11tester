@@ -28,7 +28,6 @@ ModelHistory::ModelHistory() :
 	thrd_last_entered_func = new SnapVector<uint32_t>();
 	thrd_waiting_write = new SnapVector<ConcretePredicate *>();
 	thrd_wait_obj = new SnapVector<WaitObj *>();
-	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>(128);
 }
 
 ModelHistory::~ModelHistory()
@@ -149,8 +148,6 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	func_node->add_inst(act);
 
 	if (act->is_read()) {
-		func_node->update_inst_act_map(tid, act);
-
 //		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
 //		Predicate * selected_branch = ((NewFuzzer *)fuzzer)->get_selected_child_branch(tid);
 //		func_node->set_predicate_tree_position(tid, selected_branch);
@@ -400,19 +397,6 @@ void ModelHistory::stop_waiting_for_node(thread_id_t self_id,
 			((NewFuzzer *)execution->getFuzzer())->notify_paused_thread(thread);
 		}
 	}
-}
-
-SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
-{
-	ASSERT(func_id != 0);
-
-	SnapVector<inst_act_map_t *> * maps = func_inst_act_maps->get(func_id);
-	if (maps == NULL) {
-		maps = new SnapVector<inst_act_map_t *>();
-		func_inst_act_maps->put(func_id, maps);
-	}
-
-	return maps;
 }
 
 bool ModelHistory::skip_action(ModelAction * act)

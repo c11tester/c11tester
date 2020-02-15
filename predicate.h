@@ -42,7 +42,7 @@ public:
 	bool is_write() { return does_write; }
 	void set_write(bool is_write) { does_write = is_write; }
 
-	ConcretePredicate * evaluate(inst_act_map_t * inst_act_map, thread_id_t tid);
+	ConcretePredicate * evaluate(thread_id_t tid);
 
 	uint32_t get_expl_count() { return exploration_count; }
 	uint32_t get_fail_count() { return failure_count; }

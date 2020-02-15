@@ -17,9 +17,9 @@ FuncNode::FuncNode(ModelHistory * history) :
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	thrd_inst_pred_map(),
-	thrd_inst_id_map(),
-	thrd_loc_inst_map(),
+	thrd_inst_pred_maps(),
+	thrd_inst_id_maps(),
+	thrd_loc_inst_maps(),
 	thrd_predicate_tree_position(),
 	thrd_predicate_trace(),
 	edge_table(32),
@@ -166,7 +166,6 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 void FuncNode::function_entry_handler(thread_id_t tid)
 {
 	init_marker(tid);
-	init_inst_act_map(tid);
 	init_local_maps(tid);
 	init_predicate_tree_data_structure(tid);
 }
@@ -174,11 +173,11 @@ void FuncNode::function_entry_handler(thread_id_t tid)
 void FuncNode::function_exit_handler(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
+
+	reset_local_maps(tid);
+
 	thrd_recursion_depth[thread_id]--;
 	thrd_markers[thread_id]->pop_back();
-
-	reset_inst_act_map(tid);
-	reset_local_maps(tid);
 
 	Predicate * exit_pred = get_predicate_tree_position(tid);
 	if (exit_pred->get_exit() == NULL) {
@@ -286,9 +285,9 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 	uint32_t this_marker = thrd_markers[thread_id]->back();
 	int recursion_depth = thrd_recursion_depth[thread_id];
 
-	loc_inst_map_t * loc_inst_map = thrd_loc_inst_map[thread_id];
-	inst_pred_map_t * inst_pred_map = thrd_inst_pred_map[thread_id];
-	inst_id_map_t * inst_id_map = thrd_inst_id_map[thread_id];
+	loc_inst_map_t * loc_inst_map = thrd_loc_inst_maps[thread_id]->back();
+	inst_pred_map_t * inst_pred_map = thrd_inst_pred_maps[thread_id]->back();
+	inst_id_map_t * inst_id_map = thrd_inst_id_maps[thread_id]->back();
 
 	Predicate * curr_pred = get_predicate_tree_position(tid);
 	while (true) {
@@ -404,6 +403,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 			case EQUALITY:
 				FuncInst * to_be_compared;
 				to_be_compared = pred_expression->func_inst;
+				ASSERT(to_be_compared != next_inst);
 
 				last_read = to_be_compared->get_associated_read(tid, recursion_depth, this_marker);
 				ASSERT(last_read != VALUE_NONE);
@@ -446,7 +446,7 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 {
 	void * loc = next_act->get_location();
 	int thread_id = id_to_int(next_act->get_tid());
-	loc_inst_map_t * loc_inst_map = thrd_loc_inst_map[thread_id];
+	loc_inst_map_t * loc_inst_map = thrd_loc_inst_maps[thread_id]->back();
 
 	if (next_inst->is_read()) {
 		/* read + rmw */
@@ -656,50 +656,6 @@ void FuncNode::add_predicate_to_trace(thread_id_t tid, Predicate * pred)
 	thrd_predicate_trace[thread_id]->back()->push_back(pred);
 }
 
-/* Make sure elements of thrd_inst_act_map are initialized properly when threads enter functions */
-void FuncNode::init_inst_act_map(thread_id_t tid)
-{
-	int thread_id = id_to_int(tid);
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
-	uint old_size = thrd_inst_act_map->size();
-
-	if (old_size <= (uint) thread_id) {
-		uint new_size = thread_id + 1;
-		thrd_inst_act_map->resize(new_size);
-
-		for (uint i = old_size;i < new_size;i++)
-			(*thrd_inst_act_map)[i] = new inst_act_map_t(128);
-	}
-}
-
-/* Reset elements of thrd_inst_act_map when threads exit functions */
-void FuncNode::reset_inst_act_map(thread_id_t tid)
-{
-	int thread_id = id_to_int(tid);
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
-
-	inst_act_map_t * map = (*thrd_inst_act_map)[thread_id];
-	map->reset();
-}
-
-void FuncNode::update_inst_act_map(thread_id_t tid, ModelAction * read_act)
-{
-	int thread_id = id_to_int(tid);
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
-
-	inst_act_map_t * map = (*thrd_inst_act_map)[thread_id];
-	FuncInst * read_inst = get_inst(read_act);
-	map->put(read_inst, read_act);
-}
-
-inst_act_map_t * FuncNode::get_inst_act_map(thread_id_t tid)
-{
-	int thread_id = id_to_int(tid);
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
-
-	return (*thrd_inst_act_map)[thread_id];
-}
-
 void FuncNode::init_marker(thread_id_t tid)
 {
 	marker++;
@@ -720,34 +676,70 @@ void FuncNode::init_marker(thread_id_t tid)
 	thrd_recursion_depth[thread_id]++;
 }
 
+uint32_t FuncNode::get_marker(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	return thrd_markers[thread_id]->back();
+}
+
+int FuncNode::get_recursion_depth(thread_id_t tid)
+{
+	return thrd_recursion_depth[id_to_int(tid)];
+}
+
 /* Make sure elements of maps are initialized properly when threads enter functions */
 void FuncNode::init_local_maps(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
-	int old_size = thrd_loc_inst_map.size();
+	int old_size = thrd_loc_inst_maps.size();
 
 	if (old_size < thread_id + 1) {
 		int new_size = thread_id + 1;
 
-		thrd_loc_inst_map.resize(new_size);
-		thrd_inst_id_map.resize(new_size);
-		thrd_inst_pred_map.resize(new_size);
+		thrd_loc_inst_maps.resize(new_size);
+		thrd_inst_id_maps.resize(new_size);
+		thrd_inst_pred_maps.resize(new_size);
 
 		for (int i = old_size; i < new_size; i++) {
-			thrd_loc_inst_map[i] = new loc_inst_map_t(128);
-			thrd_inst_id_map[i] = new inst_id_map_t(128);
-			thrd_inst_pred_map[i] = new inst_pred_map_t(128);
+			thrd_loc_inst_maps[i] = new ModelVector<loc_inst_map_t *>;
+			thrd_inst_id_maps[i] = new ModelVector<inst_id_map_t *>;
+			thrd_inst_pred_maps[i] = new ModelVector<inst_pred_map_t *>;
 		}
 	}
+
+	ModelVector<loc_inst_map_t *> * map = thrd_loc_inst_maps[thread_id];
+	int index = thrd_recursion_depth[thread_id];
+
+	// If there are recursive calls, push more hashtables into the vector.
+	if (map->size() < (uint) index + 1) {
+		thrd_loc_inst_maps[thread_id]->push_back(new loc_inst_map_t(64));
+		thrd_inst_id_maps[thread_id]->push_back(new inst_id_map_t(64));
+		thrd_inst_pred_maps[thread_id]->push_back(new inst_pred_map_t(64));
+	}
+
+	ASSERT(map->size() == (uint) index + 1);
 }
 
 /* Reset elements of maps when threads exit functions */
 void FuncNode::reset_local_maps(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
-	thrd_loc_inst_map[thread_id]->reset();
-	thrd_inst_id_map[thread_id]->reset();
-	thrd_inst_pred_map[thread_id]->reset();
+	int index = thrd_recursion_depth[thread_id];
+
+	// When recursive call ends, keep only one hashtable in the vector
+	if (index > 0) {
+		delete thrd_loc_inst_maps[thread_id]->back();
+		delete thrd_inst_id_maps[thread_id]->back();
+		delete thrd_inst_pred_maps[thread_id]->back();
+
+		thrd_loc_inst_maps[thread_id]->pop_back();
+		thrd_inst_id_maps[thread_id]->pop_back();
+		thrd_inst_pred_maps[thread_id]->pop_back();
+	} else {
+		thrd_loc_inst_maps[thread_id]->back()->reset();
+		thrd_inst_id_maps[thread_id]->back()->reset();
+		thrd_inst_pred_maps[thread_id]->back()->reset();
+	}
 }
 
 void FuncNode::init_predicate_tree_data_structure(thread_id_t tid)

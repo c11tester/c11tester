@@ -34,7 +34,7 @@ void NewFuzzer::register_engine(ModelChecker *_model, ModelExecution *execution)
 
 int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set)
 {
-	return random() % rf_set->size();
+//	return random() % rf_set->size();
 
 	thread_id_t tid = read->get_tid();
 	int thread_id = id_to_int(tid);
@@ -49,7 +49,9 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		FuncNode * func_node = history->get_curr_func_node(tid);
 		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
 		FuncInst * read_inst = func_node->get_inst(read);
-		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
+
+		int index = func_node->get_recursion_depth(tid);
+		uint32_t marker = func_node->get_marker(tid);
 
 		if (curr_pred != NULL)  {
 			Predicate * selected_branch = NULL;
@@ -72,7 +74,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 				delete it;
 			}
 
-			prune_writes(tid, selected_branch, rf_set, inst_act_map);
+			prune_writes(tid, index, marker, selected_branch, rf_set);
 		}
 
 		if (!failed_predicates.isEmpty())
@@ -86,6 +88,9 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	while ( rf_set->size() == 0 ) {
 		Predicate * selected_branch = get_selected_child_branch(tid);
 		FuncNode * func_node = history->get_curr_func_node(tid);
+
+		int index = func_node->get_recursion_depth(tid);
+		uint32_t marker = func_node->get_marker(tid);
 
 		// Add failed predicate to NewFuzzer and FuncNode
 		failed_predicates.put(selected_branch, true);
@@ -103,8 +108,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		FuncInst * read_inst = thrd_last_func_inst[thread_id];
 		selected_branch = selectBranch(tid, curr_pred, read_inst);
 
-		inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
-		prune_writes(tid, selected_branch, rf_set, inst_act_map);
+		prune_writes(tid, index, marker, selected_branch, rf_set);
 
 		ASSERT(selected_branch);
 	}
@@ -165,15 +169,15 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 	}
 
 	int index = choose_branch_index(&available_branches_tmp_storage);
-	Predicate * random_branch = available_branches_tmp_storage[ index ];
-	thrd_selected_child_branch[thread_id] = random_branch;
+	Predicate * selected_branch = available_branches_tmp_storage[ index ];
+	thrd_selected_child_branch[thread_id] = selected_branch;
 
 	/* Remove the chosen branch from vec in case that this
 	 * branch fails and need to choose another one */
 	available_branches_tmp_storage[index] = available_branches_tmp_storage.back();
 	available_branches_tmp_storage.pop_back();
 
-	return random_branch;
+	return selected_branch;
 }
 
 /**
@@ -223,8 +227,8 @@ Predicate * NewFuzzer::get_selected_child_branch(thread_id_t tid)
  *
  * @return true if rf_set is pruned
  */
-bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
-														 SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map)
+bool NewFuzzer::prune_writes(thread_id_t tid, int index, uint32_t marker, 
+			Predicate * pred, SnapVector<ModelAction *> * rf_set)
 {
 	if (pred == NULL)
 		return false;
@@ -245,25 +249,25 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
 	pruned_writes->clear();	// clear the old pruned_writes set
 
 	bool pruned = false;
-	uint index = 0;
+	uint rf_index = 0;
 
-	while ( index < rf_set->size() ) {
-		ModelAction * write_act = (*rf_set)[index];
+	while ( rf_index < rf_set->size() ) {
+		ModelAction * write_act = (*rf_set)[rf_index];
 		uint64_t write_val = write_act->get_write_value();
 		bool no_predicate = false;
-		bool satisfy_predicate = check_predicate_expressions(pred_expressions, inst_act_map, write_val, &no_predicate);
+		bool satisfy_predicate = check_predicate_expressions(tid, index, marker, pred_expressions, write_val, &no_predicate);
 
 		if (no_predicate)
 			return false;
 
 		if (!satisfy_predicate) {
 			ASSERT(rf_set != NULL);
-			(*rf_set)[index] = rf_set->back();
+			(*rf_set)[rf_index] = rf_set->back();
 			rf_set->pop_back();
 			pruned_writes->push_back(write_act);
 			pruned = true;
 		} else
-			index++;
+			rf_index++;
 	}
 
 	return pruned;
@@ -275,24 +279,28 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred,
  */
 void NewFuzzer::conditional_sleep(Thread * thread)
 {
+/*
 	int index = paused_thread_list.size();
 
 	model->getScheduler()->add_sleep(thread);
 	paused_thread_list.push_back(thread);
 	paused_thread_table.put(thread, index);	// Update table
 
-	/* Add the waiting condition to ModelHistory */
+	// Add the waiting condition to ModelHistory
 	ModelAction * read = thread->get_pending();
 	thread_id_t tid = thread->get_id();
 	FuncNode * func_node = history->get_curr_func_node(tid);
-	inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
+//	inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
 
 	Predicate * selected_branch = get_selected_child_branch(tid);
-	ConcretePredicate * concrete = selected_branch->evaluate(inst_act_map, tid);
+//	ConcretePredicate * concrete = selected_branch->evaluate(inst_act_map, tid);
 	concrete->set_location(read->get_location());
 
-	history->add_waiting_write(concrete);
-	/* history->add_waiting_thread is already called in find_threads */
+	ASSERT(false);
+
+//	history->add_waiting_write(concrete);
+	// history->add_waiting_thread is already called in find_threads
+*/
 }
 
 bool NewFuzzer::has_paused_threads()
@@ -408,8 +416,8 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
 	return finds_waiting_for;
 }
 
-bool NewFuzzer::check_predicate_expressions(PredExprSet * pred_expressions,
-																						inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate)
+bool NewFuzzer::check_predicate_expressions(thread_id_t tid, int index, uint32_t marker, 
+			PredExprSet * pred_expressions, uint64_t write_val, bool * no_predicate)
 {
 	bool satisfy_predicate = true;
 
@@ -424,12 +432,11 @@ bool NewFuzzer::check_predicate_expressions(PredExprSet * pred_expressions,
 			break;
 		case EQUALITY:
 			FuncInst * to_be_compared;
-			ModelAction * last_act;
 			uint64_t last_read;
 
 			to_be_compared = expression->func_inst;
-			last_act = inst_act_map->get(to_be_compared);
-			last_read = last_act->get_reads_from_value();
+			last_read = to_be_compared->get_associated_read(tid, index, marker);
+			ASSERT(last_read != VALUE_NONE);
 
 			equality = (write_val == last_read);
 			if (equality != expression->value)

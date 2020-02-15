@@ -100,8 +100,9 @@ Predicate * Predicate::follow_write_child(FuncInst * inst)
 }
 
 /* Evaluate predicate expressions against the given inst_act_map */
-ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id_t tid)
+ConcretePredicate * Predicate::evaluate(thread_id_t tid)
 {
+	/*
 	ConcretePredicate * concrete = new ConcretePredicate(tid);
 	PredExprSetIter * it = pred_expressions.iterator();
 
@@ -130,6 +131,7 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 	}
 
 	delete it;
+	*/
 	return concrete;
 }
 
