@@ -295,6 +295,7 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 	NewFuzzer * fuzzer = (NewFuzzer *)model->get_execution()->getFuzzer();
 	Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
 
+	bool amended;
 	while (true) {
 		FuncInst * next_inst = get_inst(next_act);
 		next_inst->set_associated_read(tid, recursion_depth, this_marker, next_act->get_reads_from_value());
@@ -304,7 +305,7 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 
 		// A branch with unset predicate expression is detected
 		if (!branch_found && unset_predicate != NULL) {
-			bool amended = amend_predicate_expr(curr_pred, next_inst, next_act);
+			amended = amend_predicate_expr(curr_pred, next_inst, next_act);
 			if (amended)
 				continue;
 			else {
@@ -359,7 +360,7 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 	}
 
 	// A check
-	if (selected_branch != NULL)
+	if (selected_branch != NULL && !amended)
 		ASSERT(selected_branch == curr_pred);
 }
 
