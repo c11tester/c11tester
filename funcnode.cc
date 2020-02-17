@@ -6,6 +6,8 @@
 #include "concretepredicate.h"
 
 #include "model.h"
+#include "execution.h"
+#include "newfuzzer.h"
 #include <cmath>
 
 FuncNode::FuncNode(ModelHistory * history) :
@@ -290,6 +292,9 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 	inst_id_map_t * inst_id_map = thrd_inst_id_maps[thread_id]->back();
 
 	Predicate * curr_pred = get_predicate_tree_position(tid);
+	NewFuzzer * fuzzer = (NewFuzzer *)model->get_execution()->getFuzzer();
+	Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
+
 	while (true) {
 		FuncInst * next_inst = get_inst(next_act);
 		next_inst->set_associated_read(tid, recursion_depth, this_marker, next_act->get_reads_from_value());
@@ -352,6 +357,10 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 		add_predicate_to_trace(tid, curr_pred);
 		break;
 	}
+
+	// A check
+	if (selected_branch != NULL)
+		ASSERT(selected_branch == curr_pred);
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that

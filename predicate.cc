@@ -131,8 +131,10 @@ ConcretePredicate * Predicate::evaluate(thread_id_t tid)
 	}
 
 	delete it;
-	*/
 	return concrete;
+	*/
+
+	return NULL;
 }
 
 void Predicate::print_predicate()

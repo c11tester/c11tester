@@ -19,7 +19,6 @@ NewFuzzer::NewFuzzer() :
 	thrd_pruned_writes(),
 	paused_thread_list(),
 	paused_thread_table(128),
-	failed_predicates(32),
 	dist_info_vec()
 {}
 
@@ -74,11 +73,9 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 				delete it;
 			}
 
+			thrd_selected_child_branch[thread_id] = selected_branch;
 			prune_writes(tid, index, marker, selected_branch, rf_set);
 		}
-
-		if (!failed_predicates.isEmpty())
-			failed_predicates.reset();
 
 		thrd_last_read_act[thread_id] = read;
 		thrd_last_func_inst[thread_id] = read_inst;
@@ -92,8 +89,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		int index = func_node->get_recursion_depth(tid);
 		uint32_t marker = func_node->get_marker(tid);
 
-		// Add failed predicate to NewFuzzer and FuncNode
-		failed_predicates.put(selected_branch, true);
+		// Increment failure count
 		selected_branch->incr_fail_count();
 
 		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
@@ -107,6 +103,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		Predicate * curr_pred = selected_branch->get_parent();
 		FuncInst * read_inst = thrd_last_func_inst[thread_id];
 		selected_branch = selectBranch(tid, curr_pred, read_inst);
+		thrd_selected_child_branch[thread_id] = selected_branch;
 
 		prune_writes(tid, index, marker, selected_branch, rf_set);
 
@@ -170,7 +167,6 @@ Predicate * NewFuzzer::selectBranch(thread_id_t tid, Predicate * curr_pred, Func
 
 	int index = choose_branch_index(&available_branches_tmp_storage);
 	Predicate * selected_branch = available_branches_tmp_storage[ index ];
-	thrd_selected_child_branch[thread_id] = selected_branch;
 
 	/* Remove the chosen branch from vec in case that this
 	 * branch fails and need to choose another one */
@@ -255,7 +251,45 @@ bool NewFuzzer::prune_writes(thread_id_t tid, int index, uint32_t marker,
 		ModelAction * write_act = (*rf_set)[rf_index];
 		uint64_t write_val = write_act->get_write_value();
 		bool no_predicate = false;
-		bool satisfy_predicate = check_predicate_expressions(tid, index, marker, pred_expressions, write_val, &no_predicate);
+		bool satisfy_predicate = true;
+
+		// Check if the write value satisfies the predicates
+		PredExprSetIter * pred_expr_it = pred_expressions->iterator();
+		while (pred_expr_it->hasNext()) {
+			struct pred_expr * expression = pred_expr_it->next();
+			bool equality;
+
+			switch (expression->token) {
+			case NOPREDICATE:
+				no_predicate = true;
+				break;
+			case EQUALITY:
+				FuncInst * to_be_compared;
+				uint64_t last_read;
+
+				to_be_compared = expression->func_inst;
+				last_read = to_be_compared->get_associated_read(tid, index, marker);
+				ASSERT(last_read != VALUE_NONE);
+
+				equality = (write_val == last_read);
+				if (equality != expression->value)
+					satisfy_predicate = false;
+				break;
+			case NULLITY:
+				// TODO: implement likely to be null
+				equality = ((void*) (write_val & 0xffffffff) == NULL);
+				if (equality != expression->value)
+					satisfy_predicate = false;
+				break;
+			default:
+				model_print("unknown predicate token\n");
+				break;
+			}
+
+			if (!satisfy_predicate)
+				break;
+		}
+		delete pred_expr_it;
 
 		if (no_predicate)
 			return false;
@@ -414,51 +448,6 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
 	}
 
 	return finds_waiting_for;
-}
-
-bool NewFuzzer::check_predicate_expressions(thread_id_t tid, int index, uint32_t marker, 
-			PredExprSet * pred_expressions, uint64_t write_val, bool * no_predicate)
-{
-	bool satisfy_predicate = true;
-
-	PredExprSetIter * pred_expr_it = pred_expressions->iterator();
-	while (pred_expr_it->hasNext()) {
-		struct pred_expr * expression = pred_expr_it->next();
-		bool equality;
-
-		switch (expression->token) {
-		case NOPREDICATE:
-			*no_predicate = true;
-			break;
-		case EQUALITY:
-			FuncInst * to_be_compared;
-			uint64_t last_read;
-
-			to_be_compared = expression->func_inst;
-			last_read = to_be_compared->get_associated_read(tid, index, marker);
-			ASSERT(last_read != VALUE_NONE);
-
-			equality = (write_val == last_read);
-			if (equality != expression->value)
-				satisfy_predicate = false;
-			break;
-		case NULLITY:
-			// TODO: implement likely to be null
-			equality = ((void*) (write_val & 0xffffffff) == NULL);
-			if (equality != expression->value)
-				satisfy_predicate = false;
-			break;
-		default:
-			model_print("unknown predicate token\n");
-			break;
-		}
-
-		if (!satisfy_predicate)
-			break;
-	}
-
-	delete pred_expr_it;
-	return satisfy_predicate;
 }
 
 bool NewFuzzer::shouldWait(const ModelAction * act)

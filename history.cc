@@ -148,12 +148,9 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	func_node->add_inst(act);
 
 	if (act->is_read()) {
-//		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
-//		Predicate * selected_branch = ((NewFuzzer *)fuzzer)->get_selected_child_branch(tid);
-//		func_node->set_predicate_tree_position(tid, selected_branch);
-	}
-/*
-	if (act->is_write()) {
+		// Do nothing
+	} else if (act->is_write()) {
+		/*
 		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
 		FuncInst * curr_inst = func_node->get_inst(act);
 
@@ -162,8 +159,8 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 			curr_pred = curr_pred->follow_write_child(curr_inst);
 		}
 		func_node->set_predicate_tree_position(tid, curr_pred);
+		*/
 	}
-*/
 
 	func_node->update_tree(act);
 	last_action = act;

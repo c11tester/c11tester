@@ -58,7 +58,6 @@ private:
 	 */
 	SnapVector<Thread *> paused_thread_list;	//-- (not in use)
 	HashTable<Thread *, int, uintptr_t, 0> paused_thread_table;	//--
-	HashTable<Predicate *, bool, uintptr_t, 0> failed_predicates;
 
 	SnapVector<struct node_dist_info> dist_info_vec;	//--
 
@@ -66,8 +65,6 @@ private:
 	void wake_up_paused_threads(int * threadlist, int * numthreads);	//--
 
 	bool find_threads(ModelAction * pending_read);	//--
-
-	bool check_predicate_expressions(thread_id_t tid, int index, uint32_t marker, PredExprSet * pred_expressions, uint64_t write_val, bool * no_predicate);
 };
 
 #endif	/* end of __NEWFUZZER_H__ */
