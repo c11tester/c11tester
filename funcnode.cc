@@ -219,9 +219,6 @@ void FuncNode::update_tree(ModelAction * act)
 			write_locations->add(loc);
 			history->update_loc_wr_func_nodes_map(loc, this);
 		}
-
-		// Do not process writes for now
-		return;
 	}
 
 	if (act->is_read()) {
@@ -242,6 +239,7 @@ void FuncNode::update_tree(ModelAction * act)
 	}
 
 //	update_inst_tree(&inst_list); TODO
+
 	update_predicate_tree(act);
 
 //	print_predicate_tree();
@@ -298,7 +296,6 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 	bool amended;
 	while (true) {
 		FuncInst * next_inst = get_inst(next_act);
-		next_inst->set_associated_read(tid, recursion_depth, this_marker, next_act->get_reads_from_value());
 
 		Predicate * unset_predicate = NULL;
 		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &unset_predicate);
@@ -340,12 +337,13 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 			continue;
 		}
 
-		if (next_act->is_write())
+		if (next_act->is_write()) {
 			curr_pred->set_write(true);
+		}
 
 		if (next_act->is_read()) {
 			/* Only need to store the locations of read actions */
-			loc_inst_map->put(next_inst->get_location(), next_inst);
+			loc_inst_map->put(next_act->get_location(), next_inst);
 		}
 
 		inst_pred_map->put(next_inst, curr_pred);
@@ -356,12 +354,17 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 
 		curr_pred->incr_expl_count();
 		add_predicate_to_trace(tid, curr_pred);
+		if (next_act->is_read())
+			next_inst->set_associated_read(tid, recursion_depth, this_marker, next_act->get_reads_from_value());
+
 		break;
 	}
 
 	// A check
-	if (selected_branch != NULL && !amended)
-		ASSERT(selected_branch == curr_pred);
+	if (next_act->is_read()) {
+		if (selected_branch != NULL && !amended)
+			ASSERT(selected_branch == curr_pred);
+	}
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -413,7 +416,6 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 			case EQUALITY:
 				FuncInst * to_be_compared;
 				to_be_compared = pred_expression->func_inst;
-				ASSERT(to_be_compared != next_inst);
 
 				last_read = to_be_compared->get_associated_read(tid, recursion_depth, this_marker);
 				ASSERT(last_read != VALUE_NONE);
