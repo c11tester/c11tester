@@ -34,7 +34,6 @@ public:
 	FuncInst * create_new_inst(ModelAction *act);
 	FuncInst * get_inst(ModelAction *act);
 
-	HashTable<const char *, FuncInst *, uintptr_t, 4, model_malloc, model_calloc, model_free> * getFuncInstMap() { return &func_inst_map; }
 	func_inst_list_mt * get_inst_list() { return &inst_list; }
 	func_inst_list_mt * get_entry_insts() { return &entry_insts; }
 	void add_entry_inst(FuncInst * inst);
@@ -43,21 +42,18 @@ public:
 	void function_exit_handler(thread_id_t tid);
 
 	void update_tree(ModelAction * act);
-	void update_inst_tree(func_inst_list_t * inst_list);
-	void update_predicate_tree(ModelAction * act);
-	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, Predicate ** unset_predicate);
 
 	void add_to_val_loc_map(uint64_t val, void * loc);
 	void add_to_val_loc_map(value_set_t * values, void * loc);
 	void update_loc_may_equal_map(void * new_loc, loc_set_t * old_locations);
 
-	void set_predicate_tree_position(thread_id_t tid, Predicate * pred);
 	Predicate * get_predicate_tree_position(thread_id_t tid);
 
 	void add_predicate_to_trace(thread_id_t tid, Predicate *pred);
 
 	uint32_t get_marker(thread_id_t tid);
 	int get_recursion_depth(thread_id_t tid);
+	uint64_t get_associated_read(thread_id_t tid, FuncInst * inst);
 
 	void add_out_edge(FuncNode * other);
 	ModelList<FuncNode *> * get_out_edges() { return &out_edges; }
@@ -103,6 +99,10 @@ private:
 	void init_local_maps(thread_id_t tid);
 	void reset_local_maps(thread_id_t tid);
 
+	void update_inst_tree(func_inst_list_t * inst_list);
+	void update_predicate_tree(ModelAction * act);
+	bool follow_branch(Predicate ** curr_pred, FuncInst * next_inst, ModelAction * next_act, Predicate ** unset_predicate);
+
 	void infer_predicates(FuncInst * next_inst, ModelAction * next_act, SnapVector<struct half_pred_expr *> * half_pred_expressions);
 	void generate_predicates(Predicate * curr_pred, FuncInst * next_inst, SnapVector<struct half_pred_expr *> * half_pred_expressions);
 	bool amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst, ModelAction * next_act);
@@ -126,6 +126,8 @@ private:
 	ModelVector< ModelVector<Predicate *> * > thrd_predicate_tree_position;
 
 	ModelVector< ModelVector<predicate_trace_t *> * > thrd_predicate_trace;
+
+	void set_predicate_tree_position(thread_id_t tid, Predicate * pred);
 
 	void init_predicate_tree_data_structure(thread_id_t tid);
 	void reset_predicate_tree_data_structure(thread_id_t tid);

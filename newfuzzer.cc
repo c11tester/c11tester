@@ -49,9 +49,6 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
 		FuncInst * read_inst = func_node->get_inst(read);
 
-		int index = func_node->get_recursion_depth(tid);
-		uint32_t marker = func_node->get_marker(tid);
-
 		if (curr_pred != NULL)  {
 			Predicate * selected_branch = NULL;
 
@@ -74,7 +71,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 			}
 
 			thrd_selected_child_branch[thread_id] = selected_branch;
-			prune_writes(tid, index, marker, selected_branch, rf_set);
+			prune_writes(tid, selected_branch, rf_set);
 		}
 
 		thrd_last_read_act[thread_id] = read;
@@ -85,9 +82,6 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 	while ( rf_set->size() == 0 ) {
 		Predicate * selected_branch = get_selected_child_branch(tid);
 		FuncNode * func_node = history->get_curr_func_node(tid);
-
-		int index = func_node->get_recursion_depth(tid);
-		uint32_t marker = func_node->get_marker(tid);
 
 		// Increment failure count
 		selected_branch->incr_fail_count();
@@ -106,7 +100,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 		selected_branch = selectBranch(tid, curr_pred, read_inst);
 		thrd_selected_child_branch[thread_id] = selected_branch;
 
-		prune_writes(tid, index, marker, selected_branch, rf_set);
+		prune_writes(tid, selected_branch, rf_set);
 
 		ASSERT(selected_branch);
 	}
@@ -224,8 +218,7 @@ Predicate * NewFuzzer::get_selected_child_branch(thread_id_t tid)
  *
  * @return true if rf_set is pruned
  */
-bool NewFuzzer::prune_writes(thread_id_t tid, int index, uint32_t marker, 
-			Predicate * pred, SnapVector<ModelAction *> * rf_set)
+bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set)
 {
 	if (pred == NULL)
 		return false;
@@ -266,10 +259,12 @@ bool NewFuzzer::prune_writes(thread_id_t tid, int index, uint32_t marker,
 				break;
 			case EQUALITY:
 				FuncInst * to_be_compared;
+				FuncNode * func_node;
 				uint64_t last_read;
 
 				to_be_compared = expression->func_inst;
-				last_read = to_be_compared->get_associated_read(tid, index, marker);
+				func_node = history->get_curr_func_node(tid);
+				last_read = func_node->get_associated_read(tid, to_be_compared);
 				ASSERT(last_read != VALUE_NONE);
 
 				equality = (write_val == last_read);

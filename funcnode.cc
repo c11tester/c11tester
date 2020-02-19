@@ -377,9 +377,6 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
 	thread_id_t tid = next_act->get_tid();
-	int thread_id = id_to_int(tid);
-	uint32_t this_marker = thrd_markers[thread_id]->back();
-	int recursion_depth = thrd_recursion_depth[thread_id];
 
 	ModelVector<Predicate *> * branches = (*curr_pred)->get_children();
 	for (uint i = 0;i < branches->size();i++) {
@@ -417,7 +414,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 				FuncInst * to_be_compared;
 				to_be_compared = pred_expression->func_inst;
 
-				last_read = to_be_compared->get_associated_read(tid, recursion_depth, this_marker);
+				last_read = get_associated_read(tid, to_be_compared);
 				ASSERT(last_read != VALUE_NONE);
 
 				next_read = next_act->get_reads_from_value();
@@ -688,15 +685,13 @@ void FuncNode::init_marker(thread_id_t tid)
 	thrd_recursion_depth[thread_id]++;
 }
 
-uint32_t FuncNode::get_marker(thread_id_t tid)
+uint64_t FuncNode::get_associated_read(thread_id_t tid, FuncInst * inst)
 {
 	int thread_id = id_to_int(tid);
-	return thrd_markers[thread_id]->back();
-}
+	int recursion_depth = thrd_recursion_depth[thread_id];
+	uint marker = thrd_markers[thread_id]->back();
 
-int FuncNode::get_recursion_depth(thread_id_t tid)
-{
-	return thrd_recursion_depth[id_to_int(tid)];
+	return inst->get_associated_read(tid, recursion_depth, marker);
 }
 
 /* Make sure elements of maps are initialized properly when threads enter functions */
@@ -779,8 +774,7 @@ void FuncNode::reset_predicate_tree_data_structure(thread_id_t tid)
 	thrd_predicate_tree_position[thread_id]->pop_back();
 
 	// Free memories allocated in init_predicate_tree_data_structure
-	predicate_trace_t * trace = thrd_predicate_trace[thread_id]->back();
-	delete trace;
+	delete thrd_predicate_trace[thread_id]->back();
 	thrd_predicate_trace[thread_id]->pop_back();
 }
 
