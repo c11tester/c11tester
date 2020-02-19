@@ -147,21 +147,6 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	FuncNode * func_node = func_nodes[func_id];
 	func_node->add_inst(act);
 
-	if (act->is_read()) {
-		// Do nothing
-	} else if (act->is_write()) {
-		/*
-		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
-		FuncInst * curr_inst = func_node->get_inst(act);
-
-		if (curr_pred) {
-			// Follow child
-			curr_pred = curr_pred->follow_write_child(curr_inst);
-		}
-		func_node->set_predicate_tree_position(tid, curr_pred);
-		*/
-	}
-
 	func_node->update_tree(act);
 	last_action = act;
 }

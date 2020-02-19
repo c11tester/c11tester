@@ -80,25 +80,6 @@ void Predicate::copy_predicate_expr(Predicate * other)
 	delete it;
 }
 
-/* Follow the child if any child whose FuncInst matches with inst
- *
- * @param inst must be an ATOMIC_WRITE FuncInst
- * @return NULL if no such child is found.
- */
-Predicate * Predicate::follow_write_child(FuncInst * inst)
-{
-	action_type type = inst->get_type();
-	ASSERT(type == ATOMIC_WRITE || type == ATOMIC_INIT);
-
-	for (uint i = 0;i < children.size();i++) {
-		Predicate * child = children[i];
-		if (child->get_func_inst() == inst)
-			return child;
-	}
-
-	return NULL;
-}
-
 /* Evaluate predicate expressions against the given inst_act_map */
 ConcretePredicate * Predicate::evaluate(thread_id_t tid)
 {

@@ -91,6 +91,7 @@ int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set
 
 		// Increment failure count
 		selected_branch->incr_fail_count();
+		func_node->add_predicate_to_trace(tid, selected_branch);	// For updating predicate weight
 
 		//model_print("the %d read action of thread %d at %p is unsuccessful\n", read->get_seq_number(), read_thread->get_id(), read->get_location());
 
