@@ -14,10 +14,10 @@
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
 	func_counter(1),	/* function id starts with 1 */
+	last_seq_number(-1),
 	func_map(),
 	func_map_rev(),
-	func_nodes(),
-	last_action(NULL)
+	func_nodes()
 {
 	/* The following are snapshot data structures */
 	write_history = new HashTable<void *, value_set_t *, uintptr_t, 0>();
@@ -148,7 +148,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	func_node->add_inst(act);
 
 	func_node->update_tree(act);
-	last_action = act;
+	last_seq_number = act->get_seq_number();
 }
 
 /* Return the FuncNode given its func_id  */
@@ -391,10 +391,8 @@ bool ModelHistory::skip_action(ModelAction * act)
 		return true;
 
 	/* Skip actions with the same sequence number */
-	if (last_action != NULL) {
-		if (last_action->get_seq_number() == curr_seq_number)
-			return true;
-	}
+	if (last_seq_number != -1 && last_seq_number == curr_seq_number)
+		return true;
 
 	/* Skip actions that are paused by fuzzer (sequence number is 0) */
 	if (curr_seq_number == 0)

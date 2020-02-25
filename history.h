@@ -52,6 +52,7 @@ public:
 	MEMALLOC
 private:
 	uint32_t func_counter;
+	int last_seq_number;
 
 	/* Map function names to integer ids */
 	HashTable<const char *, uint32_t, uintptr_t, 4, model_malloc, model_calloc, model_free> func_map;
@@ -71,9 +72,6 @@ private:
 	HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0> * loc_wr_func_nodes_map;
 
 	HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0> * loc_waiting_writes_map;
-
-	/* The last action processed by ModelHistory */
-	ModelAction * last_action;
 
 	/* thrd_func_list stores a list of function ids for each thread.
 	 * Each element in thrd_func_list stores the functions that

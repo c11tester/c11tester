@@ -9,7 +9,7 @@
 #define MAX_DIST 10
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
-typedef ModelList<Predicate *> predicate_trace_t;
+typedef ModelVector<Predicate *> predicate_trace_t;
 
 typedef HashTable<void *, FuncInst *, uintptr_t, 0, model_malloc, model_calloc, model_free> loc_inst_map_t;
 typedef HashTable<FuncInst *, uint32_t, uintptr_t, 0, model_malloc, model_calloc, model_free> inst_id_map_t;
@@ -51,8 +51,6 @@ public:
 
 	void add_predicate_to_trace(thread_id_t tid, Predicate *pred);
 
-	uint32_t get_marker(thread_id_t tid);
-	int get_recursion_depth(thread_id_t tid);
 	uint64_t get_associated_read(thread_id_t tid, FuncInst * inst);
 
 	void add_out_edge(FuncNode * other);
@@ -71,6 +69,7 @@ private:
 
 	uint32_t inst_counter;
 	uint32_t marker;
+	uint32_t exit_count;
 	ModelVector< ModelVector<uint32_t> *> thrd_markers;
 	ModelVector<int> thrd_recursion_depth;	// Recursion depth starts from 0 to match with vector indexes.
 
@@ -119,6 +118,9 @@ private:
 	/* Keeps track of locations that may share the same value as key, deduced from val_loc_map */
 	HashTable<void *, loc_set_t *, uintptr_t, 0> * loc_may_equal_map;
 
+	HashTable<FuncInst *, bool, uintptr_t, 0, model_malloc, model_calloc, model_free> likely_null_set;
+
+	bool likely_reads_from_null(ModelAction * read);
 	// value_set_t * values_may_read_from;
 
 	/* Run-time position in the predicate tree for each thread
