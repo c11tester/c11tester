@@ -11,9 +11,12 @@
 #include <cmath>
 
 FuncNode::FuncNode(ModelHistory * history) :
+	func_id(0),
+	func_name(NULL),
 	history(history),
 	inst_counter(1),
 	marker(1),
+	exit_count(0),
 	thrd_markers(),
 	thrd_recursion_depth(),
 	func_inst_map(),
@@ -22,6 +25,7 @@ FuncNode::FuncNode(ModelHistory * history) :
 	thrd_inst_pred_maps(),
 	thrd_inst_id_maps(),
 	thrd_loc_inst_maps(),
+	likely_null_set(),
 	thrd_predicate_tree_position(),
 	thrd_predicate_trace(),
 	edge_table(32),
@@ -189,6 +193,11 @@ void FuncNode::function_exit_handler(thread_id_t tid)
 
 	update_predicate_tree_weight(tid);
 	reset_predicate_tree_data_structure(tid);
+
+	exit_count++;
+	//model_print("exit count: %d\n", exit_count);
+
+//	print_predicate_tree();
 }
 
 /**
@@ -222,7 +231,6 @@ void FuncNode::update_tree(ModelAction * act)
 	}
 
 	if (act->is_read()) {
-
 		/* If func_inst may only read_from a single location, then:
 		 *
 		 * The first time an action reads from some location,
@@ -236,13 +244,15 @@ void FuncNode::update_tree(ModelAction * act)
 			add_to_val_loc_map(write_values, loc);
 			history->update_loc_rd_func_nodes_map(loc, this);
 		}
+
+		// Keep a has-been-zero-set record
+		if ( likely_reads_from_null(act) )
+			likely_null_set.put(func_inst, true);
 	}
 
 //	update_inst_tree(&inst_list); TODO
 
 	update_predicate_tree(act);
-
-//	print_predicate_tree();
 }
 
 /**
@@ -362,8 +372,8 @@ void FuncNode::update_predicate_tree(ModelAction * next_act)
 
 	// A check
 	if (next_act->is_read()) {
-		if (selected_branch != NULL && !amended)
-			ASSERT(selected_branch == curr_pred);
+//		if (selected_branch != NULL && !amended)
+//			ASSERT(selected_branch == curr_pred);
 	}
 }
 
@@ -415,7 +425,9 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 				to_be_compared = pred_expression->func_inst;
 
 				last_read = get_associated_read(tid, to_be_compared);
-				ASSERT(last_read != VALUE_NONE);
+				if (last_read == VALUE_NONE)
+					predicate_correct = false;
+				// ASSERT(last_read != VALUE_NONE);
 
 				next_read = next_act->get_reads_from_value();
 				equality = (last_read == next_read);
@@ -424,9 +436,8 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 
 				break;
 			case NULLITY:
-				next_read = next_act->get_reads_from_value();
 				// TODO: implement likely to be null
-				equality = ( (void*) (next_read & 0xffffffff) == NULL);
+				equality = likely_reads_from_null(next_act);
 				if (equality != pred_expression->value)
 					predicate_correct = false;
 				break;
@@ -480,15 +491,13 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 
 				delete loc_it;
 			}
-		} else {
-			// next_inst is not single location
-			uint64_t read_val = next_act->get_reads_from_value();
+		}
 
-			// only infer NULLITY predicate when it is actually NULL.
-			if ( (void*)read_val == NULL) {
-				struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
-				half_pred_expressions->push_back(expression);
-			}
+		// next_inst is not single location and has been null
+		bool likely_null = likely_null_set.contains(next_inst);
+		if ( !next_inst->is_single_location() && likely_null ) {
+			struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
+			half_pred_expressions->push_back(expression);
 		}
 	} else {
 		/* Pure writes */
@@ -569,10 +578,10 @@ bool FuncNode::amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst,
 		}
 	}
 
-	uint64_t read_val = next_act->get_reads_from_value();
+	bool likely_null = likely_null_set.contains(next_inst);
 
 	// only generate NULLITY predicate when it is actually NULL.
-	if ( !next_inst->is_single_location() && (void*)read_val == NULL ) {
+	if ( !next_inst->is_single_location() && likely_null ) {
 		Predicate * new_pred = new Predicate(next_inst);
 
 		curr_pred->add_child(new_pred);
@@ -643,6 +652,15 @@ void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_location
 	}
 
 	delete loc_it;
+}
+
+bool FuncNode::likely_reads_from_null(ModelAction * read)
+{
+	uint64_t read_val = read->get_reads_from_value();
+	if ( (void *)(read_val && 0xffffffff) == NULL )
+		return true;
+
+	return false;
 }
 
 void FuncNode::set_predicate_tree_position(thread_id_t tid, Predicate * pred)
@@ -805,6 +823,7 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	else if (target == this)
 		return 0;
 
+	// Be careful with memory
 	SnapList<FuncNode *> queue;
 	HashTable<FuncNode *, int, uintptr_t, 0> distances(128);
 
@@ -844,8 +863,8 @@ void FuncNode::update_predicate_tree_weight(thread_id_t tid)
 	predicate_trace_t * trace = thrd_predicate_trace[id_to_int(tid)]->back();
 
 	// Update predicate weights based on prediate trace
-	for (mllnode<Predicate *> * rit = trace->end(); rit != NULL; rit = rit->getPrev()) {
-		Predicate * node = rit->getVal();
+	for (int i = trace->size() - 1; i >= 0; i--) {
+		Predicate * node = (*trace)[i];
 		ModelVector<Predicate *> * children = node->get_children();
 
 		if (children->size() == 0) {

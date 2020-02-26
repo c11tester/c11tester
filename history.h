@@ -6,6 +6,8 @@
 #include "hashtable.h"
 #include "threads-model.h"
 
+#define INIT_SEQ_NUMBER 0xffffffff
+
 class ModelHistory {
 public:
 	ModelHistory();
@@ -52,7 +54,7 @@ public:
 	MEMALLOC
 private:
 	uint32_t func_counter;
-	int last_seq_number;
+	modelclock_t last_seq_number;
 
 	/* Map function names to integer ids */
 	HashTable<const char *, uint32_t, uintptr_t, 4, model_malloc, model_calloc, model_free> func_map;

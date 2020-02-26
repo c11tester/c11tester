@@ -14,7 +14,7 @@
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
 	func_counter(1),	/* function id starts with 1 */
-	last_seq_number(-1),
+	last_seq_number(INIT_SEQ_NUMBER),
 	func_map(),
 	func_map_rev(),
 	func_nodes()
@@ -391,7 +391,7 @@ bool ModelHistory::skip_action(ModelAction * act)
 		return true;
 
 	/* Skip actions with the same sequence number */
-	if (last_seq_number != -1 && last_seq_number == curr_seq_number)
+	if (last_seq_number != INIT_SEQ_NUMBER && last_seq_number == curr_seq_number)
 		return true;
 
 	/* Skip actions that are paused by fuzzer (sequence number is 0) */

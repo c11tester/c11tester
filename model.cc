@@ -85,7 +85,6 @@ ModelChecker::ModelChecker() :
 	parse_options(&params);
 	initRaceDetector();
 	/* Configure output redirection for the model-checker */
-	install_trace_analyses(get_execution());
 	install_handler();
 }
 
@@ -385,6 +384,7 @@ void ModelChecker::startChecker() {
 	startExecution(get_system_context(), runChecker);
 	snapshot = take_snapshot();
 
+	install_trace_analyses(get_execution());
 	redirect_output();
 	initMainThread();
 }
