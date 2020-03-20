@@ -78,7 +78,7 @@ bool ClockVector::minmerge(const ClockVector *cv)
 		num_threads = cv->num_threads;
 	}
 
-	/* Element-wise maximum */
+	/* Element-wise minimum */
 	for (int i = 0;i < cv->num_threads;i++)
 		if (cv->clock[i] < clock[i]) {
 			clock[i] = cv->clock[i];
