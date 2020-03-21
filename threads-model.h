@@ -101,6 +101,8 @@ public:
 
 	bool is_model_thread() const { return model_thread; }
 
+	void * get_stack_addr() { return stack; }
+
 	friend void thread_startup();
 #ifdef TLS
 	friend void setup_context();
@@ -156,6 +158,7 @@ private:
 	void *arg;
 	ucontext_t context;
 	void *stack;
+	uint32_t stack_size;
 #ifdef TLS
 	void * helper_stack;
 public:

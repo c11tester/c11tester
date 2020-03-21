@@ -41,6 +41,7 @@ public:
 	Thread * take_step(ModelAction *curr);
 
 	void print_summary();
+	void print_tail();
 #if SUPPORT_MOD_ORDER_DUMP
 	void dumpGraph(char *filename);
 #endif

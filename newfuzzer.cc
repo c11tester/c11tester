@@ -33,7 +33,7 @@ void NewFuzzer::register_engine(ModelChecker *_model, ModelExecution *execution)
 
 int NewFuzzer::selectWrite(ModelAction *read, SnapVector<ModelAction *> * rf_set)
 {
-//	return random() % rf_set->size();
+	return random() % rf_set->size();
 
 	thread_id_t tid = read->get_tid();
 	int thread_id = id_to_int(tid);
@@ -344,7 +344,6 @@ Thread * NewFuzzer::selectThread(int * threadlist, int numthreads)
 		wake_up_paused_threads(threadlist, &numthreads);
 		//model_print("list size: %d, active t id: %d\n", numthreads, threadlist[0]);
 	}
-
 	int random_index = random() % numthreads;
 	int thread = threadlist[random_index];
 	thread_id_t curr_tid = int_to_id(thread);

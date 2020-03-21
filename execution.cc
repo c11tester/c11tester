@@ -1527,6 +1527,40 @@ void ModelExecution::print_summary()
 
 }
 
+void ModelExecution::print_tail()
+{
+	model_print("Execution trace %d:\n", get_execution_number());
+
+	sllnode<ModelAction*> *it;
+
+	model_print("------------------------------------------------------------------------------------\n");
+	model_print("#    t    Action type     MO       Location         Value               Rf  CV\n");
+	model_print("------------------------------------------------------------------------------------\n");
+
+	unsigned int hash = 0;
+
+	int length = 25;
+	int counter = 0;
+	SnapList<ModelAction *> list;
+	for (it = action_trace.end(); it != NULL; it = it->getPrev()) {
+		if (counter > length)
+			break;
+
+		ModelAction * act = it->getVal();
+		list.push_front(act);
+		counter++;
+	}
+
+	for (it = list.begin();it != NULL;it=it->getNext()) {
+		const ModelAction *act = it->getVal();
+		if (act->get_seq_number() > 0)
+			act->print();
+		hash = hash^(hash<<3)^(it->getVal()->hash());
+	}
+	model_print("HASH %u\n", hash);
+	model_print("------------------------------------------------------------------------------------\n");
+}
+
 /**
  * Add a Thread to the system for the first time. Should only be called once
  * per thread.
@@ -1577,8 +1611,12 @@ Thread * ModelExecution::get_pthread(pthread_t pid) {
 	} x;
 	x.p = pid;
 	uint32_t thread_id = x.v;
+	return get_thread(thread_id);	// Temporary fix for firefox
+
+/*
 	if (thread_id < pthread_counter + 1) return pthread_map[thread_id];
 	else return NULL;
+*/
 }
 
 /**
