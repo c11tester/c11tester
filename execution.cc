@@ -53,7 +53,7 @@ ModelExecution::ModelExecution(ModelChecker *m, Scheduler *scheduler) :
 	scheduler(scheduler),
 	thread_map(2),	/* We'll always need at least 2 threads */
 	pthread_map(0),
-	pthread_counter(1),
+	pthread_counter(2),
 	action_trace(),
 	obj_map(),
 	condvar_waiters_map(),
@@ -1605,18 +1605,21 @@ Thread * ModelExecution::get_thread(const ModelAction *act) const
  * @return A Thread reference
  */
 Thread * ModelExecution::get_pthread(pthread_t pid) {
+	// pid 1 is reserved for the main thread, pthread ids should start from 2
+	if (pid == 1)
+		return get_thread(pid);
+
 	union {
 		pthread_t p;
 		uint32_t v;
 	} x;
 	x.p = pid;
 	uint32_t thread_id = x.v;
-	return get_thread(thread_id);	// Temporary fix for firefox
 
-/*
-	if (thread_id < pthread_counter + 1) return pthread_map[thread_id];
-	else return NULL;
-*/
+	if (thread_id < pthread_counter + 1)
+		return pthread_map[thread_id];
+	else
+		return NULL;
 }
 
 /**

@@ -14,7 +14,6 @@ struct mutex_state {
 	void *locked;	/* Thread holding the lock */
 	thread_id_t alloc_tid;
 	modelclock_t alloc_clock;
-	int init;	// WL
 };
 
 class mutex {

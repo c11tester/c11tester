@@ -447,5 +447,5 @@ bool NewFuzzer::find_threads(ModelAction * pending_read)
 
 bool NewFuzzer::shouldWait(const ModelAction * act)
 {
-	return random() & 1;
+	return true;
 }
