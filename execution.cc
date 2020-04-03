@@ -376,6 +376,8 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		//TODO: FIND SOME BETTER WAY TO CHECK LOCK INITIALIZED OR NOT
 		//if (curr->get_cv()->getClock(state->alloc_tid) <= state->alloc_clock)
 		//	assert_bug("Lock access before initialization");
+
+		// TODO: lock count for recursive mutexes
 		state->locked = get_thread(curr);
 		ModelAction *unlock = get_last_unlock(curr);
 		//synchronize with the previous unlock statement
@@ -417,6 +419,7 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 		//FAILS AND IN THE CASE IT DOESN'T...  TIMED WAITS
 		//MUST EVENMTUALLY RELEASE...
 
+		// TODO: lock count for recursive mutexes
 		/* wake up the other threads */
 		for (unsigned int i = 0;i < get_num_threads();i++) {
 			Thread *t = get_thread(int_to_id(i));
@@ -691,8 +694,15 @@ bool ModelExecution::check_action_enabled(ModelAction *curr) {
 	if (curr->is_lock()) {
 		cdsc::mutex *lock = curr->get_mutex();
 		struct cdsc::mutex_state *state = lock->get_state();
-		if (state->locked)
+		if (state->locked) {
+			Thread *lock_owner = (Thread *)state->locked;
+			Thread *curr_thread = get_thread(curr);
+			if (lock_owner == curr_thread && state->type == PTHREAD_MUTEX_RECURSIVE) {
+				return true;
+			}
+
 			return false;
+		}
 	} else if (curr->is_thread_join()) {
 		Thread *blocking = curr->get_thread_operand();
 		if (!blocking->is_complete()) {

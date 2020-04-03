@@ -490,6 +490,14 @@ Thread * Thread::waiting_on() const
 bool Thread::is_waiting_on(const Thread *t) const
 {
 	Thread *wait;
+
+	// One thread relocks a recursive mutex
+	if (waiting_on() == t && pending->is_lock()) {
+		int mutex_type = pending->get_mutex()->get_state()->type;
+		if (mutex_type == PTHREAD_MUTEX_RECURSIVE)
+			return false;
+	}
+
 	for (wait = waiting_on();wait != NULL;wait = wait->waiting_on())
 		if (wait == t)
 			return true;
