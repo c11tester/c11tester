@@ -401,8 +401,17 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 			/* unlock the lock - after checking who was waiting on it */
 			state->locked = NULL;
 
-			/* disable this thread */
-			get_safe_ptr_action(&condvar_waiters_map, curr->get_location())->push_back(curr);
+			/* remove old wait action and disable this thread */
+			action_list_t * waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
+			for (sllnode<ModelAction *> * it = waiters->begin(); it != NULL; it = it->getNext()) {
+				ModelAction * wait = it->getVal();
+				if (wait->get_tid() == curr->get_tid()) {
+					waiters->erase(it);
+					break;
+				}
+			}
+
+			waiters->push_back(curr);
 			scheduler->sleep(get_thread(curr));
 		}
 
