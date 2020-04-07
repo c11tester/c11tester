@@ -4,7 +4,9 @@
 #include "classlist.h"
 #include "stl-model.h"
 
-#define ISACT 1
+#define ISACT ((uintptr_t) 1ULL)
+#define ACTMASK (~ISACT)
+
 #define ALLBITS 4
 #define ALLNODESIZE (1 << ALLBITS)
 #define ALLMASK ((1 << ALLBITS)-1)

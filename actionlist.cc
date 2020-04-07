@@ -5,8 +5,11 @@
 #include <limits.h>
 
 actionlist::actionlist() :
-	_size(0)
+  head(NULL),
+  tail(NULL),
+  _size(0)
 {
+  root.parent = NULL;
 }
 
 actionlist::~actionlist() {
@@ -44,9 +47,10 @@ sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 				continue;
 			} else {
 				//found non-null...
-				if (totalshift != 0)
-					ptr = ptr->children[currindex];
+				if (totalshift == 0)
+				  return reinterpret_cast<sllnode<ModelAction *> *>(((uintptr_t)ptr->children[currindex])& ACTMASK);
 				//need to increment here...
+				ptr = ptr->children[currindex];
 				increment = increment >> ALLBITS;
 				mask = mask >> ALLBITS;
 				totalshift -= ALLBITS;
@@ -59,7 +63,7 @@ sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 		mask = mask << ALLBITS;
 		totalshift += ALLBITS;
 
-		if (increment == 0) {
+		if (ptr == NULL) {
 			return NULL;
 		}
 	}
@@ -71,9 +75,10 @@ sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 			if (ptr->children[currindex] != NULL) {
 				if (totalshift != 0) {
 					ptr = ptr->children[currindex];
+					break;
 				} else {
 					allnode * act = ptr->children[currindex];
-					sllnode<ModelAction *> * node = reinterpret_cast<sllnode<ModelAction *>*>(((uintptr_t)act) & ALLMASK);
+					sllnode<ModelAction *> * node = reinterpret_cast<sllnode<ModelAction *>*>(((uintptr_t)act) & ACTMASK);
 					return node;
 				}
 			}
@@ -100,7 +105,7 @@ void actionlist::addAction(ModelAction * act) {
 			llnode->val = act;
 			if (tmp == NULL) {
 				ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
-				sllnode<ModelAction *> * llnodeprev = ptr->findPrev(index);
+				sllnode<ModelAction *> * llnodeprev = ptr->findPrev(clock);
 				if (llnodeprev != NULL) {
 
 					llnode->next = llnodeprev->next;
@@ -131,10 +136,11 @@ void actionlist::addAction(ModelAction * act) {
 			} else {
 				//handle case where something else is here
 
-				sllnode<ModelAction *> * llnodeprev = reinterpret_cast<sllnode<ModelAction *>*>(((uintptr_t) llnode) & ALLMASK);
+				sllnode<ModelAction *> * llnodeprev = reinterpret_cast<sllnode<ModelAction *>*>(((uintptr_t) llnode) & ACTMASK);
 				llnode->next = llnodeprev->next;
 				llnode->prev = llnodeprev;
-				llnode->next->prev = llnode;
+				if (llnode->next != NULL)
+				  llnode->next->prev = llnode;
 				llnodeprev->next = llnode;
 				ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
 			}
@@ -178,7 +184,7 @@ void actionlist::removeAction(ModelAction * act) {
 				//not found
 				return;
 			} else {
-				sllnode<ModelAction *> * llnode = reinterpret_cast<sllnode<ModelAction *> *>(((uintptr_t) tmp) & ALLMASK);
+				sllnode<ModelAction *> * llnode = reinterpret_cast<sllnode<ModelAction *> *>(((uintptr_t) tmp) & ACTMASK);
 				bool first = true;
 				do {
 					if (llnode->val == act) {
