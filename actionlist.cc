@@ -104,19 +104,16 @@ void actionlist::addAction(ModelAction * act) {
 			sllnode<ModelAction *> * llnode = new sllnode<ModelAction *>();
 			llnode->val = act;
 			if (tmp == NULL) {
-				ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
 				sllnode<ModelAction *> * llnodeprev = ptr->findPrev(clock);
 				if (llnodeprev != NULL) {
-
 					llnode->next = llnodeprev->next;
 					llnode->prev = llnodeprev;
 
 					//see if we are the new tail
-					if (llnodeprev->next == NULL)
-						tail = llnode;
+					if (llnode->next != NULL)
+					  llnode->next->prev = llnode;
 					else
-						llnode->next->prev = llnode;
-
+					  tail = llnode;
 					llnodeprev->next = llnode;
 				} else {
 					//We are the begining
@@ -131,16 +128,20 @@ void actionlist::addAction(ModelAction * act) {
 
 					head = llnode;
 				}
+				ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
+
 				//need to find next link
 				ptr->count++;
 			} else {
 				//handle case where something else is here
 
-				sllnode<ModelAction *> * llnodeprev = reinterpret_cast<sllnode<ModelAction *>*>(((uintptr_t) llnode) & ACTMASK);
+				sllnode<ModelAction *> * llnodeprev = reinterpret_cast<sllnode<ModelAction *>*>(((uintptr_t) tmp) & ACTMASK);
 				llnode->next = llnodeprev->next;
 				llnode->prev = llnodeprev;
 				if (llnode->next != NULL)
 				  llnode->next->prev = llnode;
+				else
+				  tail = llnode;
 				llnodeprev->next = llnode;
 				ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
 			}
