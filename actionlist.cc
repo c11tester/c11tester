@@ -5,11 +5,11 @@
 #include <limits.h>
 
 actionlist::actionlist() :
-  head(NULL),
-  tail(NULL),
-  _size(0)
+	head(NULL),
+	tail(NULL),
+	_size(0)
 {
-  root.parent = NULL;
+	root.parent = NULL;
 }
 
 actionlist::~actionlist() {
@@ -48,7 +48,7 @@ sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 			} else {
 				//found non-null...
 				if (totalshift == 0)
-				  return reinterpret_cast<sllnode<ModelAction *> *>(((uintptr_t)ptr->children[currindex])& ACTMASK);
+					return reinterpret_cast<sllnode<ModelAction *> *>(((uintptr_t)ptr->children[currindex])& ACTMASK);
 				//need to increment here...
 				ptr = ptr->children[currindex];
 				increment = increment >> ALLBITS;
@@ -111,9 +111,9 @@ void actionlist::addAction(ModelAction * act) {
 
 					//see if we are the new tail
 					if (llnode->next != NULL)
-					  llnode->next->prev = llnode;
+						llnode->next->prev = llnode;
 					else
-					  tail = llnode;
+						tail = llnode;
 					llnodeprev->next = llnode;
 				} else {
 					//We are the begining
@@ -139,9 +139,9 @@ void actionlist::addAction(ModelAction * act) {
 				llnode->next = llnodeprev->next;
 				llnode->prev = llnodeprev;
 				if (llnode->next != NULL)
-				  llnode->next->prev = llnode;
+					llnode->next->prev = llnode;
 				else
-				  tail = llnode;
+					tail = llnode;
 				llnodeprev->next = llnode;
 				ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
 			}
