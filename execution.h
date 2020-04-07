@@ -19,8 +19,6 @@
 #include <condition_variable>
 #include "classlist.h"
 
-typedef SnapList<ModelAction *> action_list_t;
-
 struct PendingFutureValue {
 	PendingFutureValue(ModelAction *writer, ModelAction *reader) :
 		writer(writer), reader(reader)
@@ -105,7 +103,7 @@ private:
 	bool initialize_curr_action(ModelAction **curr);
 	bool process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
 	void process_write(ModelAction *curr);
-	bool process_fence(ModelAction *curr);
+	void process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
 	void process_thread_action(ModelAction *curr);
 	void read_from(ModelAction *act, ModelAction *rf);
