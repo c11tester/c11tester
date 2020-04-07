@@ -168,8 +168,8 @@ void decrementCount(allnode * ptr) {
 					decrementCount(ptr->parent);
 				}
 			}
+			delete ptr;
 		}
-		delete ptr;
 	}
 }
 
@@ -204,7 +204,7 @@ void actionlist::removeAction(ModelAction * act) {
 						}
 						if (first) {
 							//see if previous node has same clock as us...
-							if (llnodeprev->val->get_seq_number() == clock) {
+							if (llnodeprev != NULL && llnodeprev->val->get_seq_number() == clock) {
 								ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t)llnodeprev) | ISACT);
 							} else {
 								//remove ourselves and go up tree
