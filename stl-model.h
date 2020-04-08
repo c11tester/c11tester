@@ -5,7 +5,6 @@
 #include "mymemory.h"
 typedef unsigned int uint;
 
-
 template<typename _Tp>
 class mllnode {
 public:
@@ -165,6 +164,8 @@ private:
 	uint _size;
 };
 
+class actionlist;
+
 template<typename _Tp>
 class sllnode {
 public:
@@ -179,6 +180,7 @@ private:
 	_Tp val;
 	template<typename T>
 	friend class SnapList;
+	friend class actionlist;
 };
 
 template<typename _Tp>
@@ -535,6 +537,15 @@ public:
 			set(i, at(i - 1));
 		}
 		array[index] = item;
+	}
+
+	void remove(type item) {
+		for(uint i = 0;i < _size;i++) {
+			if (at(i) == item) {
+				removeAt(i);
+				return;
+			}
+		}
 	}
 
 	void removeAt(uint index) {

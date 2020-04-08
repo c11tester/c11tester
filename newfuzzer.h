@@ -29,7 +29,7 @@ public:
 	void notify_paused_thread(Thread * thread);
 
 	Thread * selectThread(int * threadlist, int numthreads);
-	Thread * selectNotify(action_list_t * waiters);
+	Thread * selectNotify(simple_action_list_t * waiters);
 	bool shouldSleep(const ModelAction * sleep);
 	bool shouldWake(const ModelAction * sleep);
 	bool shouldWait(const ModelAction * wait);

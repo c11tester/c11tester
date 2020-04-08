@@ -16,7 +16,7 @@ Thread * Fuzzer::selectThread(int * threadlist, int numthreads) {
 	return model->get_thread(curr_tid);
 }
 
-Thread * Fuzzer::selectNotify(action_list_t * waiters) {
+Thread * Fuzzer::selectNotify(simple_action_list_t * waiters) {
 	int numwaiters = waiters->size();
 	int random_index = random() % numwaiters;
 	sllnode<ModelAction*> * it = waiters->begin();
@@ -41,5 +41,5 @@ bool Fuzzer::shouldWake(const ModelAction *sleep) {
 
 bool Fuzzer::shouldWait(const ModelAction * act)
 {
-	return random() & 1;
+	return true;
 }

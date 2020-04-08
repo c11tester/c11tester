@@ -19,8 +19,6 @@
 #include <condition_variable>
 #include "classlist.h"
 
-typedef SnapList<ModelAction *> action_list_t;
-
 struct PendingFutureValue {
 	PendingFutureValue(ModelAction *writer, ModelAction *reader) :
 		writer(writer), reader(reader)
@@ -105,7 +103,7 @@ private:
 	bool initialize_curr_action(ModelAction **curr);
 	bool process_read(ModelAction *curr, SnapVector<ModelAction *> * rf_set);
 	void process_write(ModelAction *curr);
-	bool process_fence(ModelAction *curr);
+	void process_fence(ModelAction *curr);
 	bool process_mutex(ModelAction *curr);
 	void process_thread_action(ModelAction *curr);
 	void read_from(ModelAction *act, ModelAction *rf);
@@ -152,7 +150,7 @@ private:
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */
-	HashTable<const void *, action_list_t *, uintptr_t, 2> condvar_waiters_map;
+	HashTable<const void *, simple_action_list_t *, uintptr_t, 2> condvar_waiters_map;
 
 	/** Per-object list of actions that each thread performed. */
 	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> obj_thrd_map;

@@ -12,7 +12,7 @@ public:
 	virtual bool has_paused_threads() { return false; }
 	virtual Thread * selectThread(int * threadlist, int numthreads);
 
-	Thread * selectNotify(action_list_t * waiters);
+	Thread * selectNotify(simple_action_list_t * waiters);
 	bool shouldSleep(const ModelAction *sleep);
 	bool shouldWake(const ModelAction *sleep);
 	virtual bool shouldWait(const ModelAction *wait);

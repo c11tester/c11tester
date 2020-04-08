@@ -18,8 +18,6 @@
 #include "classlist.h"
 #include "snapshot-interface.h"
 
-typedef SnapList<ModelAction *> action_list_t;
-
 /** @brief Model checker execution stats */
 struct execution_stats {
 	int num_total;	/**< @brief Total number of executions */

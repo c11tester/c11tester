@@ -54,7 +54,7 @@
 #define FORK_HANDLER_HACK
 
 /** Enable smart fuzzer */
-#define NEWFUZZER
+//#define NEWFUZZER
 
 /** Define semantics of volatile memory operations. */
 #define memory_order_volatile_load memory_order_acquire
