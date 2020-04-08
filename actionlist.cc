@@ -5,17 +5,19 @@
 #include <limits.h>
 
 actionlist::actionlist() :
+	root(),
 	head(NULL),
 	tail(NULL),
 	_size(0)
 {
-	root.parent = NULL;
 }
 
 actionlist::~actionlist() {
+	clear();
 }
 
 allnode::allnode() :
+	parent(NULL),
 	count(0) {
 	bzero(children, sizeof(children));
 }
@@ -31,13 +33,11 @@ allnode::~allnode() {
 sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 	allnode * ptr = this;
 	modelclock_t increment = 1;
-	modelclock_t mask = ALLMASK;
 	int totalshift = 0;
 	index -= increment;
 
 	while(1) {
-		modelclock_t shiftclock = index >> totalshift;
-		modelclock_t currindex = shiftclock & ALLMASK;
+		modelclock_t currindex = (index >> totalshift) & ALLMASK;
 
 		//See if we went negative...
 		if (currindex != ALLMASK) {
@@ -52,7 +52,6 @@ sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 				//need to increment here...
 				ptr = ptr->children[currindex];
 				increment = increment >> ALLBITS;
-				mask = mask >> ALLBITS;
 				totalshift -= ALLBITS;
 				break;
 			}
@@ -60,7 +59,6 @@ sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 		//If we get here, we already did the decrement earlier...no need to decrement again
 		ptr = ptr->parent;
 		increment = increment << ALLBITS;
-		mask = mask << ALLBITS;
 		totalshift += ALLBITS;
 
 		if (ptr == NULL) {
@@ -70,8 +68,7 @@ sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 
 	while(1) {
 		while(1) {
-			modelclock_t shiftclock = index >> totalshift;
-			modelclock_t currindex = shiftclock & ALLMASK;
+			modelclock_t currindex = (index >> totalshift) & ALLMASK;
 			if (ptr->children[currindex] != NULL) {
 				if (totalshift != 0) {
 					ptr = ptr->children[currindex];
@@ -86,7 +83,6 @@ sllnode<ModelAction *> * allnode::findPrev(modelclock_t index) {
 		}
 
 		increment = increment >> ALLBITS;
-		mask = mask >> ALLBITS;
 		totalshift -= ALLBITS;
 	}
 }
@@ -98,8 +94,8 @@ void actionlist::addAction(ModelAction * act) {
 
 	allnode * ptr = &root;
 	do {
-		int index = (clock >> shiftbits) & ALLMASK;
-		allnode * tmp = ptr->children[index];
+		modelclock_t currindex = (clock >> shiftbits) & ALLMASK;
+		allnode * tmp = ptr->children[currindex];
 		if (shiftbits == 0) {
 			sllnode<ModelAction *> * llnode = new sllnode<ModelAction *>();
 			llnode->val = act;
@@ -128,7 +124,7 @@ void actionlist::addAction(ModelAction * act) {
 
 					head = llnode;
 				}
-				ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
+				ptr->children[currindex] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
 
 				//need to find next link
 				ptr->count++;
@@ -143,12 +139,12 @@ void actionlist::addAction(ModelAction * act) {
 				else
 					tail = llnode;
 				llnodeprev->next = llnode;
-				ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
+				ptr->children[currindex] = reinterpret_cast<allnode *>(((uintptr_t) llnode) | ISACT);
 			}
 			return;
 		} else if (tmp == NULL) {
 			tmp = new allnode();
-			ptr->children[index] = tmp;
+			ptr->children[currindex] = tmp;
 			tmp->parent=ptr;
 			ptr->count++;
 		}
@@ -166,6 +162,7 @@ void decrementCount(allnode * ptr) {
 				if (ptr->parent->children[i]==ptr) {
 					ptr->parent->children[i] = NULL;
 					decrementCount(ptr->parent);
+					break;
 				}
 			}
 			delete ptr;
@@ -174,67 +171,63 @@ void decrementCount(allnode * ptr) {
 }
 
 void actionlist::removeAction(ModelAction * act) {
-	int shiftbits = MODELCLOCKBITS - ALLBITS;
+	int shiftbits = MODELCLOCKBITS;
 	modelclock_t clock = act->get_seq_number();
 	allnode * ptr = &root;
+	modelclock_t currindex;
+
+	while(shiftbits != 0) {
+		shiftbits -= ALLBITS;
+		currindex = (clock >> shiftbits) & ALLMASK;
+		allnode * tmp = ptr->children[currindex];
+		if (tmp == NULL)
+			return;
+		ptr = tmp;
+	}
+
+	sllnode<ModelAction *> * llnode = reinterpret_cast<sllnode<ModelAction *> *>(((uintptr_t) ptr) & ACTMASK);
+	bool first = true;
 	do {
-		int index = (clock >> shiftbits) & ALLMASK;
-		allnode * tmp = ptr->children[index];
-		if (shiftbits == 0) {
-			if (tmp == NULL) {
-				//not found
-				return;
+		if (llnode->val == act) {
+			//found node to remove
+			sllnode<ModelAction *> * llnodeprev = llnode->prev;
+			sllnode<ModelAction *> * llnodenext = llnode->next;
+			if (llnodeprev != NULL) {
+				llnodeprev->next = llnodenext;
 			} else {
-				sllnode<ModelAction *> * llnode = reinterpret_cast<sllnode<ModelAction *> *>(((uintptr_t) tmp) & ACTMASK);
-				bool first = true;
-				do {
-					if (llnode->val == act) {
-						//found node to remove
-						sllnode<ModelAction *> * llnodeprev = llnode->prev;
-						sllnode<ModelAction *> * llnodenext = llnode->next;
-						if (llnodeprev != NULL) {
-							llnodeprev->next = llnodenext;
-						} else {
-							head = llnodenext;
-						}
-						if (llnodenext != NULL) {
-							llnodenext->prev = llnodeprev;
-						} else {
-							tail = llnodeprev;
-						}
-						if (first) {
-							//see if previous node has same clock as us...
-							if (llnodeprev != NULL && llnodeprev->val->get_seq_number() == clock) {
-								ptr->children[index] = reinterpret_cast<allnode *>(((uintptr_t)llnodeprev) | ISACT);
-							} else {
-								//remove ourselves and go up tree
-								ptr->children[index] = NULL;
-								decrementCount(ptr);
-							}
-						}
-						delete llnode;
-						_size--;
-						return;
-					}
-					llnode = llnode->prev;
-					first = false;
-				} while(llnode != NULL && llnode->val->get_seq_number() == clock);
-				//node not found in list... no deletion
-				return;
+				head = llnodenext;
 			}
-		} else if (tmp == NULL) {
-			//not found
+			if (llnodenext != NULL) {
+				llnodenext->prev = llnodeprev;
+			} else {
+				tail = llnodeprev;
+			}
+			if (first) {
+				//see if previous node has same clock as us...
+				if (llnodeprev != NULL && llnodeprev->val->get_seq_number() == clock) {
+					ptr->children[currindex] = reinterpret_cast<allnode *>(((uintptr_t)llnodeprev) | ISACT);
+				} else {
+					//remove ourselves and go up tree
+					ptr->children[currindex] = NULL;
+					decrementCount(ptr);
+				}
+			}
+			delete llnode;
+			_size--;
 			return;
 		}
-		shiftbits -= ALLBITS;
-		ptr = tmp;
-	} while(1);
+		llnode = llnode->prev;
+		first = false;
+	} while(llnode != NULL && llnode->val->get_seq_number() == clock);
+	//node not found in list... no deletion
+	return;
 }
 
 void actionlist::clear() {
 	for(uint i = 0;i < ALLNODESIZE;i++) {
 		if (root.children[i] != NULL) {
-			delete root.children[i];
+			if (!(((uintptr_t) root.children[i]) & ISACT))
+				delete root.children[i];
 			root.children[i] = NULL;
 		}
 	}
@@ -244,7 +237,7 @@ void actionlist::clear() {
 		delete head;
 		head = tmp;
 	}
-	tail=NULL;
+	tail = NULL;
 
 	root.count = 0;
 	_size = 0;
