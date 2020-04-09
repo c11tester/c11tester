@@ -227,8 +227,7 @@ void actionlist::removeAction(ModelAction * act) {
 void actionlist::clear() {
 	for(uint i = 0;i < ALLNODESIZE;i++) {
 		if (root.children[i] != NULL) {
-			if (!(((uintptr_t) root.children[i]) & ISACT))
-				delete root.children[i];
+			delete root.children[i];
 			root.children[i] = NULL;
 		}
 	}
