@@ -174,15 +174,16 @@ void actionlist::removeAction(ModelAction * act) {
 	int shiftbits = MODELCLOCKBITS;
 	modelclock_t clock = act->get_seq_number();
 	allnode * ptr = &root;
+	allnode * oldptr;
 	modelclock_t currindex;
 
 	while(shiftbits != 0) {
 		shiftbits -= ALLBITS;
 		currindex = (clock >> shiftbits) & ALLMASK;
-		allnode * tmp = ptr->children[currindex];
-		if (tmp == NULL)
+		oldptr = ptr;
+		ptr = ptr->children[currindex];
+		if (ptr == NULL)
 			return;
-		ptr = tmp;
 	}
 
 	sllnode<ModelAction *> * llnode = reinterpret_cast<sllnode<ModelAction *> *>(((uintptr_t) ptr) & ACTMASK);
@@ -205,11 +206,11 @@ void actionlist::removeAction(ModelAction * act) {
 			if (first) {
 				//see if previous node has same clock as us...
 				if (llnodeprev != NULL && llnodeprev->val->get_seq_number() == clock) {
-					ptr->children[currindex] = reinterpret_cast<allnode *>(((uintptr_t)llnodeprev) | ISACT);
+					oldptr->children[currindex] = reinterpret_cast<allnode *>(((uintptr_t)llnodeprev) | ISACT);
 				} else {
 					//remove ourselves and go up tree
-					ptr->children[currindex] = NULL;
-					decrementCount(ptr);
+					oldptr->children[currindex] = NULL;
+					decrementCount(oldptr);
 				}
 			}
 			delete llnode;
