@@ -118,6 +118,20 @@ static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<const void
 	return tmp;
 }
 
+/**
+ * When vectors of action lists are reallocated due to resize, the root address of
+ * action lists may change. Hence we need to fix the parent pointer of the children
+ * of root.
+ */
+static void fixup_action_list (SnapVector<action_list_t> * vec)
+{
+	for (uint i = 0; i < vec->size(); i++) {
+		action_list_t * list = &(*vec)[i];
+		if (list != NULL)
+			list->fixupParent();
+	}
+}
+
 /** @return a thread ID for a new Thread */
 thread_id_t ModelExecution::get_next_id()
 {
@@ -785,6 +799,8 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 		thrd_lists->resize(priv->next_thread_id);
 		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*thrd_lists)[i]) action_list_t();
+
+		fixup_action_list(thrd_lists);
 	}
 
 	ModelAction *prev_same_thread = NULL;
@@ -1120,6 +1136,8 @@ void ModelExecution::add_action_to_lists(ModelAction *act, bool canprune)
 		vec->resize(priv->next_thread_id);
 		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
+
+		fixup_action_list(vec);
 	}
 	if (!canprune && (act->is_read() || act->is_write()))
 		(*vec)[tid].addAction(act);
@@ -1171,6 +1189,8 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 		vec->resize(priv->next_thread_id);
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
+
+		fixup_action_list(vec);
 	}
 	insertIntoActionList(&(*vec)[tid],act);
 
@@ -1189,6 +1209,8 @@ void ModelExecution::add_write_to_lists(ModelAction *write) {
 		vec->resize(priv->next_thread_id);
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
+
+		fixup_action_list(vec);
 	}
 	(*vec)[tid].addAction(write);
 }
