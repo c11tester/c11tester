@@ -193,6 +193,9 @@ public:
 	Thread * thread_operand;
 	void set_thread_operand(Thread *th) { thread_operand = th; }
 
+	void setActionRef(sllnode<ModelAction *> *ref) { action_ref = ref; }
+	sllnode<ModelAction *> * getActionRef() { return action_ref; }
+
 	SNAPSHOTALLOC
 private:
 	const char * get_type_str() const;
@@ -227,6 +230,7 @@ private:
 	 */
 	ClockVector *cv;
 	ClockVector *rf_cv;
+	sllnode<ModelAction *> * action_ref;
 
 	/** @brief The value written (for write or RMW; undefined for read) */
 	uint64_t value;

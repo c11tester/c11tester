@@ -98,16 +98,6 @@ int ModelExecution::get_execution_number() const
 	return model->get_execution_number();
 }
 
-static action_list_t * get_safe_ptr_action(HashTable<const void *, action_list_t *, uintptr_t, 2> * hash, void * ptr)
-{
-	action_list_t *tmp = hash->get(ptr);
-	if (tmp == NULL) {
-		tmp = new action_list_t();
-		hash->put(ptr, tmp);
-	}
-	return tmp;
-}
-
 static SnapVector<action_list_t> * get_safe_ptr_vect_action(HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> * hash, void * ptr)
 {
 	SnapVector<action_list_t> *tmp = hash->get(ptr);
@@ -126,6 +116,30 @@ static simple_action_list_t * get_safe_ptr_action(HashTable<const void *, simple
 		hash->put(ptr, tmp);
 	}
 	return tmp;
+}
+
+static SnapVector<simple_action_list_t> * get_safe_ptr_vect_action(HashTable<const void *, SnapVector<simple_action_list_t> *, uintptr_t, 2> * hash, void * ptr)
+{
+	SnapVector<simple_action_list_t> *tmp = hash->get(ptr);
+	if (tmp == NULL) {
+		tmp = new SnapVector<simple_action_list_t>();
+		hash->put(ptr, tmp);
+	}
+	return tmp;
+}
+
+/**
+ * When vectors of action lists are reallocated due to resize, the root address of
+ * action lists may change. Hence we need to fix the parent pointer of the children
+ * of root.
+ */
+static void fixup_action_list (SnapVector<action_list_t> * vec)
+{
+	for (uint i = 0; i < vec->size(); i++) {
+		action_list_t * list = &(*vec)[i];
+		if (list != NULL)
+			list->fixupParent();
+	}
 }
 
 /** @return a thread ID for a new Thread */
@@ -814,6 +828,8 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 		thrd_lists->resize(priv->next_thread_id);
 		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*thrd_lists)[i]) action_list_t();
+
+		fixup_action_list(thrd_lists);
 	}
 
 	ModelAction *prev_same_thread = NULL;
@@ -1134,8 +1150,8 @@ void ModelExecution::add_action_to_lists(ModelAction *act, bool canprune)
 {
 	int tid = id_to_int(act->get_tid());
 	if ((act->is_fence() && act->is_seqcst()) || act->is_unlock()) {
-		action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
-		list->addAction(act);
+		simple_action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
+		act->setActionRef(list->add_back(act));
 	}
 
 	// Update action trace, a total order of all actions
@@ -1149,6 +1165,8 @@ void ModelExecution::add_action_to_lists(ModelAction *act, bool canprune)
 		vec->resize(priv->next_thread_id);
 		for(uint i = oldsize;i < priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
+
+		fixup_action_list(vec);
 	}
 	if (!canprune && (act->is_read() || act->is_write()))
 		(*vec)[tid].addAction(act);
@@ -1167,7 +1185,7 @@ void ModelExecution::add_action_to_lists(ModelAction *act, bool canprune)
 
 	if (act->is_wait()) {
 		void *mutex_loc = (void *) act->get_value();
-		get_safe_ptr_action(&obj_map, mutex_loc)->addAction(act);
+		act->setActionRef(get_safe_ptr_action(&obj_map, mutex_loc)->add_back(act));
 	}
 }
 
@@ -1200,6 +1218,8 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 		vec->resize(priv->next_thread_id);
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
 			new (&(*vec)[i]) action_list_t();
+
+		fixup_action_list(vec);
 	}
 	insertIntoActionList(&(*vec)[tid],act);
 
@@ -1211,15 +1231,15 @@ void ModelExecution::add_normal_write_to_lists(ModelAction *act)
 
 
 void ModelExecution::add_write_to_lists(ModelAction *write) {
-	SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, write->get_location());
+	SnapVector<simple_action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, write->get_location());
 	int tid = id_to_int(write->get_tid());
 	if (tid >= (int)vec->size()) {
 		uint oldsize =vec->size();
 		vec->resize(priv->next_thread_id);
 		for(uint i=oldsize;i<priv->next_thread_id;i++)
-			new (&(*vec)[i]) action_list_t();
+			new (&(*vec)[i]) simple_action_list_t();
 	}
-	(*vec)[tid].addAction(write);
+	write->setActionRef((*vec)[tid].add_back(write));
 }
 
 /**
@@ -1275,7 +1295,7 @@ ModelAction * ModelExecution::get_last_seq_cst_write(ModelAction *curr) const
 ModelAction * ModelExecution::get_last_seq_cst_fence(thread_id_t tid, const ModelAction *before_fence) const
 {
 	/* All fences should have location FENCE_LOCATION */
-	action_list_t *list = obj_map.get(FENCE_LOCATION);
+	simple_action_list_t *list = obj_map.get(FENCE_LOCATION);
 
 	if (!list)
 		return NULL;
@@ -1311,7 +1331,7 @@ ModelAction * ModelExecution::get_last_unlock(ModelAction *curr) const
 {
 	void *location = curr->get_location();
 
-	action_list_t *list = obj_map.get(location);
+	simple_action_list_t *list = obj_map.get(location);
 	if (list == NULL)
 		return NULL;
 
@@ -1367,7 +1387,7 @@ bool valequals(uint64_t val1, uint64_t val2, int size) {
  */
 SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *curr)
 {
-	SnapVector<action_list_t> *thrd_lists = obj_wr_thrd_map.get(curr->get_location());
+	SnapVector<simple_action_list_t> *thrd_lists = obj_wr_thrd_map.get(curr->get_location());
 	unsigned int i;
 	ASSERT(curr->is_read());
 
@@ -1382,7 +1402,7 @@ SnapVector<ModelAction *> *  ModelExecution::build_may_read_from(ModelAction *cu
 	if (thrd_lists != NULL)
 		for (i = 0;i < thrd_lists->size();i++) {
 			/* Iterate over actions in thread, starting from most recent */
-			action_list_t *list = &(*thrd_lists)[i];
+			simple_action_list_t *list = &(*thrd_lists)[i];
 			sllnode<ModelAction *> * rit;
 			for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
 				ModelAction *act = rit->getVal();
@@ -1684,14 +1704,23 @@ void ModelExecution::removeAction(ModelAction *act) {
 		(*vec)[act->get_tid()].removeAction(act);
 	}
 	if ((act->is_fence() && act->is_seqcst()) || act->is_unlock()) {
-		action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
-		list->removeAction(act);
+		sllnode<ModelAction *> * listref = act->getActionRef();
+		if (listref != NULL) {
+			simple_action_list_t *list = get_safe_ptr_action(&obj_map, act->get_location());
+			list->erase(listref);
+		}
 	} else if (act->is_wait()) {
-		void *mutex_loc = (void *) act->get_value();
-		get_safe_ptr_action(&obj_map, mutex_loc)->removeAction(act);
+		sllnode<ModelAction *> * listref = act->getActionRef();
+		if (listref != NULL) {
+			void *mutex_loc = (void *) act->get_value();
+			get_safe_ptr_action(&obj_map, mutex_loc)->erase(listref);
+		}
 	} else if (act->is_free()) {
-		SnapVector<action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
-		(*vec)[act->get_tid()].removeAction(act);
+		sllnode<ModelAction *> * listref = act->getActionRef();
+		if (listref != NULL) {
+			SnapVector<simple_action_list_t> *vec = get_safe_ptr_vect_action(&obj_wr_thrd_map, act->get_location());
+			(*vec)[act->get_tid()].erase(listref);
+		}
 
 		//Clear it from last_sc_map
 		if (obj_last_sc_map.get(act->get_location()) == act) {

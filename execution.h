@@ -146,7 +146,7 @@ private:
 	 * to a trace of all actions performed on the object.
 	 * Used only for SC fences, unlocks, & wait.
 	 */
-	HashTable<const void *, action_list_t *, uintptr_t, 2> obj_map;
+	HashTable<const void *, simple_action_list_t *, uintptr_t, 2> obj_map;
 
 	/** Per-object list of actions. Maps an object (i.e., memory location)
 	 * to a trace of all actions performed on the object. */
@@ -156,7 +156,7 @@ private:
 	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> obj_thrd_map;
 
 	/** Per-object list of writes that each thread performed. */
-	HashTable<const void *, SnapVector<action_list_t> *, uintptr_t, 2> obj_wr_thrd_map;
+	HashTable<const void *, SnapVector<simple_action_list_t> *, uintptr_t, 2> obj_wr_thrd_map;
 
 	HashTable<const void *, ModelAction *, uintptr_t, 4> obj_last_sc_map;
 
