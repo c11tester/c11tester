@@ -152,31 +152,42 @@ void cds_load8(const void *addr) {
 	if (!model)
 		return;
 	thread_id_t tid = thread_current()->get_id();
-	raceCheckRead(tid, addr);
+
+	raceCheckReadOpt(tid, addr, 1);
+//	raceCheckRead(tid, addr);
 }
 
 void cds_load16(const void *addr) {
 	if (!model)
 		return;
 	thread_id_t tid = thread_current()->get_id();
-	raceCheckRead(tid, addr);
-	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
+
+	raceCheckReadOpt(tid, addr, 2);
+//	raceCheckRead(tid, addr);
+//	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
 }
 
 void cds_load32(const void *addr) {
 	if (!model)
 		return;
 	thread_id_t tid = thread_current()->get_id();
+
+	raceCheckReadOpt(tid, addr, 4);
+/*
 	raceCheckRead(tid, addr);
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 2));
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 3));
+*/
 }
 
 void cds_load64(const void *addr) {
 	if (!model)
 		return;
 	thread_id_t tid = thread_current()->get_id();
+
+	raceCheckReadOpt(tid, addr, 8);
+/*
 	raceCheckRead(tid, addr);
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 2));
@@ -185,4 +196,5 @@ void cds_load64(const void *addr) {
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 5));
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 6));
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 7));
+*/
 }

@@ -703,3 +703,75 @@ Exit:
 		else model_free(race);
 	}
 }
+
+void raceCheckReadOpt(thread_id_t thread, const void * addr, int bytes)
+{
+	const ModelExecution * execution = get_execution();
+	ClockVector *currClock = execution->get_cv(thread);
+	if (currClock == NULL)
+		return;
+
+	int threadid = id_to_int(thread);
+	modelclock_t ourClock = currClock->getClock(thread);
+	bool should_expand = threadid > MAXTHREADID || ourClock > MAXWRITEVECTOR;
+
+	bool hasRace = false;
+
+	for (int i = 0; i < bytes; i++) {
+		const void * location = (void *)(((uintptr_t)addr) + i);
+		uint64_t *shadow = lookupAddressEntry(location);
+		uint64_t shadowval = *shadow;
+
+		struct DataRace * race = NULL;
+
+		/* Do full record */
+		if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+			race = fullRaceCheckRead(thread, location, shadow, currClock);
+			goto Exit;
+		}
+
+		{
+			/* Thread ID is too large or clock is too large. */
+			if (should_expand) {
+				expandRecord(shadow);
+				race = fullRaceCheckRead(thread, location, shadow, currClock);
+				goto Exit;
+			}
+
+			/* Check for datarace against last write. */
+
+			modelclock_t writeClock = WRITEVECTOR(shadowval);
+			thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
+
+			// If there is already has a race, skip check
+			if (!hasRace && clock_may_race(currClock, thread, writeClock, writeThread)) {
+				/* We have a datarace */
+				race = reportDataRace(writeThread, writeClock, true, execution->get_parent_action(thread), false, location);
+			}
+
+			modelclock_t readClock = READVECTOR(shadowval);
+			thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
+
+			if (clock_may_race(currClock, thread, readClock, readThread)) {
+				/* We don't subsume this read... Have to expand record. */
+				expandRecord(shadow);
+				struct RaceRecord *record = (struct RaceRecord *) (*shadow);
+				record->thread[1] = thread;
+				record->readClock[1] = ourClock;
+				record->numReads++;
+
+				goto Exit;
+			}
+
+			*shadow = ENCODEOP(threadid, ourClock, id_to_int(writeThread), writeClock) | (shadowval & ATOMICMASK);
+		}
+Exit:
+		if (race) {
+			hasRace = true;
+			race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
+			if (raceset->add(race))
+				assert_race(race);
+			else model_free(race);
+		}
+	}
+}

@@ -46,6 +46,8 @@ void initRaceDetector();
 void raceCheckWrite(thread_id_t thread, void *location);
 void atomraceCheckWrite(thread_id_t thread, void *location);
 void raceCheckRead(thread_id_t thread, const void *location);
+void raceCheckReadOpt(thread_id_t thread, const void *location, int bytes);
+
 void atomraceCheckRead(thread_id_t thread, const void *location);
 void recordWrite(thread_id_t thread, void *location);
 void recordCalloc(void *location, size_t size);
