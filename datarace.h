@@ -46,7 +46,6 @@ void initRaceDetector();
 void raceCheckWrite(thread_id_t thread, void *location);
 void atomraceCheckWrite(thread_id_t thread, void *location);
 void raceCheckRead(thread_id_t thread, const void *location);
-void raceCheckReadOpt(thread_id_t thread, const void *location, int bytes);
 
 void atomraceCheckRead(thread_id_t thread, const void *location);
 void recordWrite(thread_id_t thread, void *location);
@@ -55,6 +54,16 @@ void assert_race(struct DataRace *race);
 bool hasNonAtomicStore(const void *location);
 void setAtomicStoreFlag(const void *location);
 void getStoreThreadAndClock(const void *address, thread_id_t * thread, modelclock_t * clock);
+
+void raceCheckRead8(thread_id_t thread, const void *location);
+void raceCheckRead16(thread_id_t thread, const void *location);
+void raceCheckRead32(thread_id_t thread, const void *location);
+void raceCheckRead64(thread_id_t thread, const void *location);
+
+void raceCheckWrite8(thread_id_t thread, void *location);
+void raceCheckWrite16(thread_id_t thread, void *location);
+void raceCheckWrite32(thread_id_t thread, void *location);
+void raceCheckWrite64(thread_id_t thread, void *location);
 
 /**
  * @brief A record of information for detecting data races
