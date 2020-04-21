@@ -756,6 +756,9 @@ static inline void raceCheckRead_firstIt(thread_id_t thread, const void * locati
 		}
 
 		*shadow = ENCODEOP(threadid, ourClock, id_to_int(writeThread), writeClock) | (shadowval & ATOMICMASK);
+
+		*old_val = shadowval;
+		*new_val = *shadow;
 	}
 Exit:
 	if (race) {
@@ -764,10 +767,6 @@ Exit:
 			assert_race(race);
 		else model_free(race);
 	}
-
-
-	*old_val = shadowval;
-	*new_val = *shadow;
 }
 
 static inline void raceCheckRead_otherIt(thread_id_t thread, const void * location, uint64_t first_shadowval, uint64_t updated_shadowval)
@@ -775,7 +774,7 @@ static inline void raceCheckRead_otherIt(thread_id_t thread, const void * locati
 	uint64_t *shadow = lookupAddressEntry(location);
 	uint64_t shadowval = *shadow;
 
-	if (shadowval != 0 && shadowval == first_shadowval) {
+	if (shadowval == first_shadowval) {
 		*shadow = updated_shadowval;
 		return;
 	}
@@ -840,7 +839,7 @@ Exit:
 void raceCheckRead64(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
-	old_shadowval = new_shadowval = 0;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
 	raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval);
@@ -855,7 +854,7 @@ void raceCheckRead64(thread_id_t thread, const void *location)
 void raceCheckRead32(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
-	old_shadowval = new_shadowval = 0;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
 	raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval);
@@ -866,7 +865,7 @@ void raceCheckRead32(thread_id_t thread, const void *location)
 void raceCheckRead16(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
-	old_shadowval = new_shadowval = 0;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
 	raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval);
@@ -875,7 +874,7 @@ void raceCheckRead16(thread_id_t thread, const void *location)
 void raceCheckRead8(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
-	old_shadowval = new_shadowval = 0;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
 	raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 }
@@ -932,6 +931,9 @@ static inline void raceCheckWrite_firstIt(thread_id_t thread, void * location, u
 
 ShadowExit:
 		*shadow = ENCODEOP(0, 0, threadid, ourClock);
+
+		*old_val = shadowval;
+		*new_val = *shadow;
 	}
 
 Exit:
@@ -941,9 +943,6 @@ Exit:
 			assert_race(race);
 		else model_free(race);
 	}
-
-	*old_val = shadowval;
-	*new_val = *shadow;
 }
 
 static inline void raceCheckWrite_otherIt(thread_id_t thread, void * location, uint64_t first_shadowval, uint64_t updated_shadowval)
@@ -951,7 +950,7 @@ static inline void raceCheckWrite_otherIt(thread_id_t thread, void * location, u
 	uint64_t *shadow = lookupAddressEntry(location);
 	uint64_t shadowval = *shadow;
 
-	if (shadowval != 0 && shadowval == first_shadowval) {
+	if (shadowval == first_shadowval) {
 		*shadow = updated_shadowval;
 		return;
 	}
@@ -1018,7 +1017,7 @@ Exit:
 void raceCheckWrite64(thread_id_t thread, void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
-	old_shadowval = new_shadowval = 0;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
 	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval);
@@ -1033,7 +1032,7 @@ void raceCheckWrite64(thread_id_t thread, void *location)
 void raceCheckWrite32(thread_id_t thread, void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
-	old_shadowval = new_shadowval = 0;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
 	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval);
@@ -1044,7 +1043,7 @@ void raceCheckWrite32(thread_id_t thread, void *location)
 void raceCheckWrite16(thread_id_t thread, void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
-	old_shadowval = new_shadowval = 0;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
 	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval);
@@ -1053,7 +1052,7 @@ void raceCheckWrite16(thread_id_t thread, void *location)
 void raceCheckWrite8(thread_id_t thread, void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
-	old_shadowval = new_shadowval = 0;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
 	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 }

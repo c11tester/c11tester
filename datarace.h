@@ -111,6 +111,8 @@ bool race_equals(struct DataRace *r1, struct DataRace *r2);
  */
 #define ENCODEOP(rdthread, rdtime, wrthread, wrtime) (0x1ULL | ((rdthread)<<1) | ((rdtime) << 7) | (((uint64_t)wrthread)<<32) | (((uint64_t)wrtime)<<38))
 
+#define INVALIDSHADOWVAL 0x2ULL
+
 #define MAXTHREADID (THREADMASK-1)
 #define MAXREADVECTOR (READMASK-1)
 #define MAXWRITEVECTOR (WRITEMASK-1)
