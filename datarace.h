@@ -60,10 +60,10 @@ void raceCheckRead16(thread_id_t thread, const void *location);
 void raceCheckRead32(thread_id_t thread, const void *location);
 void raceCheckRead64(thread_id_t thread, const void *location);
 
-void raceCheckWrite8(thread_id_t thread, void *location);
-void raceCheckWrite16(thread_id_t thread, void *location);
-void raceCheckWrite32(thread_id_t thread, void *location);
-void raceCheckWrite64(thread_id_t thread, void *location);
+void raceCheckWrite8(thread_id_t thread, const void *location);
+void raceCheckWrite16(thread_id_t thread, const void *location);
+void raceCheckWrite32(thread_id_t thread, const void *location);
+void raceCheckWrite64(thread_id_t thread, const void *location);
 
 /**
  * @brief A record of information for detecting data races

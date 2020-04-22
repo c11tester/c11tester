@@ -160,7 +160,6 @@ unsigned int race_hash(struct DataRace *race) {
 	return hash;
 }
 
-
 bool race_equals(struct DataRace *r1, struct DataRace *r2) {
 	if (r1->numframes != r2->numframes)
 		return false;
@@ -232,7 +231,6 @@ struct DataRace * fullRaceCheckWrite(thread_id_t thread, const void *location, u
 	}
 
 	/* Check for datarace against last write. */
-
 	{
 		modelclock_t writeClock = record->writeClock;
 		thread_id_t writeThread = record->writeThread;
@@ -279,8 +277,6 @@ void raceCheckWrite(thread_id_t thread, void *location)
 			goto Exit;
 		}
 
-
-
 		{
 			/* Check for datarace against last read. */
 			modelclock_t readClock = READVECTOR(shadowval);
@@ -295,7 +291,6 @@ void raceCheckWrite(thread_id_t thread, void *location)
 
 		{
 			/* Check for datarace against last write. */
-
 			modelclock_t writeClock = WRITEVECTOR(shadowval);
 			thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
 
@@ -318,7 +313,6 @@ Exit:
 		else model_free(race);
 	}
 }
-
 
 /** This function does race detection for a write on an expanded record. */
 struct DataRace * atomfullRaceCheckWrite(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
@@ -399,7 +393,6 @@ void atomraceCheckWrite(thread_id_t thread, void *location)
 
 		{
 			/* Check for datarace against last read. */
-
 			modelclock_t readClock = READVECTOR(shadowval);
 			thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
 
@@ -412,7 +405,6 @@ void atomraceCheckWrite(thread_id_t thread, void *location)
 
 		{
 			/* Check for datarace against last write. */
-
 			modelclock_t writeClock = WRITEVECTOR(shadowval);
 			thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
 
@@ -507,8 +499,6 @@ void recordCalloc(void *location, size_t size) {
 		location = (void *)(((char *) location) + 1);
 	}
 }
-
-
 
 /** This function does race detection on a read for an expanded record. */
 struct DataRace * fullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
@@ -682,7 +672,6 @@ void atomraceCheckRead(thread_id_t thread, const void *location)
 
 	{
 		/* Check for datarace against last write. */
-
 		modelclock_t writeClock = WRITEVECTOR(shadowval);
 		thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
 
@@ -732,7 +721,6 @@ static inline uint64_t * raceCheckRead_firstIt(thread_id_t thread, const void * 
 		}
 
 		/* Check for datarace against last write. */
-
 		modelclock_t writeClock = WRITEVECTOR(shadowval);
 		thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
 
@@ -833,13 +821,10 @@ Exit:
 	}
 }
 
-
-
 void raceCheckRead64(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
 
 	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 7)) {
@@ -888,7 +873,6 @@ void raceCheckRead32(thread_id_t thread, const void *location)
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
-
 	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 3)) {
 		if (shadow[1]==old_shadowval)
@@ -931,7 +915,6 @@ void raceCheckRead8(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
 
 	raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 }
@@ -1073,7 +1056,6 @@ void raceCheckWrite64(thread_id_t thread, const void *location)
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
-
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 7)) {
 		if (shadow[1]==old_shadowval)
@@ -1121,7 +1103,6 @@ void raceCheckWrite32(thread_id_t thread, const void *location)
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
-
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 3)) {
 		if (shadow[1]==old_shadowval)
@@ -1149,7 +1130,6 @@ void raceCheckWrite16(thread_id_t thread, const void *location)
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
-
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 1)) {
 		if (shadow[1]==old_shadowval) {
@@ -1164,7 +1144,6 @@ void raceCheckWrite8(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
 
 	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 }
