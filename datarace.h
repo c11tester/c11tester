@@ -116,7 +116,7 @@ bool race_equals(struct DataRace *r1, struct DataRace *r2);
 #define MAXWRITEVECTOR (WRITEMASK-1)
 
 #define INVALIDSHADOWVAL 0x2ULL
-#define CHECKBOUNDARY(location, bits) ( (((uintptr_t)location & MASK16BIT) + bits < MASK16BIT) ? true : false );
+#define CHECKBOUNDARY(location, bits) ((((uintptr_t)location & MASK16BIT) + bits) <= MASK16BIT)
 
 typedef HashSet<struct DataRace *, uintptr_t, 0, model_malloc, model_calloc, model_free, race_hash, race_equals> RaceSet;
 

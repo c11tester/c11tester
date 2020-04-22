@@ -210,7 +210,7 @@ void assert_race(struct DataRace *race)
 }
 
 /** This function does race detection for a write on an expanded record. */
-struct DataRace * fullRaceCheckWrite(thread_id_t thread, void *location, uint64_t *shadow, ClockVector *currClock)
+struct DataRace * fullRaceCheckWrite(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
 {
 	struct RaceRecord *record = (struct RaceRecord *)(*shadow);
 	struct DataRace * race = NULL;
@@ -321,7 +321,7 @@ Exit:
 
 
 /** This function does race detection for a write on an expanded record. */
-struct DataRace * atomfullRaceCheckWrite(thread_id_t thread, void *location, uint64_t *shadow, ClockVector *currClock)
+struct DataRace * atomfullRaceCheckWrite(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
 {
 	struct RaceRecord *record = (struct RaceRecord *)(*shadow);
 	struct DataRace * race = NULL;
@@ -771,20 +771,10 @@ Exit:
 	return shadow;
 }
 
-static inline void raceCheckRead_otherIt(thread_id_t thread, const void * location, uint64_t first_shadowval, uint64_t updated_shadowval, uint64_t * _shadow, bool fast_path)
-{
-	uint64_t *shadow;
-	if (fast_path)
-		shadow = _shadow;
-	else
-		shadow = lookupAddressEntry(location);
+static inline void raceCheckRead_otherIt(thread_id_t thread, const void * location) {
+	uint64_t *shadow = lookupAddressEntry(location);
 
 	uint64_t shadowval = *shadow;
-
-	if (shadowval == first_shadowval) {
-		*shadow = updated_shadowval;
-		return;
-	}
 
 	ClockVector *currClock = get_execution()->get_cv(thread);
 	if (currClock == NULL)
@@ -843,42 +833,98 @@ Exit:
 	}
 }
 
+
+
 void raceCheckRead64(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-	bool fast_path = CHECKBOUNDARY(location, 7);
+
 
 	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval, shadow + 1, fast_path);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 2), old_shadowval, new_shadowval, shadow + 2, fast_path);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 3), old_shadowval, new_shadowval, shadow + 3, fast_path);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 4), old_shadowval, new_shadowval, shadow + 4, fast_path);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 5), old_shadowval, new_shadowval, shadow + 5, fast_path);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 6), old_shadowval, new_shadowval, shadow + 6, fast_path);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 7), old_shadowval, new_shadowval, shadow + 7, fast_path);
+	if (CHECKBOUNDARY(location, 7)) {
+		if (shadow[1]==old_shadowval)
+			shadow[1] = new_shadowval;
+		else goto L1;
+		if (shadow[2]==old_shadowval)
+			shadow[2] = new_shadowval;
+		else goto L2;
+		if (shadow[3]==old_shadowval)
+			shadow[3] = new_shadowval;
+		else goto L3;
+		if (shadow[4]==old_shadowval)
+			shadow[4] = new_shadowval;
+		else goto L4;
+		if (shadow[5]==old_shadowval)
+			shadow[5] = new_shadowval;
+		else goto L5;
+		if (shadow[6]==old_shadowval)
+			shadow[6] = new_shadowval;
+		else goto L6;
+		if (shadow[7]==old_shadowval)
+			shadow[7] = new_shadowval;
+		else goto L7;
+		return;
+	}
+
+L1:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+L2:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 2));
+L3:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 3));
+L4:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 4));
+L5:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 5));
+L6:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 6));
+L7:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 7));
 }
 
 void raceCheckRead32(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-	bool fast_path = CHECKBOUNDARY(location, 3);
+
 
 	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval, shadow + 1, fast_path);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 2), old_shadowval, new_shadowval, shadow + 2, fast_path);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 3), old_shadowval, new_shadowval, shadow + 3, fast_path);
+	if (CHECKBOUNDARY(location, 3)) {
+		if (shadow[1]==old_shadowval)
+			shadow[1] = new_shadowval;
+		else goto L1;
+		if (shadow[2]==old_shadowval)
+			shadow[2] = new_shadowval;
+		else goto L2;
+		if (shadow[3]==old_shadowval)
+			shadow[3] = new_shadowval;
+		else goto L3;
+		return;
+	}
+
+L1:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+L2:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 2));
+L3:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 3));
 }
 
 void raceCheckRead16(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-	bool fast_path = CHECKBOUNDARY(location, 1);
+
 
 	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
-	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval, shadow + 1, fast_path);
+	if (CHECKBOUNDARY(location, 1)) {
+		if (shadow[1]==old_shadowval) {
+			shadow[1] = new_shadowval;
+			return;
+		}
+	}
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
 }
 
 void raceCheckRead8(thread_id_t thread, const void *location)
@@ -886,10 +932,11 @@ void raceCheckRead8(thread_id_t thread, const void *location)
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
 
+
 	raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 }
 
-static inline uint64_t * raceCheckWrite_firstIt(thread_id_t thread, void * location, uint64_t *old_val, uint64_t *new_val)
+static inline uint64_t * raceCheckWrite_firstIt(thread_id_t thread, const void * location, uint64_t *old_val, uint64_t *new_val)
 {
 	uint64_t *shadow = lookupAddressEntry(location);
 	uint64_t shadowval = *shadow;
@@ -957,20 +1004,10 @@ Exit:
 	return shadow;
 }
 
-static inline void raceCheckWrite_otherIt(thread_id_t thread, void * location, uint64_t first_shadowval, uint64_t updated_shadowval, uint64_t * _shadow, bool fast_path)
-{
-	uint64_t *shadow;
-	if (fast_path)
-		shadow = _shadow;
-	else
-		shadow = lookupAddressEntry(location);
+static inline void raceCheckWrite_otherIt(thread_id_t thread, const void * location) {
+	uint64_t *shadow = lookupAddressEntry(location);
 
 	uint64_t shadowval = *shadow;
-
-	if (shadowval == first_shadowval) {
-		*shadow = updated_shadowval;
-		return;
-	}
 
 	ClockVector *currClock = get_execution()->get_cv(thread);
 	if (currClock == NULL)
@@ -1031,48 +1068,103 @@ Exit:
 	}
 }
 
-void raceCheckWrite64(thread_id_t thread, void *location)
+void raceCheckWrite64(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-	bool fast_path = CHECKBOUNDARY(location, 7);
+
 
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval, shadow + 1, fast_path);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 2), old_shadowval, new_shadowval, shadow + 2, fast_path);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 3), old_shadowval, new_shadowval, shadow + 3, fast_path);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 4), old_shadowval, new_shadowval, shadow + 4, fast_path);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 5), old_shadowval, new_shadowval, shadow + 5, fast_path);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 6), old_shadowval, new_shadowval, shadow + 6, fast_path);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 7), old_shadowval, new_shadowval, shadow + 7, fast_path);
+	if (CHECKBOUNDARY(location, 7)) {
+		if (shadow[1]==old_shadowval)
+			shadow[1] = new_shadowval;
+		else goto L1;
+		if (shadow[2]==old_shadowval)
+			shadow[2] = new_shadowval;
+		else goto L2;
+		if (shadow[3]==old_shadowval)
+			shadow[3] = new_shadowval;
+		else goto L3;
+		if (shadow[4]==old_shadowval)
+			shadow[4] = new_shadowval;
+		else goto L4;
+		if (shadow[5]==old_shadowval)
+			shadow[5] = new_shadowval;
+		else goto L5;
+		if (shadow[6]==old_shadowval)
+			shadow[6] = new_shadowval;
+		else goto L6;
+		if (shadow[7]==old_shadowval)
+			shadow[7] = new_shadowval;
+		else goto L7;
+		return;
+	}
+
+L1:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+L2:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 2));
+L3:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 3));
+L4:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 4));
+L5:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 5));
+L6:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 6));
+L7:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 7));
 }
 
-void raceCheckWrite32(thread_id_t thread, void *location)
+void raceCheckWrite32(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-	bool fast_path = CHECKBOUNDARY(location, 3);
+
 
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval, shadow + 1, fast_path);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 2), old_shadowval, new_shadowval, shadow + 2, fast_path);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 3), old_shadowval, new_shadowval, shadow + 3, fast_path);
+	if (CHECKBOUNDARY(location, 3)) {
+		if (shadow[1]==old_shadowval)
+			shadow[1] = new_shadowval;
+		else goto L1;
+		if (shadow[2]==old_shadowval)
+			shadow[2] = new_shadowval;
+		else goto L2;
+		if (shadow[3]==old_shadowval)
+			shadow[3] = new_shadowval;
+		else goto L3;
+		return;
+	}
+
+L1:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+L2:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 2));
+L3:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 3));
 }
 
-void raceCheckWrite16(thread_id_t thread, void *location)
+void raceCheckWrite16(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-	bool fast_path = CHECKBOUNDARY(location, 1);
+
 
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
-	raceCheckWrite_otherIt(thread, (void *)(((uintptr_t)location) + 1), old_shadowval, new_shadowval, shadow + 1, fast_path);
+	if (CHECKBOUNDARY(location, 1)) {
+		if (shadow[1]==old_shadowval) {
+			shadow[1] = new_shadowval;
+			return;
+		}
+	}
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
 }
 
-void raceCheckWrite8(thread_id_t thread, void *location)
+void raceCheckWrite8(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+
 
 	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 }
