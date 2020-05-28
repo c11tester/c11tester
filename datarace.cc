@@ -16,6 +16,16 @@ static void *memory_base;
 static void *memory_top;
 static RaceSet * raceset;
 
+static unsigned int store8_count = 0;
+static unsigned int store16_count = 0;
+static unsigned int store32_count = 0;
+static unsigned int store64_count = 0;
+
+static unsigned int load8_count = 0;
+static unsigned int load16_count = 0;
+static unsigned int load32_count = 0;
+static unsigned int load64_count = 0;
+
 static const ModelExecution * get_execution()
 {
 	return model->get_execution();
@@ -173,6 +183,7 @@ bool race_equals(struct DataRace *r1, struct DataRace *r2) {
 /** This function is called when we detect a data race.*/
 static struct DataRace * reportDataRace(thread_id_t oldthread, modelclock_t oldclock, bool isoldwrite, ModelAction *newaction, bool isnewwrite, const void *address)
 {
+#ifdef REPORT_DATA_RACES
 	struct DataRace *race = (struct DataRace *)model_malloc(sizeof(struct DataRace));
 	race->oldthread = oldthread;
 	race->oldclock = oldclock;
@@ -181,6 +192,9 @@ static struct DataRace * reportDataRace(thread_id_t oldthread, modelclock_t oldc
 	race->isnewwrite = isnewwrite;
 	race->address = address;
 	return race;
+#else
+	return NULL;
+#endif
 }
 
 /**
@@ -307,10 +321,14 @@ ShadowExit:
 
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
@@ -421,10 +439,14 @@ ShadowExit:
 
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
@@ -623,10 +645,14 @@ ShadowExit:
 	}
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
@@ -685,10 +711,14 @@ void atomraceCheckRead(thread_id_t thread, const void *location)
 	}
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
@@ -750,10 +780,14 @@ static inline uint64_t * raceCheckRead_firstIt(thread_id_t thread, const void * 
 	}
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 
 	return shadow;
@@ -814,10 +848,14 @@ static inline void raceCheckRead_otherIt(thread_id_t thread, const void * locati
 	}
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
@@ -825,7 +863,9 @@ void raceCheckRead64(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
+#ifdef COLLECT_STAT
+	load64_count++;
+#endif
 	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 7)) {
 		if (shadow[1]==old_shadowval)
@@ -872,7 +912,9 @@ void raceCheckRead32(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
+#ifdef COLLECT_STAT
+	load32_count++;
+#endif
 	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 3)) {
 		if (shadow[1]==old_shadowval)
@@ -899,8 +941,9 @@ void raceCheckRead16(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
-
+#ifdef COLLECT_STAT
+	load16_count++;
+#endif
 	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 1)) {
 		if (shadow[1]==old_shadowval) {
@@ -915,7 +958,9 @@ void raceCheckRead8(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
+#ifdef COLLECT_STAT
+	load8_count++;
+#endif
 	raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
 }
 
@@ -978,10 +1023,14 @@ ShadowExit:
 
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 
 	return shadow;
@@ -1044,10 +1093,14 @@ ShadowExit:
 
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
@@ -1055,7 +1108,9 @@ void raceCheckWrite64(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
+#ifdef COLLECT_STAT
+	store64_count++;
+#endif
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 7)) {
 		if (shadow[1]==old_shadowval)
@@ -1102,7 +1157,9 @@ void raceCheckWrite32(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
+#ifdef COLLECT_STAT
+	store32_count++;
+#endif
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 3)) {
 		if (shadow[1]==old_shadowval)
@@ -1129,6 +1186,9 @@ void raceCheckWrite16(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	store16_count++;
+#endif
 
 	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 	if (CHECKBOUNDARY(location, 1)) {
@@ -1144,6 +1204,21 @@ void raceCheckWrite8(thread_id_t thread, const void *location)
 {
 	uint64_t old_shadowval, new_shadowval;
 	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
-
+#ifdef COLLECT_STAT
+	store8_count++;
+#endif
 	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
+}
+
+void print_normal_accesses()
+{
+	model_print("store 8  count: %u\n", store8_count);
+	model_print("store 16 count: %u\n", store16_count);
+	model_print("store 32 count: %u\n", store32_count);
+	model_print("store 64 count: %u\n", store64_count);
+
+	model_print("load  8  count: %u\n", load8_count);
+	model_print("load  16 count: %u\n", load16_count);
+	model_print("load  32 count: %u\n", load32_count);
+	model_print("load  64 count: %u\n", load64_count);
 }
