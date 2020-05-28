@@ -153,6 +153,8 @@ static void expandRecord(uint64_t *shadow)
 		ASSERT(readThread >= 0);
 		record->thread[0] = readThread;
 		record->readClock[0] = readClock;
+	} else {
+		record->thread = NULL;
 	}
 	if (shadowval & ATOMICMASK)
 		record->isAtomic = 1;
@@ -563,7 +565,7 @@ struct DataRace * fullRaceCheckRead(thread_id_t thread, const void *location, ui
 	}
 
 	if (__builtin_popcount(copytoindex) <= 1) {
-		if (copytoindex == 0) {
+		if (copytoindex == 0 && record->thread == NULL) {
 			int newCapacity = INITCAPACITY;
 			record->thread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * newCapacity);
 			record->readClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * newCapacity);
