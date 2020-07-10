@@ -16,6 +16,7 @@ static void *memory_base;
 static void *memory_top;
 static RaceSet * raceset;
 
+#ifdef COLLECT_STAT
 static unsigned int store8_count = 0;
 static unsigned int store16_count = 0;
 static unsigned int store32_count = 0;
@@ -25,6 +26,7 @@ static unsigned int load8_count = 0;
 static unsigned int load16_count = 0;
 static unsigned int load32_count = 0;
 static unsigned int load64_count = 0;
+#endif
 
 static const ModelExecution * get_execution()
 {
@@ -1212,6 +1214,7 @@ void raceCheckWrite8(thread_id_t thread, const void *location)
 	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
 }
 
+#ifdef COLLECT_STAT
 void print_normal_accesses()
 {
 	model_print("store 8  count: %u\n", store8_count);
@@ -1224,3 +1227,4 @@ void print_normal_accesses()
 	model_print("load  32 count: %u\n", load32_count);
 	model_print("load  64 count: %u\n", load64_count);
 }
+#endif

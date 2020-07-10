@@ -63,4 +63,7 @@
 //#define memory_order_volatile_load memory_order_relaxed
 //#define memory_order_volatile_store memory_order_relaxed
 
+//#define COLLECT_STAT
+#define REPORT_DATA_RACES
+
 #endif

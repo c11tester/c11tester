@@ -19,6 +19,20 @@
 
 #define INITIAL_THREAD_ID       0
 
+#ifdef COLLECT_STAT
+static unsigned int atomic_load_count = 0;
+static unsigned int atomic_store_count = 0;
+static unsigned int atomic_rmw_count = 0;
+
+static unsigned int atomic_fence_count = 0;
+static unsigned int atomic_lock_count = 0;
+static unsigned int atomic_trylock_count = 0;
+static unsigned int atomic_unlock_count = 0;
+static unsigned int atomic_notify_count = 0;
+static unsigned int atomic_wait_count = 0;
+static unsigned int atomic_timedwait_count = 0;
+#endif
+
 /**
  * Structure for holding small ModelChecker members that should be snapshotted
  */
@@ -133,7 +147,7 @@ static SnapVector<simple_action_list_t> * get_safe_ptr_vect_action(HashTable<con
  * action lists may change. Hence we need to fix the parent pointer of the children
  * of root.
  */
-static void fixup_action_list (SnapVector<action_list_t> * vec)
+static void fixup_action_list(SnapVector<action_list_t> * vec)
 {
 	for (uint i = 0; i < vec->size(); i++) {
 		action_list_t * list = &(*vec)[i];
@@ -142,6 +156,60 @@ static void fixup_action_list (SnapVector<action_list_t> * vec)
 	}
 }
 
+#ifdef COLLECT_STAT
+static inline void record_atomic_stats(ModelAction * act)
+{
+	switch (act->get_type()) {
+		case ATOMIC_WRITE:
+			atomic_store_count++;
+			break;
+		case ATOMIC_RMW:
+			atomic_load_count++;
+			break;
+		case ATOMIC_READ:
+			atomic_rmw_count++;
+			break;
+		case ATOMIC_FENCE:
+			atomic_fence_count++;
+			break;
+		case ATOMIC_LOCK:
+			atomic_lock_count++;
+			break;
+		case ATOMIC_TRYLOCK:
+			atomic_trylock_count++;
+			break;
+		case ATOMIC_UNLOCK:
+			atomic_unlock_count++;
+			break;
+		case ATOMIC_NOTIFY_ONE:
+		case ATOMIC_NOTIFY_ALL:
+			atomic_notify_count++;
+			break;
+		case ATOMIC_WAIT:
+			atomic_wait_count++;
+			break;
+		case ATOMIC_TIMEDWAIT:
+			atomic_timedwait_count++;
+		default:
+			return;
+	}
+}
+
+void print_atomic_accesses()
+{
+	model_print("atomic store  count: %u\n", atomic_store_count);
+	model_print("atomic load   count: %u\n", atomic_load_count);
+	model_print("atomic rmw    count: %u\n", atomic_rmw_count);
+
+	model_print("atomic fence  count: %u\n", atomic_fence_count);
+	model_print("atomic lock   count: %u\n", atomic_lock_count);
+	model_print("atomic trylock count: %u\n", atomic_trylock_count);
+	model_print("atomic unlock count: %u\n", atomic_unlock_count);
+	model_print("atomic notify count: %u\n", atomic_notify_count);
+	model_print("atomic wait   count: %u\n", atomic_wait_count);
+	model_print("atomic timedwait count: %u\n", atomic_timedwait_count);
+}
+#endif
 /** @return a thread ID for a new Thread */
 thread_id_t ModelExecution::get_next_id()
 {
@@ -572,7 +640,7 @@ void ModelExecution::process_thread_action(ModelAction *curr)
 		Thread *blocking = curr->get_thread_operand();
 		ModelAction *act = get_last_action(blocking->get_id());
 		synchronize(act, curr);
-		break;	// WL: to be add (modified)
+		break;
 	}
 
 	case THREADONLY_FINISH:
@@ -761,8 +829,12 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 		ASSERT(rf_set == NULL);
 
 	/* Add the action to lists */
-	if (!second_part_of_rmw)
+	if (!second_part_of_rmw) {
+#ifdef COLLECT_STAT
+		record_atomic_stats(curr);
+#endif
 		add_action_to_lists(curr, canprune);
+	}
 
 	if (curr->is_write())
 		add_write_to_lists(curr);

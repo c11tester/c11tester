@@ -27,6 +27,10 @@ struct PendingFutureValue {
 	ModelAction *reader;
 };
 
+#ifdef COLLECT_STAT
+void print_atomic_accesses();
+#endif
+
 /** @brief The central structure for model-checking */
 class ModelExecution {
 public:

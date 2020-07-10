@@ -65,6 +65,10 @@ void raceCheckWrite16(thread_id_t thread, const void *location);
 void raceCheckWrite32(thread_id_t thread, const void *location);
 void raceCheckWrite64(thread_id_t thread, const void *location);
 
+#ifdef COLLECT_STAT
+void print_normal_accesses();
+#endif
+
 /**
  * @brief A record of information for detecting data races
  */
