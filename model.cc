@@ -344,6 +344,62 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	return old->get_return_value();
 }
 
+uint64_t ModelChecker::switch_thread(ModelAction *act)
+{
+	if (modellock) {
+		static bool fork_message_printed = false;
+
+		if (!fork_message_printed) {
+			model_print("Fork handler or dead thread trying to call into model checker...\n");
+			fork_message_printed = true;
+		}
+		delete act;
+		return 0;
+	}
+	DBG();
+	Thread *old = thread_current();
+	ASSERT(!old->get_pending());
+
+	if (inspect_plugin != NULL) {
+		inspect_plugin->inspectModelAction(act);
+	}
+
+	old->set_pending(act);
+	//Thread *next;
+	/*do {
+		curr_thread_num++;
+		thread_id_t tid = int_to_id(curr_thread_num);
+		next = get_thread(tid);
+
+	} while (next->is_model_thread() || next->is_complete() || next->get_pending() && curr_thread_num < get_num_threads());	
+	*/
+	Thread *next;
+	curr_thread_num++;
+	while (curr_thread_num < get_num_threads) {
+		thread_id_t tid = int_to_id(curr_thread_num);
+		next = get_thread(tid);
+		if (!next->is_model_thread() && !next->is_complete() && !next->get_pending())
+			break;
+		curr_thread_num++;
+	}
+	if (curr_thread_num < get_num_threads()) {
+		scheduler->set_current_thread(next);
+		if (Thread::swap(old, next) < 0) {
+			perror("swap threads");
+			exit(EXIT_FAILURE);
+		}
+		if (next->is_waiting_on(next))
+			assert_bug("Deadlock detected (thread %u)", curr_thread_num);
+	} else {
+		scheduler->set_current_thread(NULL);
+		if (Thread::swap(old, &system_context) < 0) {
+			perror("swap threads");
+			exit(EXIT_FAILURE);
+		}
+	}
+	return old->get_return_value();
+}
+
 static void runChecker() {
 	model->run();
 	delete model;
@@ -391,6 +447,11 @@ void ModelChecker::run()
 			 * thread which just took a step--plus the first step
 			 * for any newly-created thread
 			 */
+			curr_thread_num = 0;
+			thread_id_t tid = int_to_id(0);
+			Thread *thr = get_thread(tid);
+			switch_from_master(tid);
+			/*
 			for (unsigned int i = 0;i < get_num_threads();i++) {
 				thread_id_t tid = int_to_id(i);
 				Thread *thr = get_thread(tid);
@@ -400,7 +461,7 @@ void ModelChecker::run()
 						assert_bug("Deadlock detected (thread %u)", i);
 				}
 			}
-
+			*/
 			/* Don't schedule threads which should be disabled */
 			for (unsigned int i = 0;i < get_num_threads();i++) {
 				Thread *th = get_thread(int_to_id(i));

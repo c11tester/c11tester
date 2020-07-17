@@ -49,6 +49,7 @@ public:
 
 	static int swap(ucontext_t *ctxt, Thread *t);
 	static int swap(Thread *t, ucontext_t *ctxt);
+	static int swap(Thread *t, Thread *t2);
 
 	thread_state get_state() const { return state; }
 	void set_state(thread_state s);

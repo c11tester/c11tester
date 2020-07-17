@@ -60,7 +60,7 @@ Thread * thread_current(void)
 }
 
 void modelexit() {
-	model->switch_to_master(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, thread_current()));
+	model->switch_thread(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, thread_current()));
 }
 
 void initMainThread() {
@@ -330,6 +330,16 @@ int Thread::swap(ucontext_t *ctxt, Thread *t)
 	return model_swapcontext(ctxt, &t->context);
 }
 
+int Thread::swap(Thread *t, Thread *t2)
+{
+	t->set_state(THREAD_READY);
+	t2->set_state(THREAD_RUNNING);
+#ifdef TLS
+	if (t2->tls != NULL)
+		set_tls_addr((uintptr_t)t2->tls);
+#endif
+	return model_swapcontext(&t->context, &t2->context);
+}
 
 /** Terminate a thread and free its stack. */
 void Thread::complete()

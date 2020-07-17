@@ -53,6 +53,7 @@ public:
 
 	void switch_from_master(Thread *thread);
 	uint64_t switch_to_master(ModelAction *act);
+	uint64_t switch_thread(ModelAction *act);
 
 	void assert_bug(const char *msg, ...);
 
@@ -76,6 +77,8 @@ private:
 	Thread * init_thread;
 
 	int execution_number;
+
+	int curr_thread_num;
 
 	unsigned int get_num_threads() const;
 
