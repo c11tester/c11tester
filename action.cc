@@ -197,9 +197,11 @@ ModelAction::~ModelAction()
 	 * vectors which have already been rolled back to an unallocated state.
 	 */
 
-	/*
-	   if (cv)
-	        delete cv; */
+
+	if (cv)
+		delete cv;
+	if (rf_cv)
+		delete rf_cv;
 }
 
 int ModelAction::getSize() const {

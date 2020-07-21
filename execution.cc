@@ -149,7 +149,7 @@ static SnapVector<simple_action_list_t> * get_safe_ptr_vect_action(HashTable<con
  */
 static void fixup_action_list(SnapVector<action_list_t> * vec)
 {
-	for (uint i = 0; i < vec->size(); i++) {
+	for (uint i = 0;i < vec->size();i++) {
 		action_list_t * list = &(*vec)[i];
 		if (list != NULL)
 			list->fixupParent();
@@ -160,38 +160,38 @@ static void fixup_action_list(SnapVector<action_list_t> * vec)
 static inline void record_atomic_stats(ModelAction * act)
 {
 	switch (act->get_type()) {
-		case ATOMIC_WRITE:
-			atomic_store_count++;
-			break;
-		case ATOMIC_RMW:
-			atomic_load_count++;
-			break;
-		case ATOMIC_READ:
-			atomic_rmw_count++;
-			break;
-		case ATOMIC_FENCE:
-			atomic_fence_count++;
-			break;
-		case ATOMIC_LOCK:
-			atomic_lock_count++;
-			break;
-		case ATOMIC_TRYLOCK:
-			atomic_trylock_count++;
-			break;
-		case ATOMIC_UNLOCK:
-			atomic_unlock_count++;
-			break;
-		case ATOMIC_NOTIFY_ONE:
-		case ATOMIC_NOTIFY_ALL:
-			atomic_notify_count++;
-			break;
-		case ATOMIC_WAIT:
-			atomic_wait_count++;
-			break;
-		case ATOMIC_TIMEDWAIT:
-			atomic_timedwait_count++;
-		default:
-			return;
+	case ATOMIC_WRITE:
+		atomic_store_count++;
+		break;
+	case ATOMIC_RMW:
+		atomic_load_count++;
+		break;
+	case ATOMIC_READ:
+		atomic_rmw_count++;
+		break;
+	case ATOMIC_FENCE:
+		atomic_fence_count++;
+		break;
+	case ATOMIC_LOCK:
+		atomic_lock_count++;
+		break;
+	case ATOMIC_TRYLOCK:
+		atomic_trylock_count++;
+		break;
+	case ATOMIC_UNLOCK:
+		atomic_unlock_count++;
+		break;
+	case ATOMIC_NOTIFY_ONE:
+	case ATOMIC_NOTIFY_ALL:
+		atomic_notify_count++;
+		break;
+	case ATOMIC_WAIT:
+		atomic_wait_count++;
+		break;
+	case ATOMIC_TIMEDWAIT:
+		atomic_timedwait_count++;
+	default:
+		return;
 	}
 }
 
@@ -499,7 +499,7 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 
 			/* remove old wait action and disable this thread */
 			simple_action_list_t * waiters = get_safe_ptr_action(&condvar_waiters_map, curr->get_location());
-			for (sllnode<ModelAction *> * it = waiters->begin(); it != NULL; it = it->getNext()) {
+			for (sllnode<ModelAction *> * it = waiters->begin();it != NULL;it = it->getNext()) {
 				ModelAction * wait = it->getVal();
 				if (wait->get_tid() == curr->get_tid()) {
 					waiters->erase(it);
@@ -1194,7 +1194,7 @@ ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
 			//operation that isn't release
 			if (rf->get_last_fence_release()) {
 				if (vec == NULL)
-					vec = rf->get_last_fence_release()->get_cv();
+					vec = new ClockVector(rf->get_last_fence_release()->get_cv(), NULL);
 				else
 					(vec=new ClockVector(vec, NULL))->merge(rf->get_last_fence_release()->get_cv());
 			}
