@@ -373,9 +373,9 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 
 	} while (next->is_model_thread() || next->is_complete() || next->get_pending() && curr_thread_num < get_num_threads());	
 	*/
-	Thread *next;
+	Thread *next = NULL;
 	curr_thread_num++;
-	while (curr_thread_num < get_num_threads) {
+	while (curr_thread_num < get_num_threads()) {
 		thread_id_t tid = int_to_id(curr_thread_num);
 		next = get_thread(tid);
 		if (!next->is_model_thread() && !next->is_complete() && !next->get_pending())
@@ -450,7 +450,7 @@ void ModelChecker::run()
 			curr_thread_num = 0;
 			thread_id_t tid = int_to_id(0);
 			Thread *thr = get_thread(tid);
-			switch_from_master(tid);
+			switch_from_master(thr);
 			/*
 			for (unsigned int i = 0;i < get_num_threads();i++) {
 				thread_id_t tid = int_to_id(i);
