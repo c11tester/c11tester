@@ -1198,8 +1198,12 @@ ClockVector * ModelExecution::get_hb_from_write(ModelAction *rf) const {
 				else
 					(vec=new ClockVector(vec, NULL))->merge(rf->get_last_fence_release()->get_cv());
 			} else {
-				if (vec == NULL && rf->is_rmw()) {
-					vec = new ClockVector(NULL, NULL);
+				if (vec == NULL) {
+					if (rf->is_rmw()) {
+						vec = new ClockVector(NULL, NULL);
+					}
+				} else {
+					vec = new ClockVector(vec, NULL);
 				}
 			}
 			rf->set_rfcv(vec);
