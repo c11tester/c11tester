@@ -80,6 +80,10 @@ private:
 
 	unsigned int curr_thread_num;
 
+	Thread * chosen_thread;
+
+	bool thread_chosen;
+
 	unsigned int get_num_threads() const;
 
 	void finish_execution(bool moreexecutions);

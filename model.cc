@@ -365,14 +365,7 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	}
 
 	old->set_pending(act);
-	//Thread *next;
-	/*do {
-		curr_thread_num++;
-		thread_id_t tid = int_to_id(curr_thread_num);
-		next = get_thread(tid);
 
-	} while (next->is_model_thread() || next->is_complete() || next->get_pending() && curr_thread_num < get_num_threads());	
-	*/
 	Thread *next = NULL;
 	curr_thread_num++;
 	while (curr_thread_num < get_num_threads()) {
@@ -384,14 +377,38 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	}
 	if (curr_thread_num < get_num_threads()) {
 		scheduler->set_current_thread(next);
+		if (old->is_waiting_on(old))
+			assert_bug("Deadlock detected (thread %u)", curr_thread_num);
+
+		ModelAction *act = old->get_pending();
+		
+		if (act && execution->is_enabled(old) && !execution->check_action_enabled(act)) {
+			scheduler->sleep(old);
+		}
+		if (!thread_chosen && act && execution->is_enabled(old) && (old->get_state() != THREAD_BLOCKED) ) {
+			if (act->is_write()) {
+				std::memory_order order = act->get_mo();
+				if (order == std::memory_order_relaxed || \
+						order == std::memory_order_release) {
+					chosen_thread = old;
+					thread_chosen = true;
+				}
+			} else if (act->get_type() == THREAD_CREATE || \
+								act->get_type() == PTHREAD_CREATE || \
+								act->get_type() == THREAD_START || \
+								act->get_type() == THREAD_FINISH) {
+				chosen_thread = old;
+				thread_chosen = true;
+			}
+		}
+
 		if (Thread::swap(old, next) < 0) {
 			perror("swap threads");
 			exit(EXIT_FAILURE);
-		}
-		if (next->is_waiting_on(next))
-			assert_bug("Deadlock detected (thread %u)", curr_thread_num);
+		}		
 	} else {
 		scheduler->set_current_thread(NULL);
+
 		if (Thread::swap(old, &system_context) < 0) {
 			perror("swap threads");
 			exit(EXIT_FAILURE);
@@ -430,8 +447,8 @@ void ModelChecker::run()
 	initstate(423121, random_state, sizeof(random_state));
 	modelclock_t checkfree = params.checkthreshold;
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
-		Thread * t = init_thread;
-
+		chosen_thread = init_thread;
+		thread_chosen = false;
 		do {
 			/* Check whether we need to free model actions. */
 
@@ -463,15 +480,15 @@ void ModelChecker::run()
 			}
 			*/
 			/* Don't schedule threads which should be disabled */
-			for (unsigned int i = 0;i < get_num_threads();i++) {
+			/*for (unsigned int i = 0;i < get_num_threads();i++) {
 				Thread *th = get_thread(int_to_id(i));
 				ModelAction *act = th->get_pending();
 				if (act && execution->is_enabled(th) && !execution->check_action_enabled(act)) {
 					scheduler->sleep(th);
 				}
 			}
-
-			for (unsigned int i = 1;i < get_num_threads();i++) {
+			*/
+			/*for (unsigned int i = 1;i < get_num_threads();i++) {
 				Thread *th = get_thread(int_to_id(i));
 				ModelAction *act = th->get_pending();
 				if (act && execution->is_enabled(th) && (th->get_state() != THREAD_BLOCKED) ) {
@@ -491,27 +508,27 @@ void ModelChecker::run()
 					}
 				}
 			}
-
+			*/
 			/* Catch assertions from prior take_step or from
 			* between-ModelAction bugs (e.g., data races) */
 
 			if (execution->has_asserted())
 				break;
-			if (!t)
-				t = get_next_thread();
-			if (!t || t->is_model_thread())
+			if (!chosen_thread)
+				chosen_thread = get_next_thread();
+			if (!chosen_thread || chosen_thread->is_model_thread())
 				break;
-			if (t->just_woken_up()) {
-				t->set_wakeup_state(false);
-				t->set_pending(NULL);
-				t = NULL;
+			if (chosen_thread->just_woken_up()) {
+				chosen_thread->set_wakeup_state(false);
+				chosen_thread->set_pending(NULL);
+				chosen_thread = NULL;
 				continue;	// Allow this thread to stash the next pending action
 			}
 
 			/* Consume the next action for a Thread */
-			ModelAction *curr = t->get_pending();
-			t->set_pending(NULL);
-			t = execution->take_step(curr);
+			ModelAction *curr = chosen_thread->get_pending();
+			chosen_thread->set_pending(NULL);
+			chosen_thread = execution->take_step(curr);
 		} while (!should_terminate_execution());
 		finish_execution((exec+1) < params.maxexecutions);
 		//restore random number generator state after rollback
