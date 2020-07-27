@@ -55,6 +55,10 @@ public:
 	uint64_t switch_to_master(ModelAction *act);
 	uint64_t switch_thread(ModelAction *act);
 
+	void continueExecution(Thread *old);
+	void finishExecution(Thread *old);
+	void consumeAction();
+
 	void assert_bug(const char *msg, ...);
 
 	void assert_user_bug(const char *msg);
@@ -83,6 +87,8 @@ private:
 	Thread * chosen_thread;
 
 	bool thread_chosen;
+
+	modelclock_t checkfree;
 
 	unsigned int get_num_threads() const;
 

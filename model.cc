@@ -344,6 +344,39 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	return old->get_return_value();
 }
 
+void ModelChecker::continueExecution(Thread *old) 
+{
+	if (params.traceminsize != 0 &&
+			execution->get_curr_seq_num() > checkfree) {
+		checkfree += params.checkthreshold;
+		execution->collectActions();
+	}
+	curr_thread_num = 0;
+	thread_id_t tid = int_to_id(0);
+	Thread *thr = get_thread(tid);
+	scheduler->set_current_thread(thr);
+	if (Thread::swap(old, thr) < 0) {
+		perror("swap threads");
+		exit(EXIT_FAILURE);
+	}
+}
+
+void ModelChecker::finishExecution(Thread *old) 
+{
+	scheduler->set_current_thread(NULL);
+	if (Thread::swap(old, &system_context) < 0) {
+		perror("swap threads");
+		exit(EXIT_FAILURE);
+	}
+}
+
+void ModelChecker::consumeAction()
+{
+	ModelAction *curr = chosen_thread->get_pending();
+	chosen_thread->set_pending(NULL);
+	chosen_thread = execution->take_step(curr);
+}
+
 uint64_t ModelChecker::switch_thread(ModelAction *act)
 {
 	if (modellock) {
@@ -407,12 +440,27 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 			exit(EXIT_FAILURE);
 		}		
 	} else {
-		scheduler->set_current_thread(NULL);
+		if (execution->has_asserted())
+			finishExecution(old);
+		if (!chosen_thread)
+			chosen_thread = get_next_thread();
+		if (!chosen_thread || chosen_thread->is_model_thread())
+			finishExecution(old);
+		if (chosen_thread->just_woken_up()) {
+			chosen_thread->set_wakeup_state(false);
+			chosen_thread->set_pending(NULL);
+			chosen_thread = NULL;
+			continueExecution(old);	// Allow this thread to stash the next pending action
+		} else {
+			/* Consume the next action for a Thread */
+			consumeAction();
 
-		if (Thread::swap(old, &system_context) < 0) {
-			perror("swap threads");
-			exit(EXIT_FAILURE);
-		}
+			if (should_terminate_execution())
+				finishExecution(old);
+			else
+				continueExecution(old);		
+		}		
+		
 	}
 	return old->get_return_value();
 }
@@ -445,91 +493,14 @@ void ModelChecker::run()
 	//Need to initial random number generator state to avoid resets on rollback
 	char random_state[256];
 	initstate(423121, random_state, sizeof(random_state));
-	modelclock_t checkfree = params.checkthreshold;
+	checkfree = params.checkthreshold;
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
 		chosen_thread = init_thread;
 		thread_chosen = false;
-		do {
-			/* Check whether we need to free model actions. */
-
-			if (params.traceminsize != 0 &&
-					execution->get_curr_seq_num() > checkfree) {
-				checkfree += params.checkthreshold;
-				execution->collectActions();
-			}
-
-			/*
-			 * Stash next pending action(s) for thread(s). There
-			 * should only need to stash one thread's action--the
-			 * thread which just took a step--plus the first step
-			 * for any newly-created thread
-			 */
-			curr_thread_num = 0;
-			thread_id_t tid = int_to_id(0);
-			Thread *thr = get_thread(tid);
-			switch_from_master(thr);
-			/*
-			for (unsigned int i = 0;i < get_num_threads();i++) {
-				thread_id_t tid = int_to_id(i);
-				Thread *thr = get_thread(tid);
-				if (!thr->is_model_thread() && !thr->is_complete() && !thr->get_pending()) {
-					switch_from_master(thr);
-					if (thr->is_waiting_on(thr))
-						assert_bug("Deadlock detected (thread %u)", i);
-				}
-			}
-			*/
-			/* Don't schedule threads which should be disabled */
-			/*for (unsigned int i = 0;i < get_num_threads();i++) {
-				Thread *th = get_thread(int_to_id(i));
-				ModelAction *act = th->get_pending();
-				if (act && execution->is_enabled(th) && !execution->check_action_enabled(act)) {
-					scheduler->sleep(th);
-				}
-			}
-			*/
-			/*for (unsigned int i = 1;i < get_num_threads();i++) {
-				Thread *th = get_thread(int_to_id(i));
-				ModelAction *act = th->get_pending();
-				if (act && execution->is_enabled(th) && (th->get_state() != THREAD_BLOCKED) ) {
-					if (act->is_write()) {
-						std::memory_order order = act->get_mo();
-						if (order == std::memory_order_relaxed || \
-								order == std::memory_order_release) {
-							t = th;
-							break;
-						}
-					} else if (act->get_type() == THREAD_CREATE || \
-										 act->get_type() == PTHREAD_CREATE || \
-										 act->get_type() == THREAD_START || \
-										 act->get_type() == THREAD_FINISH) {
-						t = th;
-						break;
-					}
-				}
-			}
-			*/
-			/* Catch assertions from prior take_step or from
-			* between-ModelAction bugs (e.g., data races) */
-
-			if (execution->has_asserted())
-				break;
-			if (!chosen_thread)
-				chosen_thread = get_next_thread();
-			if (!chosen_thread || chosen_thread->is_model_thread())
-				break;
-			if (chosen_thread->just_woken_up()) {
-				chosen_thread->set_wakeup_state(false);
-				chosen_thread->set_pending(NULL);
-				chosen_thread = NULL;
-				continue;	// Allow this thread to stash the next pending action
-			}
-
-			/* Consume the next action for a Thread */
-			ModelAction *curr = chosen_thread->get_pending();
-			chosen_thread->set_pending(NULL);
-			chosen_thread = execution->take_step(curr);
-		} while (!should_terminate_execution());
+		curr_thread_num = 0;
+		thread_id_t tid = int_to_id(0);
+		Thread *thr = get_thread(tid);
+		switch_from_master(thr);
 		finish_execution((exec+1) < params.maxexecutions);
 		//restore random number generator state after rollback
 		setstate(random_state);
