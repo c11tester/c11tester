@@ -440,6 +440,9 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 			exit(EXIT_FAILURE);
 		}		
 	} else {
+		if (old->is_waiting_on(old))
+			assert_bug("Deadlock detected (thread %u)", curr_thread_num);
+
 		if (execution->has_asserted())
 			finishExecution(old);
 		if (!chosen_thread)
@@ -450,7 +453,11 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 			chosen_thread->set_wakeup_state(false);
 			chosen_thread->set_pending(NULL);
 			chosen_thread = NULL;
-			continueExecution(old);	// Allow this thread to stash the next pending action
+			// Allow this thread to stash the next pending action
+			if (should_terminate_execution())
+				finishExecution(old);
+			else
+				continueExecution(old);	
 		} else {
 			/* Consume the next action for a Thread */
 			consumeAction();
