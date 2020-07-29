@@ -408,41 +408,41 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 			break;
 		curr_thread_num++;
 	}
-	if (curr_thread_num < get_num_threads()) {
-		scheduler->set_current_thread(next);
-		if (old->is_waiting_on(old))
-			assert_bug("Deadlock detected (thread %u)", curr_thread_num);
 
-		ModelAction *act = old->get_pending();
+	if (old->is_waiting_on(old))
+		assert_bug("Deadlock detected (thread %u)", curr_thread_num);
+
+	ModelAction *act2 = old->get_pending();
 		
-		if (act && execution->is_enabled(old) && !execution->check_action_enabled(act)) {
-			scheduler->sleep(old);
-		}
-		if (!thread_chosen && act && execution->is_enabled(old) && (old->get_state() != THREAD_BLOCKED) ) {
-			if (act->is_write()) {
-				std::memory_order order = act->get_mo();
-				if (order == std::memory_order_relaxed || \
-						order == std::memory_order_release) {
-					chosen_thread = old;
-					thread_chosen = true;
-				}
-			} else if (act->get_type() == THREAD_CREATE || \
-								act->get_type() == PTHREAD_CREATE || \
-								act->get_type() == THREAD_START || \
-								act->get_type() == THREAD_FINISH) {
+	if (act2 && execution->is_enabled(old) && !execution->check_action_enabled(act2)) {
+		scheduler->sleep(old);
+	}
+	if (!thread_chosen && act2 && execution->is_enabled(old) && (old->get_state() != THREAD_BLOCKED) ) {
+		if (act2->is_write()) {
+			std::memory_order order = act2->get_mo();
+			if (order == std::memory_order_relaxed || \
+					order == std::memory_order_release) {
 				chosen_thread = old;
 				thread_chosen = true;
 			}
+		} else if (act2->get_type() == THREAD_CREATE || \
+							act2->get_type() == PTHREAD_CREATE || \
+							act2->get_type() == THREAD_START || \
+							act2->get_type() == THREAD_FINISH) {
+			chosen_thread = old;
+			thread_chosen = true;
 		}
+	}
+
+	if (curr_thread_num < get_num_threads()) {
+		scheduler->set_current_thread(next);	
 
 		if (Thread::swap(old, next) < 0) {
 			perror("swap threads");
 			exit(EXIT_FAILURE);
 		}		
 	} else {
-		if (old->is_waiting_on(old))
-			assert_bug("Deadlock detected (thread %u)", curr_thread_num);
-
+		
 		if (execution->has_asserted())
 			finishExecution(old);
 		if (!chosen_thread)
