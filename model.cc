@@ -351,8 +351,8 @@ void ModelChecker::continueExecution(Thread *old)
 		checkfree += params.checkthreshold;
 		execution->collectActions();
 	}
-	curr_thread_num = 0;
-	thread_id_t tid = int_to_id(0);
+	curr_thread_num = 1;
+	thread_id_t tid = int_to_id(1);
 	Thread *thr = get_thread(tid);
 	scheduler->set_current_thread(thr);
 	if (Thread::swap(old, thr) < 0) {
@@ -404,7 +404,7 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	while (curr_thread_num < get_num_threads()) {
 		thread_id_t tid = int_to_id(curr_thread_num);
 		next = get_thread(tid);
-		if (!next->is_model_thread() && !next->is_complete() && !next->get_pending())
+		if (!next->is_complete() && !next->get_pending())
 			break;
 		curr_thread_num++;
 	}
@@ -504,8 +504,8 @@ void ModelChecker::run()
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
 		chosen_thread = init_thread;
 		thread_chosen = false;
-		curr_thread_num = 0;
-		thread_id_t tid = int_to_id(0);
+		curr_thread_num = 1;
+		thread_id_t tid = int_to_id(1);
 		Thread *thr = get_thread(tid);
 		switch_from_master(thr);
 		finish_execution((exec+1) < params.maxexecutions);
