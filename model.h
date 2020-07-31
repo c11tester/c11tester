@@ -58,6 +58,7 @@ public:
 	void continueExecution(Thread *old);
 	void finishExecution(Thread *old);
 	void consumeAction();
+	Thread * getNextThread();
 
 	void assert_bug(const char *msg, ...);
 

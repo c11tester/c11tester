@@ -351,14 +351,28 @@ void ModelChecker::continueExecution(Thread *old)
 		checkfree += params.checkthreshold;
 		execution->collectActions();
 	}
+	thread_chosen = false;
 	curr_thread_num = 1;
-	thread_id_t tid = int_to_id(1);
-	Thread *thr = get_thread(tid);
+	Thread *thr = getNextThread();
 	scheduler->set_current_thread(thr);
 	if (Thread::swap(old, thr) < 0) {
 		perror("swap threads");
 		exit(EXIT_FAILURE);
 	}
+}
+
+Thread* ModelChecker::getNextThread()
+{
+	Thread *thr = NULL;
+	for (unsigned int i = curr_thread_num; i < get_num_threads(); i++) {
+		thread_id_t tid = int_to_id(i);
+		thr = get_thread(tid);
+		if (!thr->is_complete() && !thr->get_pending()) {
+			curr_thread_num = i;
+			break;
+		}
+	}
+	return thr;
 }
 
 void ModelChecker::finishExecution(Thread *old) 
@@ -399,18 +413,11 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 
 	old->set_pending(act);
 
-	Thread *next = NULL;
 	curr_thread_num++;
-	while (curr_thread_num < get_num_threads()) {
-		thread_id_t tid = int_to_id(curr_thread_num);
-		next = get_thread(tid);
-		if (!next->is_complete() && !next->get_pending())
-			break;
-		curr_thread_num++;
-	}
+	Thread* next = getNextThread();
 
 	if (old->is_waiting_on(old))
-		assert_bug("Deadlock detected (thread %u)", curr_thread_num);
+		assert_bug("Deadlock detected (thread %u)", curr_thread_num-1);
 
 	ModelAction *act2 = old->get_pending();
 		
