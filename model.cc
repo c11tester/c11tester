@@ -402,21 +402,21 @@ void ModelChecker::consumeAction()
 	chosen_thread = execution->take_step(curr);
 }
 
-void ModelChecker::chooseThread(ModelAction *act, Thread *old)
+void ModelChecker::chooseThread(ModelAction *act, Thread *thr)
 {
-	if (!thread_chosen && act && execution->is_enabled(old) && (old->get_state() != THREAD_BLOCKED) ) {
+	if (!thread_chosen && act && execution->is_enabled(thr) && (thr->get_state() != THREAD_BLOCKED) ) {
 		if (act->is_write()) {
 			std::memory_order order = act->get_mo();
 			if (order == std::memory_order_relaxed || \
 					order == std::memory_order_release) {
-				chosen_thread = old;
+				chosen_thread = thr;
 				thread_chosen = true;
 			}
 		} else if (act->get_type() == THREAD_CREATE || \
 							act->get_type() == PTHREAD_CREATE || \
 							act->get_type() == THREAD_START || \
 							act->get_type() == THREAD_FINISH) {
-			chosen_thread = old;
+			chosen_thread = thr;
 			thread_chosen = true;
 		}
 	}	
@@ -443,6 +443,16 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	}
 
 	old->set_pending(act);
+	
+	if (old->is_waiting_on(old))
+		assert_bug("Deadlock detected (thread %u)", curr_thread_num);
+
+	ModelAction *act2 = old->get_pending();
+		
+	if (act2 && execution->is_enabled(old) && !execution->check_action_enabled(act2)) {
+		scheduler->sleep(old);
+	}
+	chooseThread(act2, old);
 
 	curr_thread_num++;
 	Thread* next = getNextThread();
@@ -456,16 +466,6 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 
 void ModelChecker::handleNewValidThread(Thread *old, Thread *next)
 {
-	if (old->is_waiting_on(old))
-		assert_bug("Deadlock detected (thread %u)", curr_thread_num-1);
-
-	ModelAction *act = old->get_pending();
-		
-	if (act && execution->is_enabled(old) && !execution->check_action_enabled(act)) {
-		scheduler->sleep(old);
-	}
-	chooseThread(act, old);
-
 	scheduler->set_current_thread(next);	
 
 	if (Thread::swap(old, next) < 0) {

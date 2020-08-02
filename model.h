@@ -58,7 +58,7 @@ public:
 	void continueExecution(Thread *old);
 	void finishExecution(Thread *old);
 	void consumeAction();
-	void chooseThread(ModelAction *act, Thread *old);
+	void chooseThread(ModelAction *act, Thread *thr);
 	Thread * getNextThread();
 	void handleChosenThread(Thread *old);
 	void handleNewValidThread(Thread *old, Thread *next);
