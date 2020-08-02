@@ -58,7 +58,10 @@ public:
 	void continueExecution(Thread *old);
 	void finishExecution(Thread *old);
 	void consumeAction();
+	void chooseThread(ModelAction *act, Thread *old);
 	Thread * getNextThread();
+	void handleChosenThread(Thread *old);
+	void handleNewValidThread(Thread *old, Thread *next);
 
 	void assert_bug(const char *msg, ...);
 
