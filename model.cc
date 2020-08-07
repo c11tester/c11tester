@@ -366,13 +366,14 @@ void ModelChecker::continueExecution(Thread *old)
 
 Thread* ModelChecker::getNextThread()
 {
-	Thread *thr = nullptr;
+	Thread *nextThread = nullptr;
 	for (unsigned int i = curr_thread_num; i < get_num_threads(); i++) {
 		thread_id_t tid = int_to_id(i);
-		thr = get_thread(tid);
+		Thread *thr = get_thread(tid);
 		
 		if (!thr->is_complete() && !thr->get_pending()) {
 			curr_thread_num = i;
+			nextThread = thr;
 			break;
 		}
 		ModelAction *act = thr->get_pending();
@@ -383,7 +384,7 @@ Thread* ModelChecker::getNextThread()
 
 		chooseThread(act, thr);
 	}
-	return thr;
+	return nextThread;
 }
 
 void ModelChecker::finishExecution(Thread *old) 
@@ -537,7 +538,12 @@ void ModelChecker::run()
 		curr_thread_num = 1;
 		thread_id_t tid = int_to_id(1);
 		Thread *thr = get_thread(tid);
-		switch_from_master(thr);
+		if (!thr->get_pending())
+			switch_from_master(thr);
+		else {
+			consumeAction();
+			switch_from_master(thr);
+		}
 		finish_execution((exec+1) < params.maxexecutions);
 		//restore random number generator state after rollback
 		setstate(random_state);
