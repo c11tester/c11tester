@@ -55,12 +55,15 @@ public:
 	uint64_t switch_to_master(ModelAction *act);
 	uint64_t switch_thread(ModelAction *act);
 
-	void continueExecution(Thread *old);
-	void finishExecution(Thread *old);
+	void continueRunExecution(Thread *old);
+	void startRunExecution(ucontext_t *old);
+	void finishRunExecution(Thread *old);
+	void finishRunExecution(ucontext_t *old);
 	void consumeAction();
 	void chooseThread(ModelAction *act, Thread *thr);
 	Thread * getNextThread();
 	void handleChosenThread(Thread *old);
+	void handleChosenThread(ucontext_t *old);
 	void handleNewValidThread(Thread *old, Thread *next);
 
 	void assert_bug(const char *msg, ...);

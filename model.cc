@@ -344,7 +344,27 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 	return old->get_return_value();
 }
 
-void ModelChecker::continueExecution(Thread *old) 
+void ModelChecker::continueRunExecution(Thread *old) 
+{
+	if (params.traceminsize != 0 &&
+			execution->get_curr_seq_num() > checkfree) {
+		checkfree += params.checkthreshold;
+		execution->collectActions();
+	}
+	thread_chosen = false;
+	curr_thread_num = 1;
+	Thread *thr = getNextThread();
+	if (thr != nullptr) {
+		scheduler->set_current_thread(thr);
+		if (Thread::swap(old, thr) < 0) {
+			perror("swap threads");
+			exit(EXIT_FAILURE);
+		}
+	} else
+		handleChosenThread(old);	
+}
+
+void ModelChecker::startRunExecution(ucontext_t *old) 
 {
 	if (params.traceminsize != 0 &&
 			execution->get_curr_seq_num() > checkfree) {
@@ -387,13 +407,18 @@ Thread* ModelChecker::getNextThread()
 	return nextThread;
 }
 
-void ModelChecker::finishExecution(Thread *old) 
+void ModelChecker::finishRunExecution(Thread *old) 
 {
 	scheduler->set_current_thread(NULL);
 	if (Thread::swap(old, &system_context) < 0) {
 		perror("swap threads");
 		exit(EXIT_FAILURE);
 	}
+}
+
+void ModelChecker::finishRunExecution(ucontext_t *old) 
+{
+	scheduler->set_current_thread(NULL);
 }
 
 void ModelChecker::consumeAction()
@@ -478,30 +503,59 @@ void ModelChecker::handleNewValidThread(Thread *old, Thread *next)
 void ModelChecker::handleChosenThread(Thread *old)
 {
 	if (execution->has_asserted())
-		finishExecution(old);
+		finishRunExecution(old);
 	if (!chosen_thread)
 		chosen_thread = get_next_thread();
 	if (!chosen_thread || chosen_thread->is_model_thread())
-		finishExecution(old);
+		finishRunExecution(old);
 	if (chosen_thread->just_woken_up()) {
 		chosen_thread->set_wakeup_state(false);
 		chosen_thread->set_pending(NULL);
 		chosen_thread = NULL;
 		// Allow this thread to stash the next pending action
 		if (should_terminate_execution())
-			finishExecution(old);
+			finishRunExecution(old);
 		else
-			continueExecution(old);	
+			continueRunExecution(old);	
 	} else {
 		/* Consume the next action for a Thread */
 		consumeAction();
 
 		if (should_terminate_execution())
-			finishExecution(old);
+			finishRunExecution(old);
 		else
-			continueExecution(old);		
+			continueRunExecution(old);		
 	}
 }
+
+void ModelChecker::handleChosenThread(ucontext_t *old)
+{
+	if (execution->has_asserted())
+		finishRunExecution(old);
+	if (!chosen_thread)
+		chosen_thread = get_next_thread();
+	if (!chosen_thread || chosen_thread->is_model_thread())
+		finishRunExecution(old);
+	if (chosen_thread->just_woken_up()) {
+		chosen_thread->set_wakeup_state(false);
+		chosen_thread->set_pending(NULL);
+		chosen_thread = NULL;
+		// Allow this thread to stash the next pending action
+		if (should_terminate_execution())
+			finishRunExecution(old);
+		else
+			startRunExecution(old);	
+	} else {
+		/* Consume the next action for a Thread */
+		consumeAction();
+
+		if (should_terminate_execution())
+			finishRunExecution(old);
+		else
+			startRunExecution(old);		
+	}
+}
+
 
 static void runChecker() {
 	model->run();
@@ -536,14 +590,7 @@ void ModelChecker::run()
 		chosen_thread = init_thread;
 		thread_chosen = false;
 		curr_thread_num = 1;
-		thread_id_t tid = int_to_id(1);
-		Thread *thr = get_thread(tid);
-		if (!thr->get_pending())
-			switch_from_master(thr);
-		else {
-			consumeAction();
-			switch_from_master(thr);
-		}
+		startRunExecution(&system_context);
 		finish_execution((exec+1) < params.maxexecutions);
 		//restore random number generator state after rollback
 		setstate(random_state);
