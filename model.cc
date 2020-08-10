@@ -346,11 +346,13 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 
 void ModelChecker::continueRunExecution(Thread *old) 
 {
+/*
 	if (params.traceminsize != 0 &&
 			execution->get_curr_seq_num() > checkfree) {
 		checkfree += params.checkthreshold;
 		execution->collectActions();
 	}
+*/
 	thread_chosen = false;
 	curr_thread_num = 1;
 	Thread *thr = getNextThread();
@@ -366,11 +368,13 @@ void ModelChecker::continueRunExecution(Thread *old)
 
 void ModelChecker::startRunExecution(ucontext_t *old) 
 {
+/*
 	if (params.traceminsize != 0 &&
 			execution->get_curr_seq_num() > checkfree) {
 		checkfree += params.checkthreshold;
 		execution->collectActions();
 	}
+*/
 	thread_chosen = false;
 	curr_thread_num = 1;
 	Thread *thr = getNextThread();
@@ -402,7 +406,7 @@ Thread* ModelChecker::getNextThread()
 			scheduler->sleep(thr);
 		}
 
-		chooseThread(act, thr);
+//		chooseThread(act, thr);
 	}
 	return nextThread;
 }
@@ -478,7 +482,7 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	if (act2 && execution->is_enabled(old) && !execution->check_action_enabled(act2)) {
 		scheduler->sleep(old);
 	}
-	chooseThread(act2, old);
+//	chooseThread(act2, old);
 
 	curr_thread_num++;
 	Thread* next = getNextThread();
@@ -536,7 +540,7 @@ void ModelChecker::handleChosenThread(ucontext_t *old)
 		chosen_thread = get_next_thread();
 	if (!chosen_thread || chosen_thread->is_model_thread())
 		finishRunExecution(old);
-	if (chosen_thread->just_woken_up()) {
+/*	if (chosen_thread->just_woken_up()) {
 		chosen_thread->set_wakeup_state(false);
 		chosen_thread->set_pending(NULL);
 		chosen_thread = NULL;
@@ -545,7 +549,9 @@ void ModelChecker::handleChosenThread(ucontext_t *old)
 			finishRunExecution(old);
 		else
 			startRunExecution(old);	
-	} else {
+	} else*/
+
+	{
 		/* Consume the next action for a Thread */
 		consumeAction();
 
@@ -587,10 +593,13 @@ void ModelChecker::run()
 	initstate(423121, random_state, sizeof(random_state));
 	checkfree = params.checkthreshold;
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
-		chosen_thread = init_thread;
-		thread_chosen = false;
-		curr_thread_num = 1;
-		startRunExecution(&system_context);
+		do {
+			chosen_thread = init_thread;
+			thread_chosen = false;
+			curr_thread_num = 1;
+			startRunExecution(&system_context);
+		} while (!should_terminate_execution());
+
 		finish_execution((exec+1) < params.maxexecutions);
 		//restore random number generator state after rollback
 		setstate(random_state);
