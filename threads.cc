@@ -242,7 +242,7 @@ void setup_context() {
 	Thread * curr_thread = thread_current();
 
 	/* Add dummy "start" action, just to create a first clock vector */
-	model->switch_to_master(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
+	model->switch_thread(new ModelAction(THREAD_START, std::memory_order_seq_cst, curr_thread));
 
 	real_init_all();
 

@@ -80,12 +80,12 @@ uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oldva
 
 uint64_t model_rmwr_action_helper(void *obj, int atomic_index, const char *position) {
 	ensureModel();
-	return model->switch_to_master(new ModelAction(ATOMIC_RMWR, position, orders[atomic_index], obj));
+	return model->switch_thread(new ModelAction(ATOMIC_RMWR, position, orders[atomic_index], obj));
 }
 
 void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index, const char * position) {
 	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_RMW, position, orders[atomic_index], obj, val));
+	model->switch_thread(new ModelAction(ATOMIC_RMW, position, orders[atomic_index], obj, val));
 }
 
 void model_rmwc_action_helper(void *obj, int atomic_index, const char *position) {
@@ -161,7 +161,7 @@ CDSATOMICLOAD(64)
 #define CDSATOMICSTORE(size)                                            \
 	void cds_atomic_store ## size(void * obj, uint ## size ## _t val, int atomic_index, const char * position) { \
 		ensureModel();                                                        \
-		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)); \
+		model->switch_thread(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;                     \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                       \

@@ -488,8 +488,10 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	Thread* next = getNextThread();
 	if (next != nullptr) 
 		handleNewValidThread(old, next);
-	else
+	else {
+		old->set_state(THREAD_READY);	// Just to avoid the first ASSERT in ModelExecution::take_step 
 		handleChosenThread(old);
+	}
 
 	return old->get_return_value();
 }
@@ -593,8 +595,8 @@ void ModelChecker::run()
 	initstate(423121, random_state, sizeof(random_state));
 	checkfree = params.checkthreshold;
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
+		chosen_thread = init_thread;
 		do {
-			chosen_thread = init_thread;
 			thread_chosen = false;
 			curr_thread_num = 1;
 			startRunExecution(&system_context);
