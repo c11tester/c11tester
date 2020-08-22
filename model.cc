@@ -428,8 +428,18 @@ void ModelChecker::finishRunExecution(ucontext_t *old)
 void ModelChecker::consumeAction()
 {
 	ModelAction *curr = chosen_thread->get_pending();
-	chosen_thread->set_pending(NULL);
-	chosen_thread = execution->take_step(curr);
+	Thread * th = thread_current();
+	if (curr->get_type() == THREAD_FINISH && th != NULL)  {
+		// Thread finish must be consumed in the master context
+		scheduler->set_current_thread(NULL);
+		if (Thread::swap(th, &system_context) < 0) {
+			perror("swap threads");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		chosen_thread->set_pending(NULL);
+		chosen_thread = execution->take_step(curr);
+	}
 }
 
 void ModelChecker::chooseThread(ModelAction *act, Thread *thr)
@@ -477,12 +487,10 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	if (old->is_waiting_on(old))
 		assert_bug("Deadlock detected (thread %u)", curr_thread_num);
 
-	ModelAction *act2 = old->get_pending();
-		
-	if (act2 && execution->is_enabled(old) && !execution->check_action_enabled(act2)) {
+	if (act && execution->is_enabled(old) && !execution->check_action_enabled(act)) {
 		scheduler->sleep(old);
 	}
-//	chooseThread(act2, old);
+//	chooseThread(act, old);
 
 	curr_thread_num++;
 	Thread* next = getNextThread();

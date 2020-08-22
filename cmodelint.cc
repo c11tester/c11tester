@@ -75,7 +75,7 @@ void model_fence_action(memory_order ord) {
 /* ---  helper functions --- */
 uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oldval, int size, const char *position) {
 	ensureModel();
-	return model->switch_to_master(new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj, oldval, size));
+	return model->switch_thread(new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj, oldval, size));
 }
 
 uint64_t model_rmwr_action_helper(void *obj, int atomic_index, const char *position) {
@@ -90,14 +90,14 @@ void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index, const ch
 
 void model_rmwc_action_helper(void *obj, int atomic_index, const char *position) {
 	ensureModel();
-	model->switch_to_master(new ModelAction(ATOMIC_RMWC, position, orders[atomic_index], obj));
+	model->switch_thread(new ModelAction(ATOMIC_RMWC, position, orders[atomic_index], obj));
 }
 
 // cds volatile loads
 #define VOLATILELOAD(size) \
 	uint ## size ## _t cds_volatile_load ## size(void * obj, const char * position) { \
 		ensureModel();                                                      \
-		return (uint ## size ## _t)model->switch_to_master(new ModelAction(ATOMIC_READ, position, memory_order_volatile_load, obj)); \
+		return (uint ## size ## _t)model->switch_thread(new ModelAction(ATOMIC_READ, position, memory_order_volatile_load, obj)); \
 	}
 
 VOLATILELOAD(8)
@@ -109,7 +109,7 @@ VOLATILELOAD(64)
 #define VOLATILESTORE(size) \
 	void cds_volatile_store ## size (void * obj, uint ## size ## _t val, const char * position) { \
 		ensureModel();                                                      \
-		model->switch_to_master(new ModelAction(ATOMIC_WRITE, position, memory_order_volatile_store, obj, (uint64_t) val)); \
+		model->switch_thread(new ModelAction(ATOMIC_WRITE, position, memory_order_volatile_store, obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;            \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                         \
@@ -126,7 +126,7 @@ VOLATILESTORE(64)
 #define CDSATOMICINT(size)                                              \
 	void cds_atomic_init ## size (void * obj, uint ## size ## _t val, const char * position) { \
 		ensureModel();                                                      \
-		model->switch_to_master(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)); \
+		model->switch_thread(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;                                 \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
@@ -143,7 +143,7 @@ CDSATOMICINT(64)
 #define CDSATOMICLOAD(size)                                             \
 	uint ## size ## _t cds_atomic_load ## size(void * obj, int atomic_index, const char * position) { \
 		ensureModel();                                                      \
-		uint ## size ## _t val = (uint ## size ## _t)model->switch_to_master( \
+		uint ## size ## _t val = (uint ## size ## _t)model->switch_thread( \
 			new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)); \
 		thread_id_t tid = thread_current()->get_id();           \
 		for(int i=0;i < size / 8;i++) {                         \
@@ -305,7 +305,7 @@ CDSATOMICCASV2(64)
 // cds atomic thread fence
 
 void cds_atomic_thread_fence(int atomic_index, const char * position) {
-	model->switch_to_master(
+	model->switch_thread(
 		new ModelAction(ATOMIC_FENCE, position, orders[atomic_index], FENCE_LOCATION)
 		);
 }
