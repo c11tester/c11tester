@@ -423,6 +423,7 @@ void ModelChecker::finishRunExecution(Thread *old)
 void ModelChecker::finishRunExecution(ucontext_t *old) 
 {
 	scheduler->set_current_thread(NULL);
+	break_execution = true;
 }
 
 void ModelChecker::consumeAction()
@@ -544,12 +545,16 @@ void ModelChecker::handleChosenThread(Thread *old)
 
 void ModelChecker::handleChosenThread(ucontext_t *old)
 {
-	if (execution->has_asserted())
+	if (execution->has_asserted()) {
 		finishRunExecution(old);
+		return;
+	}
 	if (!chosen_thread)
 		chosen_thread = get_next_thread();
-	if (!chosen_thread || chosen_thread->is_model_thread())
+	if (!chosen_thread || chosen_thread->is_model_thread()) {
 		finishRunExecution(old);
+		return;
+	}
 /*	if (chosen_thread->just_woken_up()) {
 		chosen_thread->set_wakeup_state(false);
 		chosen_thread->set_pending(NULL);
@@ -559,7 +564,7 @@ void ModelChecker::handleChosenThread(ucontext_t *old)
 			finishRunExecution(old);
 		else
 			startRunExecution(old);	
-	} else*/
+	} */
 
 	{
 		/* Consume the next action for a Thread */
@@ -604,7 +609,11 @@ void ModelChecker::run()
 	checkfree = params.checkthreshold;
 	for(int exec = 0;exec < params.maxexecutions;exec++) {
 		chosen_thread = init_thread;
+		break_execution = false;
 		do {
+			if (break_execution)
+				break;
+
 			thread_chosen = false;
 			curr_thread_num = 1;
 			startRunExecution(&system_context);

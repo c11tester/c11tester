@@ -94,6 +94,7 @@ private:
 	Thread * chosen_thread;
 
 	bool thread_chosen;
+	bool break_execution;
 
 	modelclock_t checkfree;
 
