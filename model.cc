@@ -346,7 +346,6 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 
 void ModelChecker::startRunExecution(Thread *old) 
 {
-
 	if (params.traceminsize != 0 &&
 			execution->get_curr_seq_num() > checkfree) {
 		checkfree += params.checkthreshold;
@@ -390,12 +389,12 @@ Thread* ModelChecker::getNextThread()
 		if (act && execution->is_enabled(thr) && !execution->check_action_enabled(act)) {
 			scheduler->sleep(thr);
 		}
-
-	chooseThread(act, thr);
+		chooseThread(act, thr);
 	}
 	return nextThread;
 }
 
+/* Swap back to system_context and terminate this execution */
 void ModelChecker::finishRunExecution(Thread *old) 
 {
 	scheduler->set_current_thread(NULL);
@@ -515,9 +514,9 @@ void ModelChecker::handleChosenThread(Thread *old)
 		chosen_thread->set_pending(NULL);
 		chosen_thread = NULL;
 		// Allow this thread to stash the next pending action
-		if (should_terminate_execution())
-			finishRunExecution(th);
-		else
+//		if (should_terminate_execution())
+//			finishRunExecution(th);
+//		else
 			startRunExecution(th);
 	} else {
 		/* Consume the next action for a Thread */
@@ -566,8 +565,6 @@ void ModelChecker::run()
 			if (break_execution)
 				break;
 
-			thread_chosen = false;
-			curr_thread_num = 1;
 			startRunExecution(NULL);
 		} while (!should_terminate_execution());
 

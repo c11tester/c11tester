@@ -24,10 +24,8 @@ int pthread_create(pthread_t *t, const pthread_attr_t * attr,
 
 	struct pthread_params params = { start_routine, arg };
 
-	ModelAction *act = new ModelAction(PTHREAD_CREATE, std::memory_order_seq_cst, t, (uint64_t)&params);
-
 	/* seq_cst is just a 'don't care' parameter */
-	model->switch_to_master(act);
+	model->switch_to_master(new ModelAction(PTHREAD_CREATE, std::memory_order_seq_cst, t, (uint64_t)&params));
 
 	return 0;
 }
@@ -54,7 +52,7 @@ int pthread_detach(pthread_t t) {
 
 /* Take care of both pthread_yield and c++ thread yield */
 int sched_yield() {
-	model->switch_to_master(new ModelAction(THREAD_YIELD, std::memory_order_seq_cst, thread_current(), VALUE_NONE));
+	model->switch_thread(new ModelAction(THREAD_YIELD, std::memory_order_seq_cst, thread_current(), VALUE_NONE));
 	return 0;
 }
 
@@ -205,7 +203,7 @@ int pthread_cond_timedwait(pthread_cond_t *p_cond,
 	cdsc::snapcondition_variable *v = execution->getCondMap()->get(p_cond);
 	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
 
-	model->switch_to_master(new ModelAction(ATOMIC_TIMEDWAIT, std::memory_order_seq_cst, v, (uint64_t) m));
+	model->switch_thread(new ModelAction(ATOMIC_TIMEDWAIT, std::memory_order_seq_cst, v, (uint64_t) m));
 	m->lock();
 
 	// model_print("Timed_wait is called\n");
