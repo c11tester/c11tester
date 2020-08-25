@@ -258,6 +258,7 @@ public:
 	 */
 	_Val remove(_Key key) {
 		struct hashlistnode<_Key, _Val> *search;
+		struct hashlistnode<_Key, _Val> *replace;
 
 		/* HashTable cannot handle 0 as a key */
 		if (!key) {
@@ -280,14 +281,40 @@ public:
 			if (!search->key) {
 				if (!search->val)
 					break;
-			} else
-			if (equals(search->key, key)) {
-				_Val v=search->val;
-				//empty out this bin
-				search->val=(_Val) 1;
-				search->key=0;
-				size--;
-				return v;
+			} else {
+				// The case where an item is found
+				if (equals(search->key, key)) {
+					unsigned int j = index;
+					_Val v = search->val;
+					size--;
+
+					// Idea: keep bins contiguous
+					while (true) {
+						search->val = 0;
+						search->key = 0;
+
+						while (true) {
+							j = (j + 1) & capacitymask;
+							replace = &table[j];
+
+							if (!replace->key && !replace->val) {
+								return v;
+							}
+
+							unsigned int hash = hash_function(replace->key) & capacitymask;
+							if (index <= j && index < hash && hash <= j)
+								continue;
+							else if (index > j && (index < hash || hash <= j) )
+								continue;
+							else
+								break;
+						}
+
+						table[index] = table[j];
+						index = j;
+						search = &table[index];
+					}
+				}
 			}
 			index++;
 		} while (true);

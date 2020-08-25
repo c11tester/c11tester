@@ -4,7 +4,8 @@
 FuncInst::FuncInst(ModelAction *act, FuncNode *func_node) :
 	single_location(true),
 	execution_number(0),
-	action_marker(0)	/* The marker for FuncNode starts from 1 */
+	associated_reads(),
+	thrd_markers()
 {
 	ASSERT(act);
 	ASSERT(func_node);
@@ -47,18 +48,46 @@ bool FuncInst::add_succ(FuncInst * other)
 	return true;
 }
 
-void FuncInst::set_associated_act(ModelAction * act, uint32_t marker)
+void FuncInst::set_associated_read(thread_id_t tid, int index, uint32_t marker, uint64_t read_val)
 {
-	associated_act = act;
-	action_marker = marker;
+	int thread_id = id_to_int(tid);
+
+	if (associated_reads.size() < (uint) thread_id + 1) {
+		int old_size = associated_reads.size();
+		int new_size = thread_id + 1;
+
+		associated_reads.resize(new_size);
+		thrd_markers.resize(new_size);
+
+		for (int i = old_size; i < new_size; i++ ) {
+			associated_reads[i] = new ModelVector<uint64_t>();
+			thrd_markers[i] = new ModelVector<uint32_t>();
+		}
+	}
+
+	ModelVector<uint64_t> * read_values = associated_reads[thread_id];
+	ModelVector<uint32_t> * markers = thrd_markers[thread_id];
+	if (read_values->size() < (uint) index + 1) {
+		int old_size = read_values->size();
+
+		for (int i = old_size; i < index + 1; i++) {
+			read_values->push_back(VALUE_NONE);
+			markers->push_back(0);
+		}
+	}
+
+	(*read_values)[index] = read_val;
+	(*markers)[index] = marker;
 }
 
-ModelAction * FuncInst::get_associated_act(uint32_t marker)
+uint64_t FuncInst::get_associated_read(thread_id_t tid, int index, uint32_t marker)
 {
-	if (action_marker == marker)
-		return associated_act;
+	int thread_id = id_to_int(tid);
+
+	if ( (*thrd_markers[thread_id])[index] == marker)
+		return (*associated_reads[thread_id])[index];
 	else
-		return NULL;
+		return VALUE_NONE;
 }
 
 /* Search the FuncInst that has the same type as act in the collision list */

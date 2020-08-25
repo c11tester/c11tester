@@ -2,9 +2,9 @@
 #define __FUNCINST_H__
 
 #include "action.h"
+#include "classlist.h"
 #include "hashtable.h"
-
-class ModelAction;
+#include "threads-model.h"
 
 typedef ModelList<FuncInst *> func_inst_list_mt;
 
@@ -39,8 +39,8 @@ public:
 	void set_execution_number(int new_number) { execution_number = new_number; }
 	int get_execution_number() { return execution_number; }
 
-	void set_associated_act(ModelAction * act, uint32_t marker);
-	ModelAction * get_associated_act(uint32_t marker);
+	void set_associated_read(thread_id_t tid, int index, uint32_t marker, uint64_t read_val);
+	uint64_t get_associated_read(thread_id_t tid, int index, uint32_t marker);
 
 	void print();
 
@@ -64,8 +64,8 @@ private:
 	bool single_location;
 	int execution_number;
 
-	ModelAction * associated_act;
-	uint32_t action_marker;
+	ModelVector< ModelVector<uint64_t> * > associated_reads;
+	ModelVector< ModelVector<uint32_t> * > thrd_markers;
 
 	/**
 	 * Collisions store a list of FuncInsts with the same position

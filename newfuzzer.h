@@ -29,7 +29,7 @@ public:
 	void notify_paused_thread(Thread * thread);
 
 	Thread * selectThread(int * threadlist, int numthreads);
-	Thread * selectNotify(action_list_t * waiters);
+	Thread * selectNotify(simple_action_list_t * waiters);
 	bool shouldSleep(const ModelAction * sleep);
 	bool shouldWake(const ModelAction * sleep);
 	bool shouldWait(const ModelAction * wait);
@@ -49,16 +49,15 @@ private:
 	SnapVector<Predicate *> thrd_selected_child_branch;
 	SnapVector< SnapVector<ModelAction *> *> thrd_pruned_writes;
 
-	bool check_branch_inst(Predicate * curr_pred, FuncInst * read_inst, inst_act_map_t * inst_act_map, SnapVector<ModelAction *> * rf_set);
+	bool check_branch_inst(Predicate * curr_pred, FuncInst * read_inst, SnapVector<ModelAction *> * rf_set);
 	Predicate * selectBranch(thread_id_t tid, Predicate * curr_pred, FuncInst * read_inst);
-	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set, inst_act_map_t * inst_act_map);
+	bool prune_writes(thread_id_t tid, Predicate * pred, SnapVector<ModelAction *> * rf_set);
 	int choose_branch_index(SnapVector<Predicate *> * branches);
 
 	/* The set of Threads put to sleep by NewFuzzer because no writes in rf_set satisfies the selected predicate. Only used by selectWrite.
 	 */
 	SnapVector<Thread *> paused_thread_list;	//-- (not in use)
 	HashTable<Thread *, int, uintptr_t, 0> paused_thread_table;	//--
-	HashTable<Predicate *, bool, uintptr_t, 0> failed_predicates;
 
 	SnapVector<struct node_dist_info> dist_info_vec;	//--
 
@@ -66,8 +65,6 @@ private:
 	void wake_up_paused_threads(int * threadlist, int * numthreads);	//--
 
 	bool find_threads(ModelAction * pending_read);	//--
-
-	bool check_predicate_expressions(PredExprSet * pred_expressions, inst_act_map_t * inst_act_map, uint64_t write_val, bool * no_predicate);
 };
 
 #endif	/* end of __NEWFUZZER_H__ */

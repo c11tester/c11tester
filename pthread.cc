@@ -64,13 +64,18 @@ void pthread_exit(void *value_ptr) {
 	real_pthread_exit(NULL);
 }
 
-int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t *) {
+int pthread_mutex_init(pthread_mutex_t *p_mutex, const pthread_mutexattr_t * attr) {
 	if (!model) {
 		snapshot_system_init(10000, 1024, 1024, 40000);
 		model = new ModelChecker();
 		model->startChecker();
 	}
-	cdsc::snapmutex *m = new cdsc::snapmutex();
+
+	int mutex_type = PTHREAD_MUTEX_DEFAULT;
+	if (attr != NULL)
+		pthread_mutexattr_gettype(attr, &mutex_type);
+
+	cdsc::snapmutex *m = new cdsc::snapmutex(mutex_type);
 
 	ModelExecution *execution = model->get_execution();
 	execution->getMutexMap()->put(p_mutex, m);
@@ -160,6 +165,12 @@ int pthread_mutex_timedlock (pthread_mutex_t *__restrict p_mutex,
 }
 
 pthread_t pthread_self() {
+	if (!model) {
+		snapshot_system_init(10000, 1024, 1024, 40000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
+
 	Thread* th = model->get_current_thread();
 	return (pthread_t)th->get_id();
 }
@@ -243,4 +254,38 @@ int pthread_cond_destroy(pthread_cond_t *p_cond) {
 		execution->getCondMap()->remove(p_cond);
 	}
 	return 0;
+}
+
+/* https://github.com/lattera/glibc/blob/master/nptl/pthread_getattr_np.c */
+int pthread_getattr_np(pthread_t t, pthread_attr_t *attr)
+{
+	ModelExecution *execution = model->get_execution();
+	Thread *th = execution->get_pthread(t);
+
+	struct pthread_attr *iattr = (struct pthread_attr *) attr;
+
+	/* The sizes are subject to alignment.  */
+	if (th != NULL) {
+#if _STACK_GROWS_DOWN
+		ASSERT(false);
+#else
+		iattr->stackaddr = (char *) th->get_stack_addr();
+#endif
+
+	} else {
+		ASSERT(false);
+	}
+
+	return 0;
+}
+
+int pthread_setname_np(pthread_t t, const char *name)
+{
+	ModelExecution *execution = model->get_execution();
+	Thread *th = execution->get_pthread(t);
+
+	if (th != NULL)
+		return 0;
+
+	return 1;
 }

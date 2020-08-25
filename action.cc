@@ -38,8 +38,6 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	last_fence_release(NULL),
 	cv(NULL),
 	rf_cv(NULL),
-	trace_ref(NULL),
-	thrdmap_ref(NULL),
 	action_ref(NULL),
 	value(value),
 	type(type),
@@ -72,8 +70,6 @@ ModelAction::ModelAction(action_type_t type, memory_order order, uint64_t value,
 	last_fence_release(NULL),
 	cv(NULL),
 	rf_cv(NULL),
-	trace_ref(NULL),
-	thrdmap_ref(NULL),
 	action_ref(NULL),
 	value(value),
 	type(type),
@@ -105,8 +101,6 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	last_fence_release(NULL),
 	cv(NULL),
 	rf_cv(NULL),
-	trace_ref(NULL),
-	thrdmap_ref(NULL),
 	action_ref(NULL),
 	value(value),
 	type(type),
@@ -142,8 +136,6 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	last_fence_release(NULL),
 	cv(NULL),
 	rf_cv(NULL),
-	trace_ref(NULL),
-	thrdmap_ref(NULL),
 	action_ref(NULL),
 	value(value),
 	type(type),
@@ -180,8 +172,6 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	last_fence_release(NULL),
 	cv(NULL),
 	rf_cv(NULL),
-	trace_ref(NULL),
-	thrdmap_ref(NULL),
 	action_ref(NULL),
 	value(value),
 	type(type),
@@ -207,9 +197,11 @@ ModelAction::~ModelAction()
 	 * vectors which have already been rolled back to an unallocated state.
 	 */
 
-	/*
-	   if (cv)
-	        delete cv; */
+
+	if (cv)
+		delete cv;
+	if (rf_cv)
+		delete rf_cv;
 }
 
 int ModelAction::getSize() const {

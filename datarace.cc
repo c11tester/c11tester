@@ -16,6 +16,18 @@ static void *memory_base;
 static void *memory_top;
 static RaceSet * raceset;
 
+#ifdef COLLECT_STAT
+static unsigned int store8_count = 0;
+static unsigned int store16_count = 0;
+static unsigned int store32_count = 0;
+static unsigned int store64_count = 0;
+
+static unsigned int load8_count = 0;
+static unsigned int load16_count = 0;
+static unsigned int load32_count = 0;
+static unsigned int load64_count = 0;
+#endif
+
 static const ModelExecution * get_execution()
 {
 	return model->get_execution();
@@ -143,6 +155,8 @@ static void expandRecord(uint64_t *shadow)
 		ASSERT(readThread >= 0);
 		record->thread[0] = readThread;
 		record->readClock[0] = readClock;
+	} else {
+		record->thread = NULL;
 	}
 	if (shadowval & ATOMICMASK)
 		record->isAtomic = 1;
@@ -160,7 +174,6 @@ unsigned int race_hash(struct DataRace *race) {
 	return hash;
 }
 
-
 bool race_equals(struct DataRace *r1, struct DataRace *r2) {
 	if (r1->numframes != r2->numframes)
 		return false;
@@ -174,6 +187,7 @@ bool race_equals(struct DataRace *r1, struct DataRace *r2) {
 /** This function is called when we detect a data race.*/
 static struct DataRace * reportDataRace(thread_id_t oldthread, modelclock_t oldclock, bool isoldwrite, ModelAction *newaction, bool isnewwrite, const void *address)
 {
+#ifdef REPORT_DATA_RACES
 	struct DataRace *race = (struct DataRace *)model_malloc(sizeof(struct DataRace));
 	race->oldthread = oldthread;
 	race->oldclock = oldclock;
@@ -182,6 +196,9 @@ static struct DataRace * reportDataRace(thread_id_t oldthread, modelclock_t oldc
 	race->isnewwrite = isnewwrite;
 	race->address = address;
 	return race;
+#else
+	return NULL;
+#endif
 }
 
 /**
@@ -210,7 +227,7 @@ void assert_race(struct DataRace *race)
 }
 
 /** This function does race detection for a write on an expanded record. */
-struct DataRace * fullRaceCheckWrite(thread_id_t thread, void *location, uint64_t *shadow, ClockVector *currClock)
+struct DataRace * fullRaceCheckWrite(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
 {
 	struct RaceRecord *record = (struct RaceRecord *)(*shadow);
 	struct DataRace * race = NULL;
@@ -232,7 +249,6 @@ struct DataRace * fullRaceCheckWrite(thread_id_t thread, void *location, uint64_
 	}
 
 	/* Check for datarace against last write. */
-
 	{
 		modelclock_t writeClock = record->writeClock;
 		thread_id_t writeThread = record->writeThread;
@@ -279,11 +295,8 @@ void raceCheckWrite(thread_id_t thread, void *location)
 			goto Exit;
 		}
 
-
-
 		{
 			/* Check for datarace against last read. */
-
 			modelclock_t readClock = READVECTOR(shadowval);
 			thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
 
@@ -296,7 +309,6 @@ void raceCheckWrite(thread_id_t thread, void *location)
 
 		{
 			/* Check for datarace against last write. */
-
 			modelclock_t writeClock = WRITEVECTOR(shadowval);
 			thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
 
@@ -313,16 +325,19 @@ ShadowExit:
 
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
-
 /** This function does race detection for a write on an expanded record. */
-struct DataRace * atomfullRaceCheckWrite(thread_id_t thread, void *location, uint64_t *shadow, ClockVector *currClock)
+struct DataRace * atomfullRaceCheckWrite(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
 {
 	struct RaceRecord *record = (struct RaceRecord *)(*shadow);
 	struct DataRace * race = NULL;
@@ -400,7 +415,6 @@ void atomraceCheckWrite(thread_id_t thread, void *location)
 
 		{
 			/* Check for datarace against last read. */
-
 			modelclock_t readClock = READVECTOR(shadowval);
 			thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
 
@@ -413,7 +427,6 @@ void atomraceCheckWrite(thread_id_t thread, void *location)
 
 		{
 			/* Check for datarace against last write. */
-
 			modelclock_t writeClock = WRITEVECTOR(shadowval);
 			thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
 
@@ -430,10 +443,14 @@ ShadowExit:
 
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
@@ -509,8 +526,6 @@ void recordCalloc(void *location, size_t size) {
 	}
 }
 
-
-
 /** This function does race detection on a read for an expanded record. */
 struct DataRace * fullRaceCheckRead(thread_id_t thread, const void *location, uint64_t *shadow, ClockVector *currClock)
 {
@@ -552,7 +567,7 @@ struct DataRace * fullRaceCheckRead(thread_id_t thread, const void *location, ui
 	}
 
 	if (__builtin_popcount(copytoindex) <= 1) {
-		if (copytoindex == 0) {
+		if (copytoindex == 0 && record->thread == NULL) {
 			int newCapacity = INITCAPACITY;
 			record->thread = (thread_id_t *)snapshot_malloc(sizeof(thread_id_t) * newCapacity);
 			record->readClock = (modelclock_t *)snapshot_malloc(sizeof(modelclock_t) * newCapacity);
@@ -634,10 +649,14 @@ ShadowExit:
 	}
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
 
@@ -683,7 +702,6 @@ void atomraceCheckRead(thread_id_t thread, const void *location)
 
 	{
 		/* Check for datarace against last write. */
-
 		modelclock_t writeClock = WRITEVECTOR(shadowval);
 		thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
 
@@ -697,9 +715,516 @@ void atomraceCheckRead(thread_id_t thread, const void *location)
 	}
 Exit:
 	if (race) {
+#ifdef REPORT_DATA_RACES
 		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
 		if (raceset->add(race))
 			assert_race(race);
 		else model_free(race);
+#else
+		model_free(race);
+#endif
 	}
 }
+
+static inline uint64_t * raceCheckRead_firstIt(thread_id_t thread, const void * location, uint64_t *old_val, uint64_t *new_val)
+{
+	uint64_t *shadow = lookupAddressEntry(location);
+	uint64_t shadowval = *shadow;
+
+	ClockVector *currClock = get_execution()->get_cv(thread);
+	if (currClock == NULL)
+		return shadow;
+
+	struct DataRace * race = NULL;
+
+	/* Do full record */
+	if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+		race = fullRaceCheckRead(thread, location, shadow, currClock);
+		goto Exit;
+	}
+
+	{
+		int threadid = id_to_int(thread);
+		modelclock_t ourClock = currClock->getClock(thread);
+
+		/* Thread ID is too large or clock is too large. */
+		if (threadid > MAXTHREADID || ourClock > MAXWRITEVECTOR) {
+			expandRecord(shadow);
+			race = fullRaceCheckRead(thread, location, shadow, currClock);
+			goto Exit;
+		}
+
+		/* Check for datarace against last write. */
+		modelclock_t writeClock = WRITEVECTOR(shadowval);
+		thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
+
+		if (clock_may_race(currClock, thread, writeClock, writeThread)) {
+			/* We have a datarace */
+			race = reportDataRace(writeThread, writeClock, true, get_execution()->get_parent_action(thread), false, location);
+		}
+
+		modelclock_t readClock = READVECTOR(shadowval);
+		thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
+
+		if (clock_may_race(currClock, thread, readClock, readThread)) {
+			/* We don't subsume this read... Have to expand record. */
+			expandRecord(shadow);
+			struct RaceRecord *record = (struct RaceRecord *) (*shadow);
+			record->thread[1] = thread;
+			record->readClock[1] = ourClock;
+			record->numReads++;
+
+			goto Exit;
+		}
+
+		*shadow = ENCODEOP(threadid, ourClock, id_to_int(writeThread), writeClock) | (shadowval & ATOMICMASK);
+
+		*old_val = shadowval;
+		*new_val = *shadow;
+	}
+Exit:
+	if (race) {
+#ifdef REPORT_DATA_RACES
+		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
+		if (raceset->add(race))
+			assert_race(race);
+		else model_free(race);
+#else
+		model_free(race);
+#endif
+	}
+
+	return shadow;
+}
+
+static inline void raceCheckRead_otherIt(thread_id_t thread, const void * location) {
+	uint64_t *shadow = lookupAddressEntry(location);
+
+	uint64_t shadowval = *shadow;
+
+	ClockVector *currClock = get_execution()->get_cv(thread);
+	if (currClock == NULL)
+		return;
+
+	struct DataRace * race = NULL;
+
+	/* Do full record */
+	if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+		race = fullRaceCheckRead(thread, location, shadow, currClock);
+		goto Exit;
+	}
+
+	{
+		int threadid = id_to_int(thread);
+		modelclock_t ourClock = currClock->getClock(thread);
+
+		/* Thread ID is too large or clock is too large. */
+		if (threadid > MAXTHREADID || ourClock > MAXWRITEVECTOR) {
+			expandRecord(shadow);
+			race = fullRaceCheckRead(thread, location, shadow, currClock);
+			goto Exit;
+		}
+
+		/* Check for datarace against last write. */
+		modelclock_t writeClock = WRITEVECTOR(shadowval);
+		thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
+
+		if (clock_may_race(currClock, thread, writeClock, writeThread)) {
+			/* We have a datarace */
+			race = reportDataRace(writeThread, writeClock, true, get_execution()->get_parent_action(thread), false, location);
+		}
+
+		modelclock_t readClock = READVECTOR(shadowval);
+		thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
+
+		if (clock_may_race(currClock, thread, readClock, readThread)) {
+			/* We don't subsume this read... Have to expand record. */
+			expandRecord(shadow);
+			struct RaceRecord *record = (struct RaceRecord *) (*shadow);
+			record->thread[1] = thread;
+			record->readClock[1] = ourClock;
+			record->numReads++;
+
+			goto Exit;
+		}
+
+		*shadow = ENCODEOP(threadid, ourClock, id_to_int(writeThread), writeClock) | (shadowval & ATOMICMASK);
+	}
+Exit:
+	if (race) {
+#ifdef REPORT_DATA_RACES
+		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
+		if (raceset->add(race))
+			assert_race(race);
+		else model_free(race);
+#else
+		model_free(race);
+#endif
+	}
+}
+
+void raceCheckRead64(thread_id_t thread, const void *location)
+{
+	uint64_t old_shadowval, new_shadowval;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	load64_count++;
+#endif
+	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
+	if (CHECKBOUNDARY(location, 7)) {
+		if (shadow[1]==old_shadowval)
+			shadow[1] = new_shadowval;
+		else goto L1;
+		if (shadow[2]==old_shadowval)
+			shadow[2] = new_shadowval;
+		else goto L2;
+		if (shadow[3]==old_shadowval)
+			shadow[3] = new_shadowval;
+		else goto L3;
+		if (shadow[4]==old_shadowval)
+			shadow[4] = new_shadowval;
+		else goto L4;
+		if (shadow[5]==old_shadowval)
+			shadow[5] = new_shadowval;
+		else goto L5;
+		if (shadow[6]==old_shadowval)
+			shadow[6] = new_shadowval;
+		else goto L6;
+		if (shadow[7]==old_shadowval)
+			shadow[7] = new_shadowval;
+		else goto L7;
+		return;
+	}
+
+L1:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+L2:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 2));
+L3:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 3));
+L4:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 4));
+L5:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 5));
+L6:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 6));
+L7:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 7));
+}
+
+void raceCheckRead32(thread_id_t thread, const void *location)
+{
+	uint64_t old_shadowval, new_shadowval;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	load32_count++;
+#endif
+	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
+	if (CHECKBOUNDARY(location, 3)) {
+		if (shadow[1]==old_shadowval)
+			shadow[1] = new_shadowval;
+		else goto L1;
+		if (shadow[2]==old_shadowval)
+			shadow[2] = new_shadowval;
+		else goto L2;
+		if (shadow[3]==old_shadowval)
+			shadow[3] = new_shadowval;
+		else goto L3;
+		return;
+	}
+
+L1:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+L2:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 2));
+L3:
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 3));
+}
+
+void raceCheckRead16(thread_id_t thread, const void *location)
+{
+	uint64_t old_shadowval, new_shadowval;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	load16_count++;
+#endif
+	uint64_t * shadow = raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
+	if (CHECKBOUNDARY(location, 1)) {
+		if (shadow[1]==old_shadowval) {
+			shadow[1] = new_shadowval;
+			return;
+		}
+	}
+	raceCheckRead_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+}
+
+void raceCheckRead8(thread_id_t thread, const void *location)
+{
+	uint64_t old_shadowval, new_shadowval;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	load8_count++;
+#endif
+	raceCheckRead_firstIt(thread, location, &old_shadowval, &new_shadowval);
+}
+
+static inline uint64_t * raceCheckWrite_firstIt(thread_id_t thread, const void * location, uint64_t *old_val, uint64_t *new_val)
+{
+	uint64_t *shadow = lookupAddressEntry(location);
+	uint64_t shadowval = *shadow;
+	ClockVector *currClock = get_execution()->get_cv(thread);
+	if (currClock == NULL)
+		return shadow;
+
+	struct DataRace * race = NULL;
+	/* Do full record */
+	if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+		race = fullRaceCheckWrite(thread, location, shadow, currClock);
+		goto Exit;
+	}
+
+	{
+		int threadid = id_to_int(thread);
+		modelclock_t ourClock = currClock->getClock(thread);
+
+		/* Thread ID is too large or clock is too large. */
+		if (threadid > MAXTHREADID || ourClock > MAXWRITEVECTOR) {
+			expandRecord(shadow);
+			race = fullRaceCheckWrite(thread, location, shadow, currClock);
+			goto Exit;
+		}
+
+		{
+			/* Check for datarace against last read. */
+			modelclock_t readClock = READVECTOR(shadowval);
+			thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
+
+			if (clock_may_race(currClock, thread, readClock, readThread)) {
+				/* We have a datarace */
+				race = reportDataRace(readThread, readClock, false, get_execution()->get_parent_action(thread), true, location);
+				goto ShadowExit;
+			}
+		}
+
+		{
+			/* Check for datarace against last write. */
+			modelclock_t writeClock = WRITEVECTOR(shadowval);
+			thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
+
+			if (clock_may_race(currClock, thread, writeClock, writeThread)) {
+				/* We have a datarace */
+				race = reportDataRace(writeThread, writeClock, true, get_execution()->get_parent_action(thread), true, location);
+				goto ShadowExit;
+			}
+		}
+
+ShadowExit:
+		*shadow = ENCODEOP(0, 0, threadid, ourClock);
+
+		*old_val = shadowval;
+		*new_val = *shadow;
+	}
+
+Exit:
+	if (race) {
+#ifdef REPORT_DATA_RACES
+		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
+		if (raceset->add(race))
+			assert_race(race);
+		else model_free(race);
+#else
+		model_free(race);
+#endif
+	}
+
+	return shadow;
+}
+
+static inline void raceCheckWrite_otherIt(thread_id_t thread, const void * location) {
+	uint64_t *shadow = lookupAddressEntry(location);
+
+	uint64_t shadowval = *shadow;
+
+	ClockVector *currClock = get_execution()->get_cv(thread);
+	if (currClock == NULL)
+		return;
+
+	struct DataRace * race = NULL;
+	/* Do full record */
+	if (shadowval != 0 && !ISSHORTRECORD(shadowval)) {
+		race = fullRaceCheckWrite(thread, location, shadow, currClock);
+		goto Exit;
+	}
+
+	{
+		int threadid = id_to_int(thread);
+		modelclock_t ourClock = currClock->getClock(thread);
+
+		/* Thread ID is too large or clock is too large. */
+		if (threadid > MAXTHREADID || ourClock > MAXWRITEVECTOR) {
+			expandRecord(shadow);
+			race = fullRaceCheckWrite(thread, location, shadow, currClock);
+			goto Exit;
+		}
+
+		{
+			/* Check for datarace against last read. */
+			modelclock_t readClock = READVECTOR(shadowval);
+			thread_id_t readThread = int_to_id(RDTHREADID(shadowval));
+
+			if (clock_may_race(currClock, thread, readClock, readThread)) {
+				/* We have a datarace */
+				race = reportDataRace(readThread, readClock, false, get_execution()->get_parent_action(thread), true, location);
+				goto ShadowExit;
+			}
+		}
+
+		{
+			/* Check for datarace against last write. */
+			modelclock_t writeClock = WRITEVECTOR(shadowval);
+			thread_id_t writeThread = int_to_id(WRTHREADID(shadowval));
+
+			if (clock_may_race(currClock, thread, writeClock, writeThread)) {
+				/* We have a datarace */
+				race = reportDataRace(writeThread, writeClock, true, get_execution()->get_parent_action(thread), true, location);
+				goto ShadowExit;
+			}
+		}
+
+ShadowExit:
+		*shadow = ENCODEOP(0, 0, threadid, ourClock);
+	}
+
+Exit:
+	if (race) {
+#ifdef REPORT_DATA_RACES
+		race->numframes=backtrace(race->backtrace, sizeof(race->backtrace)/sizeof(void*));
+		if (raceset->add(race))
+			assert_race(race);
+		else model_free(race);
+#else
+		model_free(race);
+#endif
+	}
+}
+
+void raceCheckWrite64(thread_id_t thread, const void *location)
+{
+	uint64_t old_shadowval, new_shadowval;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	store64_count++;
+#endif
+	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
+	if (CHECKBOUNDARY(location, 7)) {
+		if (shadow[1]==old_shadowval)
+			shadow[1] = new_shadowval;
+		else goto L1;
+		if (shadow[2]==old_shadowval)
+			shadow[2] = new_shadowval;
+		else goto L2;
+		if (shadow[3]==old_shadowval)
+			shadow[3] = new_shadowval;
+		else goto L3;
+		if (shadow[4]==old_shadowval)
+			shadow[4] = new_shadowval;
+		else goto L4;
+		if (shadow[5]==old_shadowval)
+			shadow[5] = new_shadowval;
+		else goto L5;
+		if (shadow[6]==old_shadowval)
+			shadow[6] = new_shadowval;
+		else goto L6;
+		if (shadow[7]==old_shadowval)
+			shadow[7] = new_shadowval;
+		else goto L7;
+		return;
+	}
+
+L1:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+L2:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 2));
+L3:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 3));
+L4:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 4));
+L5:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 5));
+L6:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 6));
+L7:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 7));
+}
+
+void raceCheckWrite32(thread_id_t thread, const void *location)
+{
+	uint64_t old_shadowval, new_shadowval;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	store32_count++;
+#endif
+	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
+	if (CHECKBOUNDARY(location, 3)) {
+		if (shadow[1]==old_shadowval)
+			shadow[1] = new_shadowval;
+		else goto L1;
+		if (shadow[2]==old_shadowval)
+			shadow[2] = new_shadowval;
+		else goto L2;
+		if (shadow[3]==old_shadowval)
+			shadow[3] = new_shadowval;
+		else goto L3;
+		return;
+	}
+
+L1:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+L2:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 2));
+L3:
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 3));
+}
+
+void raceCheckWrite16(thread_id_t thread, const void *location)
+{
+	uint64_t old_shadowval, new_shadowval;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	store16_count++;
+#endif
+
+	uint64_t * shadow = raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
+	if (CHECKBOUNDARY(location, 1)) {
+		if (shadow[1]==old_shadowval) {
+			shadow[1] = new_shadowval;
+			return;
+		}
+	}
+	raceCheckWrite_otherIt(thread, (const void *)(((uintptr_t)location) + 1));
+}
+
+void raceCheckWrite8(thread_id_t thread, const void *location)
+{
+	uint64_t old_shadowval, new_shadowval;
+	old_shadowval = new_shadowval = INVALIDSHADOWVAL;
+#ifdef COLLECT_STAT
+	store8_count++;
+#endif
+	raceCheckWrite_firstIt(thread, location, &old_shadowval, &new_shadowval);
+}
+
+#ifdef COLLECT_STAT
+void print_normal_accesses()
+{
+	model_print("store 8  count: %u\n", store8_count);
+	model_print("store 16 count: %u\n", store16_count);
+	model_print("store 32 count: %u\n", store32_count);
+	model_print("store 64 count: %u\n", store64_count);
+
+	model_print("load  8  count: %u\n", load8_count);
+	model_print("load  16 count: %u\n", load16_count);
+	model_print("load  32 count: %u\n", load32_count);
+	model_print("load  64 count: %u\n", load64_count);
+}
+#endif

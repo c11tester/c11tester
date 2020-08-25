@@ -8,18 +8,20 @@
 
 #include "modeltypes.h"
 #include "mymemory.h"
+#include "mypthread.h"
 
 namespace cdsc {
 struct mutex_state {
 	void *locked;	/* Thread holding the lock */
 	thread_id_t alloc_tid;
 	modelclock_t alloc_clock;
-	int init;	// WL
+	int type;
+	int lock_count;
 };
 
 class mutex {
 public:
-	mutex();
+	mutex(int type = PTHREAD_MUTEX_DEFAULT);
 	~mutex() {}
 	void lock();
 	bool try_lock();
@@ -32,7 +34,7 @@ private:
 
 class snapmutex : public mutex {
 public:
-	snapmutex() : mutex()
+	snapmutex(int type = 0) : mutex(type)
 	{ }
 	SNAPSHOTALLOC
 };

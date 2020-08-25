@@ -14,6 +14,7 @@
 /** @brief Constructor */
 ModelHistory::ModelHistory() :
 	func_counter(1),	/* function id starts with 1 */
+	last_seq_number(INIT_SEQ_NUMBER),
 	func_map(),
 	func_map_rev(),
 	func_nodes()
@@ -23,12 +24,10 @@ ModelHistory::ModelHistory() :
 	loc_rd_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
 	loc_wr_func_nodes_map = new HashTable<void *, SnapVector<FuncNode *> *, uintptr_t, 0>();
 	loc_waiting_writes_map = new HashTable<void *, SnapVector<ConcretePredicate *> *, uintptr_t, 0>();
-	thrd_func_act_lists = new SnapVector< SnapList<action_list_t *> *>();
 	thrd_func_list = new SnapVector<func_id_list_t>();
 	thrd_last_entered_func = new SnapVector<uint32_t>();
 	thrd_waiting_write = new SnapVector<ConcretePredicate *>();
 	thrd_wait_obj = new SnapVector<WaitObj *>();
-	func_inst_act_maps = new HashTable<uint32_t, SnapVector<inst_act_map_t *> *, int, 0>(128);
 }
 
 ModelHistory::~ModelHistory()
@@ -46,20 +45,14 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	if ( thrd_func_list->size() <= id ) {
 		uint oldsize = thrd_func_list->size();
 		thrd_func_list->resize( id + 1 );
-		thrd_func_act_lists->resize( id + 1 );
 
 		for (uint i = oldsize;i < id + 1;i++) {
 			// push 0 as a dummy function id to a void seg fault
 			new (&(*thrd_func_list)[i]) func_id_list_t();
 			(*thrd_func_list)[i].push_back(0);
-
-			(*thrd_func_act_lists)[i] = new SnapList<action_list_t *>();
 			thrd_last_entered_func->push_back(0);
 		}
 	}
-
-	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
-	func_act_lists->push_back( new action_list_t() );
 
 	uint32_t last_entered_func_id = (*thrd_last_entered_func)[id];
 	(*thrd_last_entered_func)[id] = func_id;
@@ -69,8 +62,7 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 		resize_func_nodes( func_id + 1 );
 
 	FuncNode * func_node = func_nodes[func_id];
-	func_node->init_predicate_tree_position(tid);
-	func_node->init_inst_act_map(tid);
+	func_node->function_entry_handler(tid);
 
 	/* Add edges between FuncNodes */
 	if (last_entered_func_id != 0) {
@@ -79,45 +71,22 @@ void ModelHistory::enter_function(const uint32_t func_id, thread_id_t tid)
 	}
 
 	/* Monitor the statuses of threads waiting for tid */
-	monitor_waiting_thread(func_id, tid);
+	// monitor_waiting_thread(func_id, tid);
 }
 
 /* @param func_id a non-zero value */
 void ModelHistory::exit_function(const uint32_t func_id, thread_id_t tid)
 {
 	uint32_t id = id_to_int(tid);
-
-	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[id];
 	uint32_t last_func_id = (*thrd_func_list)[id].back();
 
 	if (last_func_id == func_id) {
 		FuncNode * func_node = func_nodes[func_id];
-		func_node->set_predicate_tree_position(tid, NULL);
-		func_node->reset_inst_act_map(tid);
-
-		action_list_t * curr_act_list = func_act_lists->back();
-
-		/* defer the processing of curr_act_list until the function has exits a few times
-		 * (currently twice) so that more information can be gathered to infer nullity predicates.
-		 */
-		func_node->incr_exit_count();
-		if (func_node->get_exit_count() >= 2) {
-			SnapList<action_list_t *> * action_list_buffer = func_node->get_action_list_buffer();
-			while (action_list_buffer->size() > 0) {
-				action_list_t * act_list = action_list_buffer->back();
-				action_list_buffer->pop_back();
-				func_node->update_tree(act_list);
-			}
-
-			func_node->update_tree(curr_act_list);
-		} else
-			func_node->get_action_list_buffer()->push_front(curr_act_list);
+		func_node->function_exit_handler(tid);
 
 		(*thrd_func_list)[id].pop_back();
-		func_act_lists->pop_back();
 	} else {
-		model_print("trying to exit with a wrong function id\n");
-		model_print("--- last_func: %d, func_id: %d\n", last_func_id, func_id);
+		ASSERT(false);
 	}
 	//model_print("thread %d exiting func %d\n", tid, func_id);
 }
@@ -146,7 +115,7 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 		return;
 
 	/* Monitor the statuses of threads waiting for tid */
-	monitor_waiting_thread_counter(tid);
+	// monitor_waiting_thread_counter(tid);
 
 	/* Every write action should be processed, including
 	 * nonatomic writes (which have no position) */
@@ -172,38 +141,14 @@ void ModelHistory::process_action(ModelAction *act, thread_id_t tid)
 	if (func_id == 0 || act->get_position() == NULL)
 		return;
 
-	SnapList<action_list_t *> * func_act_lists = (*thrd_func_act_lists)[thread_id];
-
-	/* The list of actions that thread tid has taken in its current function */
-	action_list_t * curr_act_list = func_act_lists->back();
-
-	if (skip_action(act, curr_act_list))
+	if (skip_action(act))
 		return;
-
-	/* Add to curr_inst_list */
-	curr_act_list->push_back(act);
 
 	FuncNode * func_node = func_nodes[func_id];
 	func_node->add_inst(act);
 
-	if (act->is_read()) {
-		func_node->update_inst_act_map(tid, act);
-
-		Fuzzer * fuzzer = model->get_execution()->getFuzzer();
-		Predicate * selected_branch = ((NewFuzzer *)fuzzer)->get_selected_child_branch(tid);
-		func_node->set_predicate_tree_position(tid, selected_branch);
-	}
-
-	if (act->is_write()) {
-		Predicate * curr_pred = func_node->get_predicate_tree_position(tid);
-		FuncInst * curr_inst = func_node->get_inst(act);
-
-		if (curr_pred) {
-			// Follow child
-			curr_pred = curr_pred->follow_write_child(curr_inst);
-		}
-		func_node->set_predicate_tree_position(tid, curr_pred);
-	}
+	func_node->update_tree(act);
+	last_seq_number = act->get_seq_number();
 }
 
 /* Return the FuncNode given its func_id  */
@@ -436,23 +381,8 @@ void ModelHistory::stop_waiting_for_node(thread_id_t self_id,
 	}
 }
 
-SnapVector<inst_act_map_t *> * ModelHistory::getThrdInstActMap(uint32_t func_id)
+bool ModelHistory::skip_action(ModelAction * act)
 {
-	ASSERT(func_id != 0);
-
-	SnapVector<inst_act_map_t *> * maps = func_inst_act_maps->get(func_id);
-	if (maps == NULL) {
-		maps = new SnapVector<inst_act_map_t *>();
-		func_inst_act_maps->put(func_id, maps);
-	}
-
-	return maps;
-}
-
-bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr_act_list)
-{
-	ASSERT(curr_act_list != NULL);
-
 	bool second_part_of_rmw = act->is_rmwc() || act->is_rmw();
 	modelclock_t curr_seq_number = act->get_seq_number();
 
@@ -461,11 +391,8 @@ bool ModelHistory::skip_action(ModelAction * act, SnapList<ModelAction *> * curr
 		return true;
 
 	/* Skip actions with the same sequence number */
-	if (curr_act_list->size() != 0) {
-		ModelAction * last_act = curr_act_list->back();
-		if (last_act->get_seq_number() == curr_seq_number)
-			return true;
-	}
+	if (last_seq_number != INIT_SEQ_NUMBER && last_seq_number == curr_seq_number)
+		return true;
 
 	/* Skip actions that are paused by fuzzer (sequence number is 0) */
 	if (curr_seq_number == 0)
@@ -575,15 +502,15 @@ void ModelHistory::print_func_node()
 		func_node->print_predicate_tree();
 
 /*
-                func_inst_list_mt * entry_insts = func_node->get_entry_insts();
-                model_print("function %s has entry actions\n", func_node->get_func_name());
+		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
+		model_print("function %s has entry actions\n", func_node->get_func_name());
 
-                mllnode<FuncInst*>* it;
-                for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
-                        FuncInst *inst = it->getVal();
-                        model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
-                }
- */
+		mllnode<FuncInst*>* it;
+		for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
+			FuncInst *inst = it->getVal();
+			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
+		}
+*/
 	}
 }
 

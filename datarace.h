@@ -46,6 +46,7 @@ void initRaceDetector();
 void raceCheckWrite(thread_id_t thread, void *location);
 void atomraceCheckWrite(thread_id_t thread, void *location);
 void raceCheckRead(thread_id_t thread, const void *location);
+
 void atomraceCheckRead(thread_id_t thread, const void *location);
 void recordWrite(thread_id_t thread, void *location);
 void recordCalloc(void *location, size_t size);
@@ -53,6 +54,20 @@ void assert_race(struct DataRace *race);
 bool hasNonAtomicStore(const void *location);
 void setAtomicStoreFlag(const void *location);
 void getStoreThreadAndClock(const void *address, thread_id_t * thread, modelclock_t * clock);
+
+void raceCheckRead8(thread_id_t thread, const void *location);
+void raceCheckRead16(thread_id_t thread, const void *location);
+void raceCheckRead32(thread_id_t thread, const void *location);
+void raceCheckRead64(thread_id_t thread, const void *location);
+
+void raceCheckWrite8(thread_id_t thread, const void *location);
+void raceCheckWrite16(thread_id_t thread, const void *location);
+void raceCheckWrite32(thread_id_t thread, const void *location);
+void raceCheckWrite64(thread_id_t thread, const void *location);
+
+#ifdef COLLECT_STAT
+void print_normal_accesses();
+#endif
 
 /**
  * @brief A record of information for detecting data races
@@ -103,6 +118,9 @@ bool race_equals(struct DataRace *r1, struct DataRace *r2);
 #define MAXTHREADID (THREADMASK-1)
 #define MAXREADVECTOR (READMASK-1)
 #define MAXWRITEVECTOR (WRITEMASK-1)
+
+#define INVALIDSHADOWVAL 0x2ULL
+#define CHECKBOUNDARY(location, bits) ((((uintptr_t)location & MASK16BIT) + bits) <= MASK16BIT)
 
 typedef HashSet<struct DataRace *, uintptr_t, 0, model_malloc, model_calloc, model_free, race_hash, race_equals> RaceSet;
 

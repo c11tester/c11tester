@@ -6,23 +6,28 @@
 #include "concretepredicate.h"
 
 #include "model.h"
+#include "execution.h"
+#include "newfuzzer.h"
 #include <cmath>
 
 FuncNode::FuncNode(ModelHistory * history) :
+	func_id(0),
+	func_name(NULL),
 	history(history),
-	exit_count(0),
+	inst_counter(1),
 	marker(1),
+	exit_count(0),
+	thrd_markers(),
+	thrd_recursion_depth(),
 	func_inst_map(),
 	inst_list(),
 	entry_insts(),
-	inst_pred_map(128),
-	inst_id_map(128),
-	loc_act_map(128),
-	predicate_tree_position(),
-	predicate_leaves(),
-	leaves_tmp_storage(),
-	weight_debug_vec(),
-	failed_predicates(),
+	thrd_inst_pred_maps(),
+	thrd_inst_id_maps(),
+	thrd_loc_inst_maps(),
+	likely_null_set(),
+	thrd_predicate_tree_position(),
+	thrd_predicate_trace(),
 	edge_table(32),
 	out_edges()
 {
@@ -33,7 +38,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 	predicate_tree_exit->set_depth(MAX_DEPTH);
 
 	/* Snapshot data structures below */
-	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	write_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0, snapshot_malloc, snapshot_calloc, snapshot_free, int64_hash>();
@@ -45,7 +49,6 @@ FuncNode::FuncNode(ModelHistory * history) :
 /* Reallocate snapshotted memories when new executions start */
 void FuncNode::set_new_exec_flag()
 {
-	action_list_buffer = new SnapList<action_list_t *>();
 	read_locations = new loc_set_t();
 	write_locations = new loc_set_t();
 	val_loc_map = new HashTable<uint64_t, loc_set_t *, uint64_t, 0, snapshot_malloc, snapshot_calloc, snapshot_free, int64_hash>();
@@ -152,7 +155,6 @@ FuncInst * FuncNode::get_inst(ModelAction *act)
 	}
 }
 
-
 void FuncNode::add_entry_inst(FuncInst * inst)
 {
 	if (inst == NULL)
@@ -167,68 +169,90 @@ void FuncNode::add_entry_inst(FuncInst * inst)
 	entry_insts.push_back(inst);
 }
 
+void FuncNode::function_entry_handler(thread_id_t tid)
+{
+	init_marker(tid);
+	init_local_maps(tid);
+	init_predicate_tree_data_structure(tid);
+}
+
+void FuncNode::function_exit_handler(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+
+	reset_local_maps(tid);
+
+	thrd_recursion_depth[thread_id]--;
+	thrd_markers[thread_id]->pop_back();
+
+	Predicate * exit_pred = get_predicate_tree_position(tid);
+	if (exit_pred->get_exit() == NULL) {
+		// Exit predicate is unset yet
+		exit_pred->set_exit(predicate_tree_exit);
+	}
+
+	update_predicate_tree_weight(tid);
+	reset_predicate_tree_data_structure(tid);
+
+	exit_count++;
+	//model_print("exit count: %d\n", exit_count);
+
+//	print_predicate_tree();
+}
+
 /**
  * @brief Convert ModelAdtion list to FuncInst list
  * @param act_list A list of ModelActions
  */
-void FuncNode::update_tree(action_list_t * act_list)
+void FuncNode::update_tree(ModelAction * act)
 {
-	if (act_list == NULL || act_list->size() == 0)
+	bool should_process = act->is_read() || act->is_write();
+	if (!should_process)
 		return;
 
 	HashTable<void *, value_set_t *, uintptr_t, 0> * write_history = history->getWriteHistory();
 
 	/* build inst_list from act_list for later processing */
-	func_inst_list_t inst_list;
-	action_list_t rw_act_list;
+//	func_inst_list_t inst_list;
 
-	for (sllnode<ModelAction *> * it = act_list->begin();it != NULL;it = it->getNext()) {
-		ModelAction * act = it->getVal();
-		FuncInst * func_inst = get_inst(act);
-		void * loc = act->get_location();
+	FuncInst * func_inst = get_inst(act);
+	void * loc = act->get_location();
 
-		if (func_inst == NULL)
-			continue;
+	if (func_inst == NULL)
+		return;
 
-		inst_list.push_back(func_inst);
-		bool act_added = false;
+//	inst_list.push_back(func_inst);
 
-		if (act->is_write()) {
-			rw_act_list.push_back(act);
-			act_added = true;
-			if (!write_locations->contains(loc)) {
-				write_locations->add(loc);
-				history->update_loc_wr_func_nodes_map(loc, this);
-			}
-		}
-
-		if (act->is_read()) {
-			if (!act_added)
-				rw_act_list.push_back(act);
-
-			/* If func_inst may only read_from a single location, then:
-			 *
-			 * The first time an action reads from some location,
-			 * import all the values that have been written to this
-			 * location from ModelHistory and notify ModelHistory
-			 * that this FuncNode may read from this location.
-			 */
-			if (!read_locations->contains(loc) && func_inst->is_single_location()) {
-				read_locations->add(loc);
-				value_set_t * write_values = write_history->get(loc);
-				add_to_val_loc_map(write_values, loc);
-				history->update_loc_rd_func_nodes_map(loc, this);
-			}
+	if (act->is_write()) {
+		if (!write_locations->contains(loc)) {
+			write_locations->add(loc);
+			history->update_loc_wr_func_nodes_map(loc, this);
 		}
 	}
 
-//	model_print("function %s\n", func_name);
-//	print_val_loc_map();
+	if (act->is_read()) {
+		/* If func_inst may only read_from a single location, then:
+		 *
+		 * The first time an action reads from some location,
+		 * import all the values that have been written to this
+		 * location from ModelHistory and notify ModelHistory
+		 * that this FuncNode may read from this location.
+		 */
+		if (!read_locations->contains(loc) && func_inst->is_single_location()) {
+			read_locations->add(loc);
+			value_set_t * write_values = write_history->get(loc);
+			add_to_val_loc_map(write_values, loc);
+			history->update_loc_rd_func_nodes_map(loc, this);
+		}
 
-	update_inst_tree(&inst_list);
-	update_predicate_tree(&rw_act_list);
+		// Keep a has-been-zero-set record
+		if ( likely_reads_from_null(act) )
+			likely_null_set.put(func_inst, true);
+	}
 
-//	print_predicate_tree();
+//	update_inst_tree(&inst_list); TODO
+
+	update_predicate_tree(act);
 }
 
 /**
@@ -264,35 +288,31 @@ void FuncNode::update_inst_tree(func_inst_list_t * inst_list)
 	}
 }
 
-void FuncNode::update_predicate_tree(action_list_t * act_list)
+void FuncNode::update_predicate_tree(ModelAction * next_act)
 {
-	if (act_list == NULL || act_list->size() == 0)
-		return;
+	thread_id_t tid = next_act->get_tid();
+	int thread_id = id_to_int(tid);
+	uint32_t this_marker = thrd_markers[thread_id]->back();
+	int recursion_depth = thrd_recursion_depth[thread_id];
 
-	incr_marker();
-	uint32_t inst_counter = 0;
+	loc_inst_map_t * loc_inst_map = thrd_loc_inst_maps[thread_id]->back();
+	inst_pred_map_t * inst_pred_map = thrd_inst_pred_maps[thread_id]->back();
+	inst_id_map_t * inst_id_map = thrd_inst_id_maps[thread_id]->back();
 
-	// Clear hashtables
-	loc_act_map.reset();
-	inst_pred_map.reset();
-	inst_id_map.reset();
+	Predicate * curr_pred = get_predicate_tree_position(tid);
+	NewFuzzer * fuzzer = (NewFuzzer *)model->get_execution()->getFuzzer();
+	Predicate * selected_branch = fuzzer->get_selected_child_branch(tid);
 
-	// Clear the set of leaves encountered in this path
-	leaves_tmp_storage.clear();
-
-	sllnode<ModelAction *> *it = act_list->begin();
-	Predicate * curr_pred = predicate_tree_entry;
-	while (it != NULL) {
-		ModelAction * next_act = it->getVal();
+	bool amended;
+	while (true) {
 		FuncInst * next_inst = get_inst(next_act);
-		next_inst->set_associated_act(next_act, marker);
 
 		Predicate * unset_predicate = NULL;
 		bool branch_found = follow_branch(&curr_pred, next_inst, next_act, &unset_predicate);
 
 		// A branch with unset predicate expression is detected
 		if (!branch_found && unset_predicate != NULL) {
-			bool amended = amend_predicate_expr(curr_pred, next_inst, next_act);
+			amended = amend_predicate_expr(curr_pred, next_inst, next_act);
 			if (amended)
 				continue;
 			else {
@@ -302,21 +322,19 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 		}
 
 		// Detect loops
-		if (!branch_found && inst_id_map.contains(next_inst)) {
+		if (!branch_found && inst_id_map->contains(next_inst)) {
 			FuncInst * curr_inst = curr_pred->get_func_inst();
-			uint32_t curr_id = inst_id_map.get(curr_inst);
-			uint32_t next_id = inst_id_map.get(next_inst);
+			uint32_t curr_id = inst_id_map->get(curr_inst);
+			uint32_t next_id = inst_id_map->get(next_inst);
 
 			if (curr_id >= next_id) {
-				Predicate * old_pred = inst_pred_map.get(next_inst);
+				Predicate * old_pred = inst_pred_map->get(next_inst);
 				Predicate * back_pred = old_pred->get_parent();
-
-				// For updating weights
-				leaves_tmp_storage.push_back(curr_pred);
 
 				// Add to the set of backedges
 				curr_pred->add_backedge(back_pred);
 				curr_pred = back_pred;
+
 				continue;
 			}
 		}
@@ -329,29 +347,34 @@ void FuncNode::update_predicate_tree(action_list_t * act_list)
 			continue;
 		}
 
-		if (next_act->is_write())
+		if (next_act->is_write()) {
 			curr_pred->set_write(true);
+		}
 
 		if (next_act->is_read()) {
 			/* Only need to store the locations of read actions */
-			loc_act_map.put(next_act->get_location(), next_act);
+			loc_inst_map->put(next_act->get_location(), next_inst);
 		}
 
-		inst_pred_map.put(next_inst, curr_pred);
-		if (!inst_id_map.contains(next_inst))
-			inst_id_map.put(next_inst, inst_counter++);
+		inst_pred_map->put(next_inst, curr_pred);
+		set_predicate_tree_position(tid, curr_pred);
 
-		it = it->getNext();
+		if (!inst_id_map->contains(next_inst))
+			inst_id_map->put(next_inst, inst_counter++);
+
 		curr_pred->incr_expl_count();
+		add_predicate_to_trace(tid, curr_pred);
+		if (next_act->is_read())
+			next_inst->set_associated_read(tid, recursion_depth, this_marker, next_act->get_reads_from_value());
+
+		break;
 	}
 
-	if (curr_pred->get_exit() == NULL) {
-		// Exit predicate is unset yet
-		curr_pred->set_exit(predicate_tree_exit);
+	// A check
+	if (next_act->is_read()) {
+//		if (selected_branch != NULL && !amended)
+//			ASSERT(selected_branch == curr_pred);
 	}
-
-	leaves_tmp_storage.push_back(curr_pred);
-	update_predicate_tree_weight();
 }
 
 /* Given curr_pred and next_inst, find the branch following curr_pred that
@@ -363,6 +386,8 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 {
 	/* Check if a branch with func_inst and corresponding predicate exists */
 	bool branch_found = false;
+	thread_id_t tid = next_act->get_tid();
+
 	ModelVector<Predicate *> * branches = (*curr_pred)->get_children();
 	for (uint i = 0;i < branches->size();i++) {
 		Predicate * branch = (*branches)[i];
@@ -376,6 +401,7 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 		/* Only read and rmw actions my have unset predicate expressions */
 		if (pred_expressions->getSize() == 0) {
 			predicate_correct = false;
+
 			if (*unset_predicate == NULL)
 				*unset_predicate = branch;
 			else
@@ -396,12 +422,13 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 				break;
 			case EQUALITY:
 				FuncInst * to_be_compared;
-				ModelAction * last_act;
-
 				to_be_compared = pred_expression->func_inst;
-				last_act = to_be_compared->get_associated_act(marker);
 
-				last_read = last_act->get_reads_from_value();
+				last_read = get_associated_read(tid, to_be_compared);
+				if (last_read == VALUE_NONE)
+					predicate_correct = false;
+				// ASSERT(last_read != VALUE_NONE);
+
 				next_read = next_act->get_reads_from_value();
 				equality = (last_read == next_read);
 				if (equality != pred_expression->value)
@@ -409,9 +436,8 @@ bool FuncNode::follow_branch(Predicate ** curr_pred, FuncInst * next_inst,
 
 				break;
 			case NULLITY:
-				next_read = next_act->get_reads_from_value();
 				// TODO: implement likely to be null
-				equality = ( (void*) (next_read & 0xffffffff) == NULL);
+				equality = likely_reads_from_null(next_act);
 				if (equality != pred_expression->value)
 					predicate_correct = false;
 				break;
@@ -439,12 +465,13 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 																SnapVector<struct half_pred_expr *> * half_pred_expressions)
 {
 	void * loc = next_act->get_location();
+	int thread_id = id_to_int(next_act->get_tid());
+	loc_inst_map_t * loc_inst_map = thrd_loc_inst_maps[thread_id]->back();
 
 	if (next_inst->is_read()) {
 		/* read + rmw */
-		if ( loc_act_map.contains(loc) ) {
-			ModelAction * last_act = loc_act_map.get(loc);
-			FuncInst * last_inst = get_inst(last_act);
+		if ( loc_inst_map->contains(loc) ) {
+			FuncInst * last_inst = loc_inst_map->get(loc);
 			struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
 			half_pred_expressions->push_back(expression);
 		} else if ( next_inst->is_single_location() ) {
@@ -454,9 +481,8 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 				loc_set_iter * loc_it = loc_may_equal->iterator();
 				while (loc_it->hasNext()) {
 					void * neighbor = loc_it->next();
-					if (loc_act_map.contains(neighbor)) {
-						ModelAction * last_act = loc_act_map.get(neighbor);
-						FuncInst * last_inst = get_inst(last_act);
+					if (loc_inst_map->contains(neighbor)) {
+						FuncInst * last_inst = loc_inst_map->get(neighbor);
 
 						struct half_pred_expr * expression = new half_pred_expr(EQUALITY, last_inst);
 						half_pred_expressions->push_back(expression);
@@ -465,15 +491,13 @@ void FuncNode::infer_predicates(FuncInst * next_inst, ModelAction * next_act,
 
 				delete loc_it;
 			}
-		} else {
-			// next_inst is not single location
-			uint64_t read_val = next_act->get_reads_from_value();
+		}
 
-			// only infer NULLITY predicate when it is actually NULL.
-			if ( (void*)read_val == NULL) {
-				struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
-				half_pred_expressions->push_back(expression);
-			}
+		// next_inst is not single location and has been null
+		bool likely_null = likely_null_set.contains(next_inst);
+		if ( !next_inst->is_single_location() && likely_null ) {
+			struct half_pred_expr * expression = new half_pred_expr(NULLITY, NULL);
+			half_pred_expressions->push_back(expression);
 		}
 	} else {
 		/* Pure writes */
@@ -489,10 +513,6 @@ void FuncNode::generate_predicates(Predicate * curr_pred, FuncInst * next_inst,
 		Predicate * new_pred = new Predicate(next_inst);
 		curr_pred->add_child(new_pred);
 		new_pred->set_parent(curr_pred);
-
-		/* Maintain predicate leaves */
-		predicate_leaves.add(new_pred);
-		predicate_leaves.remove(curr_pred);
 
 		/* entry predicates and predicates containing pure write actions
 		 * have no predicate expressions */
@@ -535,13 +555,7 @@ void FuncNode::generate_predicates(Predicate * curr_pred, FuncInst * next_inst,
 		Predicate * pred= predicates[i];
 		curr_pred->add_child(pred);
 		pred->set_parent(curr_pred);
-
-		/* Add new predicate leaves */
-		predicate_leaves.add(pred);
 	}
-
-	/* Remove predicate node that has children */
-	predicate_leaves.remove(curr_pred);
 
 	/* Free memories allocated by infer_predicate */
 	for (uint i = 0;i < half_pred_expressions->size();i++) {
@@ -564,10 +578,10 @@ bool FuncNode::amend_predicate_expr(Predicate * curr_pred, FuncInst * next_inst,
 		}
 	}
 
-	uint64_t read_val = next_act->get_reads_from_value();
+	bool likely_null = likely_null_set.contains(next_inst);
 
 	// only generate NULLITY predicate when it is actually NULL.
-	if ( !next_inst->is_single_location() && (void*)read_val == NULL ) {
+	if ( !next_inst->is_single_location() && likely_null ) {
 		Predicate * new_pred = new Predicate(next_inst);
 
 		curr_pred->add_child(new_pred);
@@ -640,71 +654,146 @@ void FuncNode::update_loc_may_equal_map(void * new_loc, loc_set_t * old_location
 	delete loc_it;
 }
 
-/* Every time a thread enters a function, set its position to the predicate tree entry */
-void FuncNode::init_predicate_tree_position(thread_id_t tid)
+bool FuncNode::likely_reads_from_null(ModelAction * read)
 {
-	int thread_id = id_to_int(tid);
-	if (predicate_tree_position.size() <= (uint) thread_id)
-		predicate_tree_position.resize(thread_id + 1);
+	uint64_t read_val = read->get_reads_from_value();
+	if ( (void *)(read_val && 0xffffffff) == NULL )
+		return true;
 
-	predicate_tree_position[thread_id] = predicate_tree_entry;
+	return false;
 }
 
 void FuncNode::set_predicate_tree_position(thread_id_t tid, Predicate * pred)
 {
 	int thread_id = id_to_int(tid);
-	predicate_tree_position[thread_id] = pred;
+	ModelVector<Predicate *> * stack = thrd_predicate_tree_position[thread_id];
+	(*stack)[stack->size() - 1] = pred;
 }
 
 /* @return The position of a thread in a predicate tree */
 Predicate * FuncNode::get_predicate_tree_position(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
-	return predicate_tree_position[thread_id];
+	return thrd_predicate_tree_position[thread_id]->back();
 }
 
-/* Make sure elements of thrd_inst_act_map are initialized properly when threads enter functions */
-void FuncNode::init_inst_act_map(thread_id_t tid)
+void FuncNode::add_predicate_to_trace(thread_id_t tid, Predicate * pred)
 {
 	int thread_id = id_to_int(tid);
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
-	uint old_size = thrd_inst_act_map->size();
+	thrd_predicate_trace[thread_id]->back()->push_back(pred);
+}
 
-	if (thrd_inst_act_map->size() <= (uint) thread_id) {
-		uint new_size = thread_id + 1;
-		thrd_inst_act_map->resize(new_size);
+void FuncNode::init_marker(thread_id_t tid)
+{
+	marker++;
 
-		for (uint i = old_size;i < new_size;i++)
-			(*thrd_inst_act_map)[i] = new inst_act_map_t(128);
+	int thread_id = id_to_int(tid);
+	int old_size = thrd_markers.size();
+
+	if (old_size < thread_id + 1) {
+		thrd_markers.resize(thread_id + 1);
+
+		for (int i = old_size; i < thread_id + 1; i++) {
+			thrd_markers[i] = new ModelVector<uint32_t>();
+			thrd_recursion_depth.push_back(-1);
+		}
+	}
+
+	thrd_markers[thread_id]->push_back(marker);
+	thrd_recursion_depth[thread_id]++;
+}
+
+uint64_t FuncNode::get_associated_read(thread_id_t tid, FuncInst * inst)
+{
+	int thread_id = id_to_int(tid);
+	int recursion_depth = thrd_recursion_depth[thread_id];
+	uint marker = thrd_markers[thread_id]->back();
+
+	return inst->get_associated_read(tid, recursion_depth, marker);
+}
+
+/* Make sure elements of maps are initialized properly when threads enter functions */
+void FuncNode::init_local_maps(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	int old_size = thrd_loc_inst_maps.size();
+
+	if (old_size < thread_id + 1) {
+		int new_size = thread_id + 1;
+
+		thrd_loc_inst_maps.resize(new_size);
+		thrd_inst_id_maps.resize(new_size);
+		thrd_inst_pred_maps.resize(new_size);
+
+		for (int i = old_size; i < new_size; i++) {
+			thrd_loc_inst_maps[i] = new ModelVector<loc_inst_map_t *>;
+			thrd_inst_id_maps[i] = new ModelVector<inst_id_map_t *>;
+			thrd_inst_pred_maps[i] = new ModelVector<inst_pred_map_t *>;
+		}
+	}
+
+	ModelVector<loc_inst_map_t *> * map = thrd_loc_inst_maps[thread_id];
+	int index = thrd_recursion_depth[thread_id];
+
+	// If there are recursive calls, push more hashtables into the vector.
+	if (map->size() < (uint) index + 1) {
+		thrd_loc_inst_maps[thread_id]->push_back(new loc_inst_map_t(64));
+		thrd_inst_id_maps[thread_id]->push_back(new inst_id_map_t(64));
+		thrd_inst_pred_maps[thread_id]->push_back(new inst_pred_map_t(64));
+	}
+
+	ASSERT(map->size() == (uint) index + 1);
+}
+
+/* Reset elements of maps when threads exit functions */
+void FuncNode::reset_local_maps(thread_id_t tid)
+{
+	int thread_id = id_to_int(tid);
+	int index = thrd_recursion_depth[thread_id];
+
+	// When recursive call ends, keep only one hashtable in the vector
+	if (index > 0) {
+		delete thrd_loc_inst_maps[thread_id]->back();
+		delete thrd_inst_id_maps[thread_id]->back();
+		delete thrd_inst_pred_maps[thread_id]->back();
+
+		thrd_loc_inst_maps[thread_id]->pop_back();
+		thrd_inst_id_maps[thread_id]->pop_back();
+		thrd_inst_pred_maps[thread_id]->pop_back();
+	} else {
+		thrd_loc_inst_maps[thread_id]->back()->reset();
+		thrd_inst_id_maps[thread_id]->back()->reset();
+		thrd_inst_pred_maps[thread_id]->back()->reset();
 	}
 }
 
-/* Reset elements of thrd_inst_act_map when threads exit functions */
-void FuncNode::reset_inst_act_map(thread_id_t tid)
+void FuncNode::init_predicate_tree_data_structure(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
+	int old_size = thrd_predicate_tree_position.size();
 
-	inst_act_map_t * map = (*thrd_inst_act_map)[thread_id];
-	map->reset();
+	if (old_size < thread_id + 1) {
+		thrd_predicate_tree_position.resize(thread_id + 1);
+		thrd_predicate_trace.resize(thread_id + 1);
+
+		for (int i = old_size; i < thread_id + 1; i++) {
+			thrd_predicate_tree_position[i] = new ModelVector<Predicate *>();
+			thrd_predicate_trace[i] = new ModelVector<predicate_trace_t *>();
+		}
+	}
+
+	thrd_predicate_tree_position[thread_id]->push_back(predicate_tree_entry);
+	thrd_predicate_trace[thread_id]->push_back(new predicate_trace_t());
 }
 
-void FuncNode::update_inst_act_map(thread_id_t tid, ModelAction * read_act)
+void FuncNode::reset_predicate_tree_data_structure(thread_id_t tid)
 {
 	int thread_id = id_to_int(tid);
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
+	thrd_predicate_tree_position[thread_id]->pop_back();
 
-	inst_act_map_t * map = (*thrd_inst_act_map)[thread_id];
-	FuncInst * read_inst = get_inst(read_act);
-	map->put(read_inst, read_act);
-}
-
-inst_act_map_t * FuncNode::get_inst_act_map(thread_id_t tid)
-{
-	int thread_id = id_to_int(tid);
-	SnapVector<inst_act_map_t *> * thrd_inst_act_map = history->getThrdInstActMap(func_id);
-
-	return (*thrd_inst_act_map)[thread_id];
+	// Free memories allocated in init_predicate_tree_data_structure
+	delete thrd_predicate_trace[thread_id]->back();
+	thrd_predicate_trace[thread_id]->pop_back();
 }
 
 /* Add FuncNodes that this node may follow */
@@ -734,6 +823,7 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	else if (target == this)
 		return 0;
 
+	// Be careful with memory
 	SnapList<FuncNode *> queue;
 	HashTable<FuncNode *, int, uintptr_t, 0> distances(128);
 
@@ -768,169 +858,30 @@ int FuncNode::compute_distance(FuncNode * target, int max_step)
 	return -1;
 }
 
-void FuncNode::add_failed_predicate(Predicate * pred)
+void FuncNode::update_predicate_tree_weight(thread_id_t tid)
 {
-	failed_predicates.add(pred);
-}
+	predicate_trace_t * trace = thrd_predicate_trace[id_to_int(tid)]->back();
 
-/* Implement quick sort to sort leaves before assigning base scores */
-template<typename _Tp>
-static int partition(ModelVector<_Tp *> * arr, int low, int high)
-{
-	unsigned int pivot = (*arr)[high] -> get_depth();
-	int i = low - 1;
+	// Update predicate weights based on prediate trace
+	for (int i = trace->size() - 1; i >= 0; i--) {
+		Predicate * node = (*trace)[i];
+		ModelVector<Predicate *> * children = node->get_children();
 
-	for (int j = low;j <= high - 1;j ++) {
-		if ( (*arr)[j] -> get_depth() < pivot ) {
-			i ++;
-			_Tp * tmp = (*arr)[i];
-			(*arr)[i] = (*arr)[j];
-			(*arr)[j] = tmp;
-		}
-	}
-
-	_Tp * tmp = (*arr)[i + 1];
-	(*arr)[i + 1] = (*arr)[high];
-	(*arr)[high] = tmp;
-
-	return i + 1;
-}
-
-/* Implement quick sort to sort leaves before assigning base scores */
-template<typename _Tp>
-static void quickSort(ModelVector<_Tp *> * arr, int low, int high)
-{
-	if (low < high) {
-		int pi = partition(arr, low, high);
-
-		quickSort(arr, low, pi - 1);
-		quickSort(arr, pi + 1, high);
-	}
-}
-
-void FuncNode::assign_initial_weight()
-{
-	PredSetIter * it = predicate_leaves.iterator();
-	leaves_tmp_storage.clear();
-
-	while (it->hasNext()) {
-		Predicate * pred = it->next();
-		double weight = 100.0 / sqrt(pred->get_expl_count() + pred->get_fail_count() + 1);
-		pred->set_weight(weight);
-		leaves_tmp_storage.push_back(pred);
-	}
-	delete it;
-
-	quickSort(&leaves_tmp_storage, 0, leaves_tmp_storage.size() - 1);
-
-	// assign scores for internal nodes;
-	while ( !leaves_tmp_storage.empty() ) {
-		Predicate * leaf = leaves_tmp_storage.back();
-		leaves_tmp_storage.pop_back();
-
-		Predicate * curr = leaf->get_parent();
-		while (curr != NULL) {
-			if (curr->get_weight() != 0) {
-				// Has been exlpored
-				break;
-			}
-
-			ModelVector<Predicate *> * children = curr->get_children();
-			double weight_sum = 0;
-			bool has_unassigned_node = false;
-
+		if (children->size() == 0) {
+			double weight = 100.0 / sqrt(node->get_expl_count() + node->get_fail_count() + 1);
+			node->set_weight(weight);
+		} else {
+			double weight_sum = 0.0;
 			for (uint i = 0;i < children->size();i++) {
 				Predicate * child = (*children)[i];
-
-				// If a child has unassigned weight
 				double weight = child->get_weight();
-				if (weight == 0) {
-					has_unassigned_node = true;
-					break;
-				} else
-					weight_sum += weight;
+				weight_sum += weight;
 			}
 
-			if (!has_unassigned_node) {
-				double average_weight = (double) weight_sum / (double) children->size();
-				double weight = average_weight * pow(0.9, curr->get_depth());
-				curr->set_weight(weight);
-			} else
-				break;
-
-			curr = curr->get_parent();
+			double average_weight = (double) weight_sum / (double) children->size();
+			double weight = average_weight * pow(0.9, node->get_depth());
+			node->set_weight(weight);
 		}
-	}
-}
-
-void FuncNode::update_predicate_tree_weight()
-{
-	if (marker == 2) {
-		// Predicate tree is initially built
-		assign_initial_weight();
-		return;
-	}
-
-	weight_debug_vec.clear();
-
-	PredSetIter * it = failed_predicates.iterator();
-	while (it->hasNext()) {
-		Predicate * pred = it->next();
-		leaves_tmp_storage.push_back(pred);
-	}
-	delete it;
-	failed_predicates.reset();
-
-	quickSort(&leaves_tmp_storage, 0, leaves_tmp_storage.size() - 1);
-	for (uint i = 0;i < leaves_tmp_storage.size();i++) {
-		Predicate * pred = leaves_tmp_storage[i];
-		double weight = 100.0 / sqrt(pred->get_expl_count() + pred->get_fail_count() + 1);
-		pred->set_weight(weight);
-	}
-
-	// Update weights in internal nodes
-	while ( !leaves_tmp_storage.empty() ) {
-		Predicate * leaf = leaves_tmp_storage.back();
-		leaves_tmp_storage.pop_back();
-
-		Predicate * curr = leaf->get_parent();
-		while (curr != NULL) {
-			ModelVector<Predicate *> * children = curr->get_children();
-			double weight_sum = 0;
-			bool has_unassigned_node = false;
-
-			for (uint i = 0;i < children->size();i++) {
-				Predicate * child = (*children)[i];
-
-				double weight = child->get_weight();
-				if (weight != 0)
-					weight_sum += weight;
-				else if ( predicate_leaves.contains(child) ) {
-					// If this child is a leaf
-					double weight = 100.0 / sqrt(child->get_expl_count() + 1);
-					child->set_weight(weight);
-					weight_sum += weight;
-				} else {
-					has_unassigned_node = true;
-					weight_debug_vec.push_back(child);	// For debugging purpose
-					break;
-				}
-			}
-
-			if (!has_unassigned_node) {
-				double average_weight = (double) weight_sum / (double) children->size();
-				double weight = average_weight * pow(0.9, curr->get_depth());
-				curr->set_weight(weight);
-			} else
-				break;
-
-			curr = curr->get_parent();
-		}
-	}
-
-	for (uint i = 0;i < weight_debug_vec.size();i++) {
-		Predicate * tmp = weight_debug_vec[i];
-		ASSERT( tmp->get_weight() != 0 );
 	}
 }
 

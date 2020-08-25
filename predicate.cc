@@ -8,7 +8,7 @@ Predicate::Predicate(FuncInst * func_inst, bool is_entry, bool is_exit) :
 	exit_predicate(is_exit),
 	does_write(false),
 	depth(0),
-	weight(0),
+	weight(100),
 	exploration_count(0),
 	store_visible_count(0),
 	total_checking_count(0),
@@ -80,27 +80,10 @@ void Predicate::copy_predicate_expr(Predicate * other)
 	delete it;
 }
 
-/* Follow the child if any child whose FuncInst matches with inst
- *
- * @param inst must be an ATOMIC_WRITE FuncInst
- * @return NULL if no such child is found.
- */
-Predicate * Predicate::follow_write_child(FuncInst * inst)
-{
-	ASSERT(inst->get_type() == ATOMIC_WRITE);
-
-	for (uint i = 0;i < children.size();i++) {
-		Predicate * child = children[i];
-		if (child->get_func_inst() == inst)
-			return child;
-	}
-
-	return NULL;
-}
-
 /* Evaluate predicate expressions against the given inst_act_map */
-ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id_t tid)
+ConcretePredicate * Predicate::evaluate(thread_id_t tid)
 {
+	/*
 	ConcretePredicate * concrete = new ConcretePredicate(tid);
 	PredExprSetIter * it = pred_expressions.iterator();
 
@@ -130,6 +113,9 @@ ConcretePredicate * Predicate::evaluate(inst_act_map_t * inst_act_map, thread_id
 
 	delete it;
 	return concrete;
+	*/
+
+	return NULL;
 }
 
 void Predicate::print_predicate()

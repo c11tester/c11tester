@@ -102,6 +102,9 @@ public:
 
 	bool is_model_thread() const { return model_thread; }
 
+	void * get_stack_addr() { return stack; }
+	ClockVector * get_acq_fence_cv() { return acq_fence_cv; }
+
 	friend void thread_startup();
 #ifdef TLS
 	friend void setup_context();
@@ -136,6 +139,9 @@ private:
 	/** @brief The parent Thread which created this Thread */
 	Thread * const parent;
 
+	/** @brief Acquire fence cv */
+	ClockVector *acq_fence_cv;
+
 	/** @brief The THREAD_CREATE ModelAction which created this Thread */
 	ModelAction *creation;
 
@@ -157,6 +163,7 @@ private:
 	void *arg;
 	ucontext_t context;
 	void *stack;
+	uint32_t stack_size;
 #ifdef TLS
 	void * helper_stack;
 public:
