@@ -33,7 +33,8 @@ typedef enum thread_state {
 	 */
 	THREAD_BLOCKED,
 	/** Thread has completed its execution */
-	THREAD_COMPLETED
+	THREAD_COMPLETED,
+	THREAD_FREED
 } thread_state;
 
 
@@ -81,7 +82,10 @@ public:
 	void * get_pthread_return() { return pthread_return; }
 
 	/** @return True if this thread is finished executing */
-	bool is_complete() const { return state == THREAD_COMPLETED; }
+	bool is_complete() const { return state == THREAD_COMPLETED || state == THREAD_FREED; }
+
+	/** @return True if this thread has finished and its resources have been freed */
+	bool is_freed() const { return state == THREAD_FREED; }
 
 	/** @return True if this thread is blocked */
 	bool is_blocked() const { return state == THREAD_BLOCKED; }

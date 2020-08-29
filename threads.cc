@@ -357,12 +357,12 @@ void Thread::freeResources() {
 		stack_free(stack);
 #ifdef TLS
 	if (this != model->getInitThread()) {
-		ASSERT(thread_current()==NULL);
 		real_pthread_mutex_unlock(&mutex2);
 		real_pthread_join(thread, NULL);
 		stack_free(helper_stack);
 	}
 #endif
+	state = THREAD_FREED;
 }
 
 /**
@@ -378,6 +378,7 @@ Thread::Thread(thread_id_t tid) :
 	acq_fence_cv(new ClockVector()),
 	creation(NULL),
 	pending(NULL),
+	wakeup_state(false),
 	start_routine(NULL),
 	arg(NULL),
 	stack(NULL),
@@ -404,6 +405,7 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void (*func)(void *), void *a, Thread
 	acq_fence_cv(new ClockVector()),
 	creation(NULL),
 	pending(NULL),
+	wakeup_state(false),
 	start_routine(func),
 	pstart_routine(NULL),
 	arg(a),
@@ -437,6 +439,7 @@ Thread::Thread(thread_id_t tid, thrd_t *t, void *(*func)(void *), void *a, Threa
 	acq_fence_cv(new ClockVector()),
 	creation(NULL),
 	pending(NULL),
+	wakeup_state(false),
 	start_routine(NULL),
 	pstart_routine(func),
 	arg(a),

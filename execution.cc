@@ -1819,7 +1819,7 @@ ClockVector * ModelExecution::computeMinimalCV() {
 	//Thread 0 isn't a real thread, so skip it..
 	for(unsigned int i = 1;i < thread_map.size();i++) {
 		Thread * t = thread_map[i];
-		if (t->get_state() == THREAD_COMPLETED)
+		if (t->is_complete())
 			continue;
 		thread_id_t tid = int_to_id(i);
 		ClockVector * cv = get_cv(tid);

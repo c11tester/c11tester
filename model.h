@@ -79,7 +79,7 @@ private:
 	void finishRunExecution(Thread *old);
 	void consumeAction();
 	void chooseThread(ModelAction *act, Thread *thr);
-	Thread * getNextThread();
+	Thread * getNextThread(Thread *old);
 	void handleChosenThread(Thread *old);
 
 	modelclock_t checkfree;

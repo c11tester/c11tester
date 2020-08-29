@@ -332,7 +332,7 @@ void ModelChecker::startRunExecution(Thread *old) {
 		thread_chosen = false;
 		curr_thread_num = 1;
 
-		Thread *thr = getNextThread();
+		Thread *thr = getNextThread(old);
 		if (thr != nullptr) {
 			scheduler->set_current_thread(thr);
 
@@ -371,17 +371,21 @@ void ModelChecker::startRunExecution(Thread *old) {
 	}
 }
 
-Thread* ModelChecker::getNextThread()
+Thread* ModelChecker::getNextThread(Thread *old)
 {
 	Thread *nextThread = nullptr;
 	for (unsigned int i = curr_thread_num;i < get_num_threads();i++) {
 		thread_id_t tid = int_to_id(i);
 		Thread *thr = get_thread(tid);
 
-		if (!thr->is_complete() && !thr->get_pending()) {
-			curr_thread_num = i;
-			nextThread = thr;
-			break;
+		if (!thr->is_complete()) {
+			if (!thr->get_pending()) {
+				curr_thread_num = i;
+				nextThread = thr;
+				break;
+			}
+		} else if (thr != old && !thr->is_freed()) {
+			thr->freeResources();
 		}
 
 		/* Don't schedule threads which should be disabled */
@@ -481,7 +485,7 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	chooseThread(act, old);
 
 	curr_thread_num++;
-	Thread* next = getNextThread();
+	Thread* next = getNextThread(old);
 	if (next != nullptr) {
 		scheduler->set_current_thread(next);
 		if (Thread::swap(old, next) < 0) {
