@@ -46,6 +46,7 @@ public:
 
 	~Thread();
 	void complete();
+	void freeResources();
 
 	static int swap(ucontext_t *ctxt, Thread *t);
 	static int swap(Thread *t, ucontext_t *ctxt);

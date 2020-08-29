@@ -693,7 +693,7 @@ void FuncNode::init_marker(thread_id_t tid)
 	if (old_size < thread_id + 1) {
 		thrd_markers.resize(thread_id + 1);
 
-		for (int i = old_size; i < thread_id + 1; i++) {
+		for (int i = old_size;i < thread_id + 1;i++) {
 			thrd_markers[i] = new ModelVector<uint32_t>();
 			thrd_recursion_depth.push_back(-1);
 		}
@@ -725,7 +725,7 @@ void FuncNode::init_local_maps(thread_id_t tid)
 		thrd_inst_id_maps.resize(new_size);
 		thrd_inst_pred_maps.resize(new_size);
 
-		for (int i = old_size; i < new_size; i++) {
+		for (int i = old_size;i < new_size;i++) {
 			thrd_loc_inst_maps[i] = new ModelVector<loc_inst_map_t *>;
 			thrd_inst_id_maps[i] = new ModelVector<inst_id_map_t *>;
 			thrd_inst_pred_maps[i] = new ModelVector<inst_pred_map_t *>;
@@ -776,7 +776,7 @@ void FuncNode::init_predicate_tree_data_structure(thread_id_t tid)
 		thrd_predicate_tree_position.resize(thread_id + 1);
 		thrd_predicate_trace.resize(thread_id + 1);
 
-		for (int i = old_size; i < thread_id + 1; i++) {
+		for (int i = old_size;i < thread_id + 1;i++) {
 			thrd_predicate_tree_position[i] = new ModelVector<Predicate *>();
 			thrd_predicate_trace[i] = new ModelVector<predicate_trace_t *>();
 		}
@@ -863,7 +863,7 @@ void FuncNode::update_predicate_tree_weight(thread_id_t tid)
 	predicate_trace_t * trace = thrd_predicate_trace[id_to_int(tid)]->back();
 
 	// Update predicate weights based on prediate trace
-	for (int i = trace->size() - 1; i >= 0; i--) {
+	for (int i = trace->size() - 1;i >= 0;i--) {
 		Predicate * node = (*trace)[i];
 		ModelVector<Predicate *> * children = node->get_children();
 

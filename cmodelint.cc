@@ -25,17 +25,17 @@ static void ensureModel() {
 
 /** Performs a read action.*/
 uint64_t model_read_action(void * obj, memory_order ord) {
-	return model->switch_to_master(new ModelAction(ATOMIC_READ, ord, obj));
+	return model->switch_thread(new ModelAction(ATOMIC_READ, ord, obj));
 }
 
 /** Performs a write action.*/
 void model_write_action(void * obj, memory_order ord, uint64_t val) {
-	model->switch_to_master(new ModelAction(ATOMIC_WRITE, ord, obj, val));
+	model->switch_thread(new ModelAction(ATOMIC_WRITE, ord, obj, val));
 }
 
 /** Performs an init action. */
 void model_init_action(void * obj, uint64_t val) {
-	model->switch_to_master(new ModelAction(ATOMIC_INIT, memory_order_relaxed, obj, val));
+	model->switch_thread(new ModelAction(ATOMIC_INIT, memory_order_relaxed, obj, val));
 }
 
 /**
@@ -44,7 +44,7 @@ void model_init_action(void * obj, uint64_t val) {
  * a write.
  */
 uint64_t model_rmwr_action(void *obj, memory_order ord) {
-	return model->switch_to_master(new ModelAction(ATOMIC_RMWR, ord, obj));
+	return model->switch_thread(new ModelAction(ATOMIC_RMWR, ord, obj));
 }
 
 /**
@@ -53,23 +53,23 @@ uint64_t model_rmwr_action(void *obj, memory_order ord) {
  * of the RMW action w/o a write.
  */
 uint64_t model_rmwrcas_action(void *obj, memory_order ord, uint64_t oldval, int size) {
-	return model->switch_to_master(new ModelAction(ATOMIC_RMWRCAS, ord, obj, oldval, size));
+	return model->switch_thread(new ModelAction(ATOMIC_RMWRCAS, ord, obj, oldval, size));
 }
 
 
 /** Performs the write part of a RMW action. */
 void model_rmw_action(void *obj, memory_order ord, uint64_t val) {
-	model->switch_to_master(new ModelAction(ATOMIC_RMW, ord, obj, val));
+	model->switch_thread(new ModelAction(ATOMIC_RMW, ord, obj, val));
 }
 
 /** Closes out a RMW action without doing a write. */
 void model_rmwc_action(void *obj, memory_order ord) {
-	model->switch_to_master(new ModelAction(ATOMIC_RMWC, ord, obj));
+	model->switch_thread(new ModelAction(ATOMIC_RMWC, ord, obj));
 }
 
 /** Issues a fence operation. */
 void model_fence_action(memory_order ord) {
-	model->switch_to_master(new ModelAction(ATOMIC_FENCE, ord, FENCE_LOCATION));
+	model->switch_thread(new ModelAction(ATOMIC_FENCE, ord, FENCE_LOCATION));
 }
 
 /* ---  helper functions --- */

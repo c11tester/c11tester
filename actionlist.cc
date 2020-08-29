@@ -253,7 +253,7 @@ bool actionlist::isEmpty() {
  */
 void actionlist::fixupParent()
 {
-	for (int i = 0; i < ALLNODESIZE; i++) {
+	for (int i = 0;i < ALLNODESIZE;i++) {
 		allnode * child = root.children[i];
 		if (child != NULL && child->parent != &root)
 			child->parent = &root;

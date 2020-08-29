@@ -310,27 +310,27 @@ bool NewFuzzer::prune_writes(thread_id_t tid, Predicate * pred, SnapVector<Model
 void NewFuzzer::conditional_sleep(Thread * thread)
 {
 /*
-	int index = paused_thread_list.size();
+        int index = paused_thread_list.size();
 
-	model->getScheduler()->add_sleep(thread);
-	paused_thread_list.push_back(thread);
-	paused_thread_table.put(thread, index);	// Update table
+        model->getScheduler()->add_sleep(thread);
+        paused_thread_list.push_back(thread);
+        paused_thread_table.put(thread, index);	// Update table
 
-	// Add the waiting condition to ModelHistory
-	ModelAction * read = thread->get_pending();
-	thread_id_t tid = thread->get_id();
-	FuncNode * func_node = history->get_curr_func_node(tid);
-//	inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
+        // Add the waiting condition to ModelHistory
+        ModelAction * read = thread->get_pending();
+        thread_id_t tid = thread->get_id();
+        FuncNode * func_node = history->get_curr_func_node(tid);
+   //	inst_act_map_t * inst_act_map = func_node->get_inst_act_map(tid);
 
-	Predicate * selected_branch = get_selected_child_branch(tid);
-//	ConcretePredicate * concrete = selected_branch->evaluate(inst_act_map, tid);
-	concrete->set_location(read->get_location());
+        Predicate * selected_branch = get_selected_child_branch(tid);
+   //	ConcretePredicate * concrete = selected_branch->evaluate(inst_act_map, tid);
+        concrete->set_location(read->get_location());
 
-	ASSERT(false);
+        ASSERT(false);
 
-//	history->add_waiting_write(concrete);
-	// history->add_waiting_thread is already called in find_threads
-*/
+   //	history->add_waiting_write(concrete);
+        // history->add_waiting_thread is already called in find_threads
+ */
 }
 
 bool NewFuzzer::has_paused_threads()

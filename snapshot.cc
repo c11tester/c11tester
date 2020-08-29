@@ -64,7 +64,6 @@ ucontext_t shared_ctxt;
  *   snapshotid. it is incremented and set in a persistently shared record
  */
 static ucontext_t private_ctxt;
-static ucontext_t exit_ctxt;
 static snapshot_id snapshotid = 0;
 
 /**
@@ -170,13 +169,7 @@ static void fork_loop() {
 	}
 }
 
-static void fork_startExecution(ucontext_t *context, VoidFuncPtr entryPoint) {
-	/* setup an "exiting" context */
-	int exit_stack_size = 256;
-	create_context(&exit_ctxt, snapshot_calloc(exit_stack_size, 1), exit_stack_size, fork_exit);
-
-	/* setup the system context */
-	create_context(context, fork_snap->mStackBase, STACK_SIZE_DEFAULT, entryPoint);
+static void fork_startExecution() {
 	/* switch to a new entryPoint context, on a new stack */
 	create_context(&private_ctxt, snapshot_calloc(STACK_SIZE_DEFAULT, 1), STACK_SIZE_DEFAULT, fork_loop);
 }
@@ -184,6 +177,7 @@ static void fork_startExecution(ucontext_t *context, VoidFuncPtr entryPoint) {
 static snapshot_id fork_take_snapshot() {
 	model_swapcontext(&shared_ctxt, &private_ctxt);
 	DEBUG("TAKESNAPSHOT RETURN\n");
+	fork_snap->mIDToRollback = -1;
 	return snapshotid;
 }
 
@@ -191,8 +185,7 @@ static void fork_roll_back(snapshot_id theID)
 {
 	DEBUG("Rollback\n");
 	fork_snap->mIDToRollback = theID;
-	model_swapcontext(model->get_system_context(), &exit_ctxt);
-	fork_snap->mIDToRollback = -1;
+	fork_exit();
 }
 
 /**
@@ -206,9 +199,8 @@ void snapshot_system_init(unsigned int numbackingpages,
 	fork_snapshot_init(numbackingpages, numsnapshots, nummemoryregions, numheappages);
 }
 
-void startExecution(ucontext_t *context, VoidFuncPtr entryPoint)
-{
-	fork_startExecution(context, entryPoint);
+void startExecution() {
+	fork_startExecution();
 }
 
 /** Takes a snapshot of memory.

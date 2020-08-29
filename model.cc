@@ -188,7 +188,7 @@ void ModelChecker::assert_user_bug(const char *msg)
 {
 	/* If feasible bug, bail out now */
 	assert_bug(msg);
-	switch_to_master(NULL);
+	switch_thread(NULL);
 }
 
 /** @brief Print bug report listing for this execution (if any bugs exist) */
@@ -288,12 +288,11 @@ void ModelChecker::finish_execution(bool more_executions)
 	else
 		clear_program_output();
 
-// test code
 	execution_number ++;
+	history->set_new_exec_flag();
+
 	if (more_executions)
 		reset_to_initial_state();
-
-	history->set_new_exec_flag();
 }
 
 /** @brief Run trace analyses on complete trace */
@@ -322,61 +321,7 @@ Thread * ModelChecker::get_thread(const ModelAction *act) const
 	return execution->get_thread(act);
 }
 
-/**
- * Switch from a model-checker context to a user-thread context. This is the
- * complement of ModelChecker::switch_to_master and must be called from the
- * model-checker context
- *
- * @param thread The user-thread to switch to
- */
-void ModelChecker::switch_from_master(Thread *thread)
-{
-	scheduler->set_current_thread(thread);
-	Thread::swap(&system_context, thread);
-}
-
-/**
- * Switch from a user-context to the "master thread" context (a.k.a. system
- * context). This switch is made with the intention of exploring a particular
- * model-checking action (described by a ModelAction object). Must be called
- * from a user-thread context.
- *
- * @param act The current action that will be explored. May be NULL only if
- * trace is exiting via an assertion (see ModelExecution::set_assert and
- * ModelExecution::has_asserted).
- * @return Return the value returned by the current action
- */
-uint64_t ModelChecker::switch_to_master(ModelAction *act)
-{
-	if (modellock) {
-		static bool fork_message_printed = false;
-
-		if (!fork_message_printed) {
-			model_print("Fork handler or dead thread trying to call into model checker...\n");
-			fork_message_printed = true;
-		}
-		delete act;
-		return 0;
-	}
-	DBG();
-	Thread *old = thread_current();
-	scheduler->set_current_thread(NULL);
-	ASSERT(!old->get_pending());
-
-	if (inspect_plugin != NULL) {
-		inspect_plugin->inspectModelAction(act);
-	}
-
-	old->set_pending(act);
-	if (Thread::swap(old, &system_context) < 0) {
-		perror("swap threads");
-		exit(EXIT_FAILURE);
-	}
-	return old->get_return_value();
-}
-
-void ModelChecker::startRunExecution(Thread *old) 
-{
+void ModelChecker::startRunExecution(Thread *old) {
 	while (true) {
 		if (params.traceminsize != 0 &&
 				execution->get_curr_seq_num() > checkfree) {
@@ -391,14 +336,11 @@ void ModelChecker::startRunExecution(Thread *old)
 		if (thr != nullptr) {
 			scheduler->set_current_thread(thr);
 
-			if (old == thr)
-				return;
-
 			if (Thread::swap(old, thr) < 0) {
 				perror("swap threads");
 				exit(EXIT_FAILURE);
 			}
-			continue;
+			return;
 		}
 
 		if (execution->has_asserted()) {
@@ -432,7 +374,7 @@ void ModelChecker::startRunExecution(Thread *old)
 Thread* ModelChecker::getNextThread()
 {
 	Thread *nextThread = nullptr;
-	for (unsigned int i = curr_thread_num; i < get_num_threads(); i++) {
+	for (unsigned int i = curr_thread_num;i < get_num_threads();i++) {
 		thread_id_t tid = int_to_id(i);
 		Thread *thr = get_thread(tid);
 
@@ -453,31 +395,37 @@ Thread* ModelChecker::getNextThread()
 }
 
 /* Swap back to system_context and terminate this execution */
-void ModelChecker::finishRunExecution(Thread *old) 
+void ModelChecker::finishRunExecution(Thread *old)
 {
 	scheduler->set_current_thread(NULL);
-	if (Thread::swap(old, &system_context) < 0) {
-		perror("swap threads");
-		exit(EXIT_FAILURE);
-	}
-	break_execution = true;
+
+	/** If we have more executions, we won't make it past this call. */
+	finish_execution(execution_number < params.maxexecutions);
+
+
+	/** We finished the final execution.  Print stuff and exit. */
+	model_print("******* Model-checking complete: *******\n");
+	print_stats();
+
+	/* Have the trace analyses dump their output. */
+	for (unsigned int i = 0;i < trace_analyses.size();i++)
+		trace_analyses[i]->finish();
+
+	/* unlink tmp file created by last child process */
+	char filename[256];
+	snprintf_(filename, sizeof(filename), "C11FuzzerTmp%d", getpid());
+	unlink(filename);
+
+	/* Exit. */
+	_Exit(0);
 }
 
 void ModelChecker::consumeAction()
 {
 	ModelAction *curr = chosen_thread->get_pending();
 	Thread * th = thread_current();
-	if (curr->get_type() == THREAD_FINISH && th != NULL)  {
-		// Thread finish must be consumed in the master context
-		scheduler->set_current_thread(NULL);
-		if (Thread::swap(th, &system_context) < 0) {
-			perror("swap threads");
-			exit(EXIT_FAILURE);
-		}
-	} else {
-		chosen_thread->set_pending(NULL);
-		chosen_thread = execution->take_step(curr);
-	}
+	chosen_thread->set_pending(NULL);
+	chosen_thread = execution->take_step(curr);
 }
 
 /* Allow pending relaxed/release stores or thread actions to perform first */
@@ -492,9 +440,9 @@ void ModelChecker::chooseThread(ModelAction *act, Thread *thr)
 				thread_chosen = true;
 			}
 		} else if (act->get_type() == THREAD_CREATE || \
-							act->get_type() == PTHREAD_CREATE || \
-							act->get_type() == THREAD_START || \
-							act->get_type() == THREAD_FINISH) {
+							 act->get_type() == PTHREAD_CREATE || \
+							 act->get_type() == THREAD_START || \
+							 act->get_type() == THREAD_FINISH) {
 			chosen_thread = thr;
 			thread_chosen = true;
 		}
@@ -522,7 +470,7 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	}
 
 	old->set_pending(act);
-	
+
 	if (old->is_waiting_on(old))
 		assert_bug("Deadlock detected (thread %u)", curr_thread_num);
 
@@ -576,14 +524,15 @@ void ModelChecker::handleChosenThread(Thread *old)
 		startRunExecution(old);
 }
 
-static void runChecker() {
-	model->run();
-	delete model;
-}
-
 void ModelChecker::startChecker() {
-	startExecution(get_system_context(), runChecker);
+	startExecution();
+	//Need to initial random number generator state to avoid resets on rollback
+	initstate(423121, random_state, sizeof(random_state));
+
 	snapshot = take_snapshot();
+
+	//reset random number generator state
+	setstate(random_state);
 
 	install_trace_analyses(get_execution());
 	redirect_output();
@@ -599,68 +548,4 @@ bool ModelChecker::should_terminate_execution()
 		return true;
 	}
 	return false;
-}
-
-/** @brief Run ModelChecker for the user program */
-void ModelChecker::run()
-{
-	//Need to initial random number generator state to avoid resets on rollback
-	char random_state[256];
-	initstate(423121, random_state, sizeof(random_state));
-	checkfree = params.checkthreshold;
-	for(int exec = 0;exec < params.maxexecutions;exec++) {
-		chosen_thread = init_thread;
-		break_execution = false;
-		do {
-			if (params.traceminsize != 0 &&
-					execution->get_curr_seq_num() > checkfree) {
-				checkfree += params.checkthreshold;
-				execution->collectActions();
-			}
-
-			thread_chosen = false;
-			curr_thread_num = 1;
-			Thread *thr = getNextThread();
-			if (thr != nullptr) {
-				switch_from_master(thr);
-				continue;
-			}
-
-			if (break_execution)
-				break;
-			if (execution->has_asserted())
-				break;
-			if (!chosen_thread)
-				chosen_thread = get_next_thread();
-			if (!chosen_thread || chosen_thread->is_model_thread())
-				break;
-			if (chosen_thread->just_woken_up()) {
-				chosen_thread->set_wakeup_state(false);
-				chosen_thread->set_pending(NULL);
-				chosen_thread = NULL;
-				continue;
-			}
-
-			/* Consume the next action for a Thread */
-			ModelAction *curr = chosen_thread->get_pending();
-			chosen_thread->set_pending(NULL);
-			chosen_thread = execution->take_step(curr);
-		} while (!should_terminate_execution());
-
-		finish_execution((exec+1) < params.maxexecutions);
-		//restore random number generator state after rollback
-		setstate(random_state);
-	}
-
-	model_print("******* Model-checking complete: *******\n");
-	print_stats();
-
-	/* Have the trace analyses dump their output. */
-	for (unsigned int i = 0;i < trace_analyses.size();i++)
-		trace_analyses[i]->finish();
-
-	/* unlink tmp file created by last child process */
-	char filename[256];
-	snprintf_(filename, sizeof(filename), "C11FuzzerTmp%d", getpid());
-	unlink(filename);
 }

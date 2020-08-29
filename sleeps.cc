@@ -50,7 +50,7 @@ int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 		struct timespec currtime;
 		clock_gettime(CLOCK_MONOTONIC, &currtime);
 		uint64_t lcurrtime = currtime.tv_sec * 1000000000 + currtime.tv_nsec;
-		model->switch_to_master(new ModelAction(THREAD_SLEEP, std::memory_order_seq_cst, time, lcurrtime));
+		model->switch_thread(new ModelAction(THREAD_SLEEP, std::memory_order_seq_cst, time, lcurrtime));
 		if (rmtp != NULL) {
 			clock_gettime(CLOCK_MONOTONIC, &currtime);
 			uint64_t lendtime = currtime.tv_sec * 1000000000 + currtime.tv_nsec;

@@ -10,13 +10,13 @@
 #include <pthread.h>
 
 /* pthread mutex types
-enum
-{
-  PTHREAD_MUTEX_NORMAL
-  PTHREAD_MUTEX_RECURSIVE
-  PTHREAD_MUTEX_ERRORCHECK
-  PTHREAD_MUTEX_DEFAULT
-};*/
+   enum
+   {
+   PTHREAD_MUTEX_NORMAL
+   PTHREAD_MUTEX_RECURSIVE
+   PTHREAD_MUTEX_ERRORCHECK
+   PTHREAD_MUTEX_DEFAULT
+   };*/
 
 typedef void *(*pthread_start_t)(void *);
 

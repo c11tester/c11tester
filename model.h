@@ -31,13 +31,9 @@ public:
 	ModelChecker();
 	~ModelChecker();
 	model_params * getParams();
-	void run();
 
 	/** Exit the model checker, intended for pluggins. */
 	void exit_model_checker();
-
-	/** @returns the context for the main model-checking system thread */
-	ucontext_t * get_system_context() { return &system_context; }
 
 	ModelExecution * get_execution() const { return execution; }
 	ModelHistory * get_history() const { return history; }
@@ -49,8 +45,6 @@ public:
 
 	Thread * get_current_thread() const;
 
-	void switch_from_master(Thread *thread);
-	uint64_t switch_to_master(ModelAction *act);
 	uint64_t switch_thread(ModelAction *act);
 
 	void assert_bug(const char *msg, ...);
@@ -98,9 +92,8 @@ private:
 	Thread * get_next_thread();
 	void reset_to_initial_state();
 
-	ucontext_t system_context;
-
 	ModelVector<TraceAnalysis *> trace_analyses;
+	char random_state[256];
 
 	/** @bref Plugin that can inspect new actions. */
 	TraceAnalysis *inspect_plugin;

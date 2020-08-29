@@ -502,15 +502,15 @@ void ModelHistory::print_func_node()
 		func_node->print_predicate_tree();
 
 /*
-		func_inst_list_mt * entry_insts = func_node->get_entry_insts();
-		model_print("function %s has entry actions\n", func_node->get_func_name());
+                func_inst_list_mt * entry_insts = func_node->get_entry_insts();
+                model_print("function %s has entry actions\n", func_node->get_func_name());
 
-		mllnode<FuncInst*>* it;
-		for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
-			FuncInst *inst = it->getVal();
-			model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
-		}
-*/
+                mllnode<FuncInst*>* it;
+                for (it = entry_insts->begin();it != NULL;it=it->getNext()) {
+                        FuncInst *inst = it->getVal();
+                        model_print("type: %d, at: %s\n", inst->get_type(), inst->get_position());
+                }
+ */
 	}
 }
 

@@ -84,36 +84,36 @@ void Predicate::copy_predicate_expr(Predicate * other)
 ConcretePredicate * Predicate::evaluate(thread_id_t tid)
 {
 	/*
-	ConcretePredicate * concrete = new ConcretePredicate(tid);
-	PredExprSetIter * it = pred_expressions.iterator();
+	   ConcretePredicate * concrete = new ConcretePredicate(tid);
+	   PredExprSetIter * it = pred_expressions.iterator();
 
-	while (it->hasNext()) {
-		struct pred_expr * ptr = it->next();
-		uint64_t value = 0;
+	   while (it->hasNext()) {
+	        struct pred_expr * ptr = it->next();
+	        uint64_t value = 0;
 
-		switch(ptr->token) {
-		case NOPREDICATE:
-			break;
-		case EQUALITY:
-			FuncInst * to_be_compared;
-			ModelAction * last_act;
+	        switch(ptr->token) {
+	        case NOPREDICATE:
+	                break;
+	        case EQUALITY:
+	                FuncInst * to_be_compared;
+	                ModelAction * last_act;
 
-			to_be_compared = ptr->func_inst;
-			last_act = inst_act_map->get(to_be_compared);
-			value = last_act->get_reads_from_value();
-			break;
-		case NULLITY:
-			break;
-		default:
-			break;
-		}
+	                to_be_compared = ptr->func_inst;
+	                last_act = inst_act_map->get(to_be_compared);
+	                value = last_act->get_reads_from_value();
+	                break;
+	        case NULLITY:
+	                break;
+	        default:
+	                break;
+	        }
 
-		concrete->add_expression(ptr->token, value, ptr->value);
-	}
+	        concrete->add_expression(ptr->token, value, ptr->value);
+	   }
 
-	delete it;
-	return concrete;
-	*/
+	   delete it;
+	   return concrete;
+	 */
 
 	return NULL;
 }

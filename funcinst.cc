@@ -59,7 +59,7 @@ void FuncInst::set_associated_read(thread_id_t tid, int index, uint32_t marker, 
 		associated_reads.resize(new_size);
 		thrd_markers.resize(new_size);
 
-		for (int i = old_size; i < new_size; i++ ) {
+		for (int i = old_size;i < new_size;i++ ) {
 			associated_reads[i] = new ModelVector<uint64_t>();
 			thrd_markers[i] = new ModelVector<uint32_t>();
 		}
@@ -70,7 +70,7 @@ void FuncInst::set_associated_read(thread_id_t tid, int index, uint32_t marker, 
 	if (read_values->size() < (uint) index + 1) {
 		int old_size = read_values->size();
 
-		for (int i = old_size; i < index + 1; i++) {
+		for (int i = old_size;i < index + 1;i++) {
 			read_values->push_back(VALUE_NONE);
 			markers->push_back(0);
 		}
