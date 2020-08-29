@@ -423,7 +423,6 @@ void ModelChecker::finishRunExecution(Thread *old)
 void ModelChecker::consumeAction()
 {
 	ModelAction *curr = chosen_thread->get_pending();
-	Thread * th = thread_current();
 	chosen_thread->set_pending(NULL);
 	chosen_thread = execution->take_step(curr);
 }
@@ -463,6 +462,8 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	}
 	DBG();
 	Thread *old = thread_current();
+	old->set_state(THREAD_READY);
+
 	ASSERT(!old->get_pending());
 
 	if (inspect_plugin != NULL) {

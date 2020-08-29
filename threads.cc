@@ -333,7 +333,6 @@ int Thread::swap(ucontext_t *ctxt, Thread *t)
 
 int Thread::swap(Thread *t, Thread *t2)
 {
-	t->set_state(THREAD_READY);
 	t2->set_state(THREAD_RUNNING);
 	if (t == t2)
 		return 0;
