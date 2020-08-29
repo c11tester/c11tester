@@ -377,30 +377,56 @@ uint64_t ModelChecker::switch_to_master(ModelAction *act)
 
 void ModelChecker::startRunExecution(Thread *old) 
 {
-	if (params.traceminsize != 0 &&
-			execution->get_curr_seq_num() > checkfree) {
-		checkfree += params.checkthreshold;
-		execution->collectActions();
-	}
+	while (true) {
+		if (params.traceminsize != 0 &&
+				execution->get_curr_seq_num() > checkfree) {
+			checkfree += params.checkthreshold;
+			execution->collectActions();
+		}
 
-	thread_chosen = false;
-	curr_thread_num = 1;
-	Thread *thr = getNextThread();
-	if (thr != nullptr) {
-		scheduler->set_current_thread(thr);
-		if (old) {
+		thread_chosen = false;
+		curr_thread_num = 1;
+
+		Thread *thr = getNextThread();
+		if (thr != nullptr) {
+			scheduler->set_current_thread(thr);
+
+			if (old == thr)
+				return;
+
 			if (Thread::swap(old, thr) < 0) {
 				perror("swap threads");
 				exit(EXIT_FAILURE);
 			}
-		} else {
-			if (Thread::swap(&system_context, thr) < 0) {
-				perror("swap threads");
-				exit(EXIT_FAILURE);
-			}	
+			continue;
 		}
-	} else
-		handleChosenThread(old);
+
+		if (execution->has_asserted()) {
+			finishRunExecution(old);
+			return;
+		}
+		if (!chosen_thread)
+			chosen_thread = get_next_thread();
+		if (!chosen_thread || chosen_thread->is_model_thread()) {
+			finishRunExecution(old);
+			return;
+		}
+		if (chosen_thread->just_woken_up()) {
+			chosen_thread->set_wakeup_state(false);
+			chosen_thread->set_pending(NULL);
+			chosen_thread = NULL;
+			// Allow this thread to stash the next pending action
+			continue;
+		}
+
+		/* Consume the next action for a Thread */
+		consumeAction();
+
+		if (should_terminate_execution()) {
+			finishRunExecution(old);
+			return;
+		}
+	}
 }
 
 Thread* ModelChecker::getNextThread()
@@ -409,14 +435,15 @@ Thread* ModelChecker::getNextThread()
 	for (unsigned int i = curr_thread_num; i < get_num_threads(); i++) {
 		thread_id_t tid = int_to_id(i);
 		Thread *thr = get_thread(tid);
-		
+
 		if (!thr->is_complete() && !thr->get_pending()) {
 			curr_thread_num = i;
 			nextThread = thr;
 			break;
 		}
+
+		/* Don't schedule threads which should be disabled */
 		ModelAction *act = thr->get_pending();
-		
 		if (act && execution->is_enabled(thr) && !execution->check_action_enabled(act)) {
 			scheduler->sleep(thr);
 		}
@@ -429,11 +456,9 @@ Thread* ModelChecker::getNextThread()
 void ModelChecker::finishRunExecution(Thread *old) 
 {
 	scheduler->set_current_thread(NULL);
-	if (old != NULL) {
-		if (Thread::swap(old, &system_context) < 0) {
-			perror("swap threads");
-			exit(EXIT_FAILURE);
-		}
+	if (Thread::swap(old, &system_context) < 0) {
+		perror("swap threads");
+		exit(EXIT_FAILURE);
 	}
 	break_execution = true;
 }
@@ -455,6 +480,7 @@ void ModelChecker::consumeAction()
 	}
 }
 
+/* Allow pending relaxed/release stores or thread actions to perform first */
 void ModelChecker::chooseThread(ModelAction *act, Thread *thr)
 {
 	if (!thread_chosen && act && execution->is_enabled(thr) && (thr->get_state() != THREAD_BLOCKED) ) {
@@ -472,7 +498,7 @@ void ModelChecker::chooseThread(ModelAction *act, Thread *thr)
 			chosen_thread = thr;
 			thread_chosen = true;
 		}
-	}	
+	}
 }
 
 uint64_t ModelChecker::switch_thread(ModelAction *act)
@@ -507,37 +533,28 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 
 	curr_thread_num++;
 	Thread* next = getNextThread();
-	if (next != nullptr) 
-		handleNewValidThread(old, next);
-	else {
-		old->set_state(THREAD_READY);	// Just to avoid the first ASSERT in ModelExecution::take_step 
+	if (next != nullptr) {
+		scheduler->set_current_thread(next);
+		if (Thread::swap(old, next) < 0) {
+			perror("swap threads");
+			exit(EXIT_FAILURE);
+		}
+	} else
 		handleChosenThread(old);
-	}
 
 	return old->get_return_value();
 }
 
-void ModelChecker::handleNewValidThread(Thread *old, Thread *next)
-{
-	scheduler->set_current_thread(next);
-
-	if (Thread::swap(old, next) < 0) {
-		perror("swap threads");
-		exit(EXIT_FAILURE);
-	}
-}
-
 void ModelChecker::handleChosenThread(Thread *old)
 {
-	Thread * th = old ? old : thread_current();
 	if (execution->has_asserted()) {
-		finishRunExecution(th);
+		finishRunExecution(old);
 		return;
 	}
 	if (!chosen_thread)
 		chosen_thread = get_next_thread();
 	if (!chosen_thread || chosen_thread->is_model_thread()) {
-		finishRunExecution(th);
+		finishRunExecution(old);
 		return;
 	}
 	if (chosen_thread->just_woken_up()) {
@@ -545,19 +562,18 @@ void ModelChecker::handleChosenThread(Thread *old)
 		chosen_thread->set_pending(NULL);
 		chosen_thread = NULL;
 		// Allow this thread to stash the next pending action
-//		if (should_terminate_execution())
-//			finishRunExecution(th);
-//		else
-			startRunExecution(th);
-	} else {
-		/* Consume the next action for a Thread */
-		consumeAction();
-
-		if (should_terminate_execution())
-			finishRunExecution(th);
-		else
-			startRunExecution(th);
+		startRunExecution(old);
+		return;
 	}
+
+	// Consume the next action for a Thread
+	consumeAction();
+
+	if (should_terminate_execution()) {
+		finishRunExecution(old);
+		return;
+	} else
+		startRunExecution(old);
 }
 
 static void runChecker() {
@@ -596,10 +612,39 @@ void ModelChecker::run()
 		chosen_thread = init_thread;
 		break_execution = false;
 		do {
+			if (params.traceminsize != 0 &&
+					execution->get_curr_seq_num() > checkfree) {
+				checkfree += params.checkthreshold;
+				execution->collectActions();
+			}
+
+			thread_chosen = false;
+			curr_thread_num = 1;
+			Thread *thr = getNextThread();
+			if (thr != nullptr) {
+				switch_from_master(thr);
+				continue;
+			}
+
 			if (break_execution)
 				break;
+			if (execution->has_asserted())
+				break;
+			if (!chosen_thread)
+				chosen_thread = get_next_thread();
+			if (!chosen_thread || chosen_thread->is_model_thread())
+				break;
+			if (chosen_thread->just_woken_up()) {
+				chosen_thread->set_wakeup_state(false);
+				chosen_thread->set_pending(NULL);
+				chosen_thread = NULL;
+				continue;
+			}
 
-			startRunExecution(NULL);
+			/* Consume the next action for a Thread */
+			ModelAction *curr = chosen_thread->get_pending();
+			chosen_thread->set_pending(NULL);
+			chosen_thread = execution->take_step(curr);
 		} while (!should_terminate_execution());
 
 		finish_execution((exec+1) < params.maxexecutions);
