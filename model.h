@@ -80,7 +80,7 @@ private:
 	void consumeAction();
 	void chooseThread(ModelAction *act, Thread *thr);
 	Thread * getNextThread(Thread *old);
-	void handleChosenThread(Thread *old);
+	bool handleChosenThread(Thread *old);
 
 	modelclock_t checkfree;
 

@@ -65,6 +65,7 @@ ModelChecker::ModelChecker() :
 	history(new ModelHistory()),
 	execution(new ModelExecution(this, scheduler)),
 	execution_number(1),
+	curr_thread_num(1),
 	trace_analyses(),
 	inspect_plugin(NULL)
 {
@@ -343,29 +344,7 @@ void ModelChecker::startRunExecution(Thread *old) {
 			return;
 		}
 
-		if (execution->has_asserted()) {
-			finishRunExecution(old);
-			return;
-		}
-		if (!chosen_thread)
-			chosen_thread = get_next_thread();
-		if (!chosen_thread || chosen_thread->is_model_thread()) {
-			finishRunExecution(old);
-			return;
-		}
-		if (chosen_thread->just_woken_up()) {
-			chosen_thread->set_wakeup_state(false);
-			chosen_thread->set_pending(NULL);
-			chosen_thread = NULL;
-			// Allow this thread to stash the next pending action
-			continue;
-		}
-
-		/* Consume the next action for a Thread */
-		consumeAction();
-
-		if (should_terminate_execution()) {
-			finishRunExecution(old);
+		if (!handleChosenThread(old)) {
 			return;
 		}
 	}
@@ -402,6 +381,9 @@ Thread* ModelChecker::getNextThread(Thread *old)
 void ModelChecker::finishRunExecution(Thread *old)
 {
 	scheduler->set_current_thread(NULL);
+
+	/** Reset curr_thread_num to initial value for next execution. */
+	curr_thread_num = 1;
 
 	/** If we have more executions, we won't make it past this call. */
 	finish_execution(execution_number < params.maxexecutions);
@@ -482,9 +464,7 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	if (act && execution->is_enabled(old) && !execution->check_action_enabled(act)) {
 		scheduler->sleep(old);
 	}
-	chooseThread(act, old);
 
-	curr_thread_num++;
 	Thread* next = getNextThread(old);
 	if (next != nullptr) {
 		scheduler->set_current_thread(next);
@@ -492,31 +472,33 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 			perror("swap threads");
 			exit(EXIT_FAILURE);
 		}
-	} else
-		handleChosenThread(old);
-
+	} else {
+		if (handleChosenThread(old)) {
+			startRunExecution(old);
+		}
+	}
 	return old->get_return_value();
 }
 
-void ModelChecker::handleChosenThread(Thread *old)
+bool ModelChecker::handleChosenThread(Thread *old)
 {
 	if (execution->has_asserted()) {
 		finishRunExecution(old);
-		return;
+		return false;
 	}
-	if (!chosen_thread)
+	if (!chosen_thread) {
 		chosen_thread = get_next_thread();
+	}
 	if (!chosen_thread || chosen_thread->is_model_thread()) {
 		finishRunExecution(old);
-		return;
+		return false;
 	}
 	if (chosen_thread->just_woken_up()) {
 		chosen_thread->set_wakeup_state(false);
 		chosen_thread->set_pending(NULL);
 		chosen_thread = NULL;
 		// Allow this thread to stash the next pending action
-		startRunExecution(old);
-		return;
+		return true;
 	}
 
 	// Consume the next action for a Thread
@@ -524,9 +506,10 @@ void ModelChecker::handleChosenThread(Thread *old)
 
 	if (should_terminate_execution()) {
 		finishRunExecution(old);
-		return;
-	} else
-		startRunExecution(old);
+		return false;
+	} else {
+		return true;
+	}
 }
 
 void ModelChecker::startChecker() {

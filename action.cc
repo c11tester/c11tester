@@ -720,6 +720,9 @@ void ModelAction::print() const
 	model_print("%-4d %-2d   %-14s  %7s  %14p   %-#18" PRIx64,
 							seq_number, id_to_int(tid), type_str, mo_str, location, get_return_value());
 	if (is_read()) {
+		if (is_write()) {
+			model_print("(%" PRIx64 ")", get_write_value());
+		}
 		if (reads_from)
 			model_print("  %-3d", reads_from->get_seq_number());
 		else
