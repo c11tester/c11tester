@@ -332,7 +332,6 @@ void ModelChecker::startRunExecution(Thread *old) {
 
 		thread_chosen = false;
 		curr_thread_num = 1;
-
 		Thread *thr = getNextThread(old);
 		if (thr != nullptr) {
 			scheduler->set_current_thread(thr);
@@ -406,13 +405,6 @@ void ModelChecker::finishRunExecution(Thread *old)
 	_Exit(0);
 }
 
-void ModelChecker::consumeAction()
-{
-	ModelAction *curr = chosen_thread->get_pending();
-	chosen_thread->set_pending(NULL);
-	chosen_thread = execution->take_step(curr);
-}
-
 /* Allow pending relaxed/release stores or thread actions to perform first */
 void ModelChecker::chooseThread(ModelAction *act, Thread *thr)
 {
@@ -461,10 +453,6 @@ uint64_t ModelChecker::switch_thread(ModelAction *act)
 	if (old->is_waiting_on(old))
 		assert_bug("Deadlock detected (thread %u)", curr_thread_num);
 
-	if (act && execution->is_enabled(old) && !execution->check_action_enabled(act)) {
-		scheduler->sleep(old);
-	}
-
 	Thread* next = getNextThread(old);
 	if (next != nullptr) {
 		scheduler->set_current_thread(next);
@@ -502,7 +490,9 @@ bool ModelChecker::handleChosenThread(Thread *old)
 	}
 
 	// Consume the next action for a Thread
-	consumeAction();
+	ModelAction *curr = chosen_thread->get_pending();
+	chosen_thread->set_pending(NULL);
+	chosen_thread = execution->take_step(curr);
 
 	if (should_terminate_execution()) {
 		finishRunExecution(old);
