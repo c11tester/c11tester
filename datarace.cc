@@ -558,9 +558,9 @@ struct DataRace * fullRaceCheckRead(thread_id_t thread, const void *location, ui
 		if (clock_may_race(currClock, thread, readClock, readThread)) {
 			/* Still need this read in vector */
 			if (copytoindex != i) {
-				ASSERT(record->thread[i] >= 0);
-				record->readClock[copytoindex] = record->readClock[i];
-				record->thread[copytoindex] = record->thread[i];
+				ASSERT(readThread >= 0);
+				record->readClock[copytoindex] = readClock;
+				record->thread[copytoindex] = readThread;
 			}
 			copytoindex++;
 		}

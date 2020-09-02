@@ -277,8 +277,9 @@ bool ModelExecution::should_wake_up(const ModelAction *curr, const Thread *threa
 void ModelExecution::wake_up_sleeping_actions(ModelAction *curr)
 {
 	for (unsigned int i = 0;i < get_num_threads();i++) {
-		Thread *thr = get_thread(int_to_id(i));
-		if (scheduler->is_sleep_set(thr)) {
+		thread_id_t tid = int_to_id(i);
+		Thread *thr = get_thread(tid);
+		if (scheduler->is_sleep_set(tid)) {
 			if (should_wake_up(curr, thr)) {
 				/* Remove this thread from sleep set */
 				scheduler->remove_sleep(thr);
@@ -808,7 +809,6 @@ bool ModelExecution::check_action_enabled(ModelAction *curr) {
 ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 {
 	ASSERT(curr);
-	bool second_part_of_rmw = curr->is_rmwc() || curr->is_rmw();
 	bool newly_explored = initialize_curr_action(&curr);
 
 	DBG();
@@ -816,20 +816,17 @@ ModelAction * ModelExecution::check_current_action(ModelAction *curr)
 	wake_up_sleeping_actions(curr);
 
 	SnapVector<ModelAction *> * rf_set = NULL;
-	/* Build may_read_from set for newly-created actions */
-	if (newly_explored && curr->is_read())
-		rf_set = build_may_read_from(curr);
-
 	bool canprune = false;
-
-	if (curr->is_read() && !second_part_of_rmw) {
+	/* Build may_read_from set for newly-created actions */
+	if (curr->is_read() && newly_explored) {
+		rf_set = build_may_read_from(curr);
 		canprune = process_read(curr, rf_set);
 		delete rf_set;
 	} else
 		ASSERT(rf_set == NULL);
 
-	/* Add the action to lists */
-	if (!second_part_of_rmw) {
+	/* Add the action to lists if not the second part of a rmw */
+	if (newly_explored) {
 #ifdef COLLECT_STAT
 		record_atomic_stats(curr);
 #endif
@@ -884,7 +881,7 @@ ModelAction * ModelExecution::process_rmw(ModelAction *act) {
  */
 
 bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *rf,
-																					SnapVector<ModelAction *> * priorset, bool * canprune, bool check_only)
+																					SnapVector<ModelAction *> * priorset, bool * canprune)
 {
 	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(curr->get_location());
 	ASSERT(curr->is_read());
@@ -947,8 +944,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 						*act < *last_sc_fence_thread_local) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
-					if (!check_only)
-						priorset->push_back(act);
+					priorset->push_back(act);
 					break;
 				}
 				/* C++, Section 29.3 statement 4 */
@@ -956,8 +952,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 								 *act < *last_sc_fence_local) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
-					if (!check_only)
-						priorset->push_back(act);
+					priorset->push_back(act);
 					break;
 				}
 				/* C++, Section 29.3 statement 6 */
@@ -965,8 +960,7 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 								 *act < *last_sc_fence_thread_before) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
-					if (!check_only)
-						priorset->push_back(act);
+					priorset->push_back(act);
 					break;
 				}
 			}
@@ -985,20 +979,17 @@ bool ModelExecution::r_modification_order(ModelAction *curr, const ModelAction *
 				if (act->is_write()) {
 					if (mo_graph->checkReachable(rf, act))
 						return false;
-					if (!check_only)
-						priorset->push_back(act);
+					priorset->push_back(act);
 				} else {
 					ModelAction *prevrf = act->get_reads_from();
 					if (!prevrf->equals(rf)) {
 						if (mo_graph->checkReachable(rf, prevrf))
 							return false;
-						if (!check_only)
-							priorset->push_back(prevrf);
+						priorset->push_back(prevrf);
 					} else {
 						if (act->get_tid() == curr->get_tid()) {
 							//Can prune curr from obj list
-							if (!check_only)
-								*canprune = true;
+							*canprune = true;
 						}
 					}
 				}

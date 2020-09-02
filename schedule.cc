@@ -102,7 +102,14 @@ bool Scheduler::is_enabled(thread_id_t tid) const
  */
 bool Scheduler::is_sleep_set(const Thread *t) const
 {
-	return get_enabled(t) == THREAD_SLEEP_SET;
+	return is_sleep_set(t->get_id());
+}
+
+bool Scheduler::is_sleep_set(thread_id_t tid) const
+{
+	int id = id_to_int(tid);
+	ASSERT(id < enabled_len);
+	return enabled[id] == THREAD_SLEEP_SET;
 }
 
 /**

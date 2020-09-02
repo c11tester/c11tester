@@ -366,12 +366,31 @@ Thread* ModelChecker::getNextThread(Thread *old)
 			thr->freeResources();
 		}
 
-		/* Don't schedule threads which should be disabled */
 		ModelAction *act = thr->get_pending();
-		if (act && execution->is_enabled(thr) && !execution->check_action_enabled(act)) {
-			scheduler->sleep(thr);
+		if (act && execution->is_enabled(tid)){
+			/* Don't schedule threads which should be disabled */
+			if (!execution->check_action_enabled(act)) {
+				scheduler->sleep(thr);
+			}
+
+			/* Allow pending relaxed/release stores or thread actions to perform first */
+			else if (!thread_chosen) {
+				if (act->is_write()) {
+					std::memory_order order = act->get_mo();
+					if (order == std::memory_order_relaxed || \
+							order == std::memory_order_release) {
+						chosen_thread = thr;
+						thread_chosen = true;
+					}
+				} else if (act->get_type() == THREAD_CREATE || \
+									 act->get_type() == PTHREAD_CREATE || \
+									 act->get_type() == THREAD_START || \
+									 act->get_type() == THREAD_FINISH) {
+					chosen_thread = thr;
+					thread_chosen = true;
+				}
+			}
 		}
-		chooseThread(act, thr);
 	}
 	return nextThread;
 }
@@ -403,27 +422,6 @@ void ModelChecker::finishRunExecution(Thread *old)
 
 	/* Exit. */
 	_Exit(0);
-}
-
-/* Allow pending relaxed/release stores or thread actions to perform first */
-void ModelChecker::chooseThread(ModelAction *act, Thread *thr)
-{
-	if (!thread_chosen && act && execution->is_enabled(thr) && (thr->get_state() != THREAD_BLOCKED) ) {
-		if (act->is_write()) {
-			std::memory_order order = act->get_mo();
-			if (order == std::memory_order_relaxed || \
-					order == std::memory_order_release) {
-				chosen_thread = thr;
-				thread_chosen = true;
-			}
-		} else if (act->get_type() == THREAD_CREATE || \
-							 act->get_type() == PTHREAD_CREATE || \
-							 act->get_type() == THREAD_START || \
-							 act->get_type() == THREAD_FINISH) {
-			chosen_thread = thr;
-			thread_chosen = true;
-		}
-	}
 }
 
 uint64_t ModelChecker::switch_thread(ModelAction *act)

@@ -77,7 +77,6 @@ private:
 
 	void startRunExecution(Thread *old);
 	void finishRunExecution(Thread *old);
-	void chooseThread(ModelAction *act, Thread *thr);
 	Thread * getNextThread(Thread *old);
 	bool handleChosenThread(Thread *old);
 
