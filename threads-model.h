@@ -203,6 +203,7 @@ void tlsdestructor(void *v);
 #endif
 
 Thread * thread_current();
+thread_id_t thread_current_id();
 void thread_startup();
 void initMainThread();
 

@@ -62,7 +62,7 @@ VOLATILELOAD(64)
 		ensureModel();                                                      \
 		model->switch_thread(new ModelAction(ATOMIC_WRITE, position, memory_order_volatile_store, obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;            \
-		thread_id_t tid = thread_current()->get_id();           \
+		thread_id_t tid = thread_current_id();           \
 		for(int i=0;i < size / 8;i++) {                         \
 			atomraceCheckWrite(tid, (void *)(((char *)obj)+i));          \
 		}                                                       \
@@ -79,7 +79,7 @@ VOLATILESTORE(64)
 		ensureModel();                                                      \
 		model->switch_thread(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;                                 \
-		thread_id_t tid = thread_current()->get_id();           \
+		thread_id_t tid = thread_current_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
 			atomraceCheckWrite(tid, (void *)(((char *)obj)+i));          \
 		}                                                       \
@@ -96,7 +96,7 @@ CDSATOMICINT(64)
 		ensureModel();                                                      \
 		uint ## size ## _t val = (uint ## size ## _t)model->switch_thread( \
 			new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)); \
-		thread_id_t tid = thread_current()->get_id();           \
+		thread_id_t tid = thread_current_id();           \
 		for(int i=0;i < size / 8;i++) {                         \
 			atomraceCheckRead(tid, (void *)(((char *)obj)+i));    \
 		}                                                       \
@@ -114,7 +114,7 @@ CDSATOMICLOAD(64)
 		ensureModel();                                                        \
 		model->switch_thread(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;                     \
-		thread_id_t tid = thread_current()->get_id();           \
+		thread_id_t tid = thread_current_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
 			atomraceCheckWrite(tid, (void *)(((char *)obj)+i));          \
 		}                                                       \
@@ -134,7 +134,7 @@ CDSATOMICSTORE(64)
 		_copy __op__ _val;                                                    \
 		model_rmw_action_helper(addr, (uint64_t) _copy, atomic_index, position);        \
 		*((volatile uint ## size ## _t *)addr) = _copy;                  \
-		thread_id_t tid = thread_current()->get_id();           \
+		thread_id_t tid = thread_current_id();           \
 		for(int i=0;i < size / 8;i++) {                       \
 			atomraceCheckRead(tid,  (void *)(((char *)addr)+i));  \
 			recordWrite(tid, (void *)(((char *)addr)+i));         \
@@ -220,7 +220,7 @@ CDSATOMICXOR(64)
 		if (_old == _expected) {                                                                    \
 			model_rmw_action_helper(addr, (uint64_t) _desired, atomic_index, position); \
 			*((volatile uint ## size ## _t *)addr) = desired;                        \
-			thread_id_t tid = thread_current()->get_id();           \
+			thread_id_t tid = thread_current_id();           \
 			for(int i=0;i < size / 8;i++) {                       \
 				recordWrite(tid, (void *)(((char *)addr)+i));         \
 			}                                                       \
@@ -293,7 +293,7 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
 void cds_func_entry(const char * funcName) {
 #ifdef NEWFUZZER
 	ensureModel();
-	Thread * th = thread_current();
+	thread_id_t tid = thread_current_id();
 	uint32_t func_id;
 
 	ModelHistory *history = model->get_history();
@@ -313,15 +313,14 @@ void cds_func_entry(const char * funcName) {
 		func_id = history->getFuncMap()->get(funcName);
 	}
 
-	history->enter_function(func_id, th->get_id());
+	history->enter_function(func_id, tid);
 #endif
 }
 
 void cds_func_exit(const char * funcName) {
 #ifdef NEWFUZZER
 	ensureModel();
-
-	Thread * th = thread_current();
+	thread_id_t tid = thread_current_id();
 	uint32_t func_id;
 
 	ModelHistory *history = model->get_history();
@@ -335,6 +334,6 @@ void cds_func_exit(const char * funcName) {
 	if (func_id == 0)
 		return;
 
-	history->exit_function(func_id, th->get_id());
+	history->exit_function(func_id, tid);
 #endif
 }

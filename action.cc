@@ -111,8 +111,7 @@ ModelAction::ModelAction(action_type_t type, memory_order order, void *loc,
 	/* References to NULL atomic variables can end up here */
 	ASSERT(loc);
 	this->size = size;
-	Thread *t = thread_current();
-	this->tid = t->get_id();
+	this->tid = thread_current_id();
 }
 
 
@@ -146,8 +145,7 @@ ModelAction::ModelAction(action_type_t type, const char * position, memory_order
 	/* References to NULL atomic variables can end up here */
 	ASSERT(loc);
 	this->size = size;
-	Thread *t = thread_current();
-	this->tid = t->get_id();
+	this->tid = thread_current_id();
 }
 
 

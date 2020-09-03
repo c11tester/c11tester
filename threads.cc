@@ -60,6 +60,19 @@ Thread * thread_current(void)
 	return model->get_current_thread();
 }
 
+/**
+ * @brief Get the current Thread id
+ *
+ * Must be called from a user context
+ *
+ * @return The id of the currently executing thread
+ */
+thread_id_t thread_current_id(void)
+{
+	ASSERT(model);
+	return model->get_current_thread_id();
+}
+
 void modelexit() {
 	model->switch_thread(new ModelAction(THREAD_FINISH, std::memory_order_seq_cst, thread_current()));
 }

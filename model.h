@@ -44,6 +44,7 @@ public:
 	Thread * get_thread(const ModelAction *act) const;
 
 	Thread * get_current_thread() const;
+	thread_id_t get_current_thread_id() const;
 
 	uint64_t switch_thread(ModelAction *act);
 

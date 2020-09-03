@@ -136,6 +136,18 @@ Thread * ModelChecker::get_current_thread() const
 }
 
 /**
+ * Must be called from user-thread context (e.g., through the global
+ * thread_current_id() interface)
+ *
+ * @return The id of the currently executing Thread.
+ */
+thread_id_t ModelChecker::get_current_thread_id() const
+{
+	ASSERT(int_to_id(curr_thread_num) == get_current_thread()->get_id());
+	return int_to_id(curr_thread_num);
+}
+
+/**
  * @brief Choose the next thread to execute.
  *
  * This function chooses the next thread that should execute. It can enforce

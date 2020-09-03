@@ -500,7 +500,7 @@ void recordWrite(thread_id_t thread, void *location) {
 
 /** This function just updates metadata on atomic write. */
 void recordCalloc(void *location, size_t size) {
-	thread_id_t thread = thread_current()->get_id();
+	thread_id_t thread = thread_current_id();
 	for(;size != 0;size--) {
 		uint64_t *shadow = lookupAddressEntry(location);
 		uint64_t shadowval = *shadow;

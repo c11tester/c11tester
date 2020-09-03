@@ -11,7 +11,7 @@ namespace cdsc {
 mutex::mutex(int type)
 {
 	state.locked = NULL;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	state.alloc_tid = tid;
 	ClockVector *cv = model->get_execution()->get_cv(tid);
 	state.alloc_clock = cv  == NULL ? 0 : cv->getClock(tid);

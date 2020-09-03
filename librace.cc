@@ -11,7 +11,7 @@
 void store_8(void *addr, uint8_t val)
 {
 	DEBUG("addr = %p, val = %" PRIu8 "\n", addr, val);
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckWrite(tid, addr);
 	(*(uint8_t *)addr) = val;
 }
@@ -19,7 +19,7 @@ void store_8(void *addr, uint8_t val)
 void store_16(void *addr, uint16_t val)
 {
 	DEBUG("addr = %p, val = %" PRIu16 "\n", addr, val);
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckWrite(tid, addr);
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
 	(*(uint16_t *)addr) = val;
@@ -28,7 +28,7 @@ void store_16(void *addr, uint16_t val)
 void store_32(void *addr, uint32_t val)
 {
 	DEBUG("addr = %p, val = %" PRIu32 "\n", addr, val);
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckWrite(tid, addr);
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 2));
@@ -39,7 +39,7 @@ void store_32(void *addr, uint32_t val)
 void store_64(void *addr, uint64_t val)
 {
 	DEBUG("addr = %p, val = %" PRIu64 "\n", addr, val);
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckWrite(tid, addr);
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 1));
 	raceCheckWrite(tid, (void *)(((uintptr_t)addr) + 2));
@@ -54,7 +54,7 @@ void store_64(void *addr, uint64_t val)
 uint8_t load_8(const void *addr)
 {
 	DEBUG("addr = %p\n", addr);
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckRead(tid, addr);
 	return *((uint8_t *)addr);
 }
@@ -62,7 +62,7 @@ uint8_t load_8(const void *addr)
 uint16_t load_16(const void *addr)
 {
 	DEBUG("addr = %p\n", addr);
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckRead(tid, addr);
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
 	return *((uint16_t *)addr);
@@ -71,7 +71,7 @@ uint16_t load_16(const void *addr)
 uint32_t load_32(const void *addr)
 {
 	DEBUG("addr = %p\n", addr);
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckRead(tid, addr);
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 2));
@@ -82,7 +82,7 @@ uint32_t load_32(const void *addr)
 uint64_t load_64(const void *addr)
 {
 	DEBUG("addr = %p\n", addr);
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckRead(tid, addr);
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 1));
 	raceCheckRead(tid, (const void *)(((uintptr_t)addr) + 2));
@@ -106,7 +106,7 @@ void cds_store8(void *addr)
 	//DEBUG("addr = %p, val = %" PRIu8 "\n", addr, val);
 	if (!model)
 		return;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckWrite8(tid, addr);
 }
 
@@ -115,7 +115,7 @@ void cds_store16(void *addr)
 	//DEBUG("addr = %p, val = %" PRIu16 "\n", addr, val);
 	if (!model)
 		return;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckWrite16(tid, addr);
 }
 
@@ -124,7 +124,7 @@ void cds_store32(void *addr)
 	//DEBUG("addr = %p, val = %" PRIu32 "\n", addr, val);
 	if (!model)
 		return;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckWrite32(tid, addr);
 }
 
@@ -133,34 +133,34 @@ void cds_store64(void *addr)
 	//DEBUG("addr = %p, val = %" PRIu64 "\n", addr, val);
 	if (!model)
 		return;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckWrite64(tid, addr);
 }
 
 void cds_load8(const void *addr) {
 	if (!model)
 		return;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckRead8(tid, addr);
 }
 
 void cds_load16(const void *addr) {
 	if (!model)
 		return;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckRead16(tid, addr);
 }
 
 void cds_load32(const void *addr) {
 	if (!model)
 		return;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckRead32(tid, addr);
 }
 
 void cds_load64(const void *addr) {
 	if (!model)
 		return;
-	thread_id_t tid = thread_current()->get_id();
+	thread_id_t tid = thread_current_id();
 	raceCheckRead64(tid, addr);
 }

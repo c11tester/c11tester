@@ -234,7 +234,7 @@ Thread * Scheduler::select_next_thread()
 		thread = execution->getFuzzer()->selectThread(thread_list, avail_threads);
 	}
 
-	curr_thread_index = id_to_int(thread->get_id());
+	//curr_thread_index = id_to_int(thread->get_id());
 	return thread;
 }
 
