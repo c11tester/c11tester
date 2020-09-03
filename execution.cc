@@ -1112,43 +1112,6 @@ void ModelExecution::w_modification_order(ModelAction *curr)
 }
 
 /**
- * Arbitrary reads from the future are not allowed. Section 29.3 part 9 places
- * some constraints. This method checks one the following constraint (others
- * require compiler support):
- *
- *   If X --hb-> Y --mo-> Z, then X should not read from Z.
- *   If X --hb-> Y, A --rf-> Y, and A --mo-> Z, then X should not read from Z.
- */
-bool ModelExecution::mo_may_allow(const ModelAction *writer, const ModelAction *reader)
-{
-	SnapVector<action_list_t> *thrd_lists = obj_thrd_map.get(reader->get_location());
-	unsigned int i;
-	/* Iterate over all threads */
-	for (i = 0;i < thrd_lists->size();i++) {
-		const ModelAction *write_after_read = NULL;
-
-		/* Iterate over actions in thread, starting from most recent */
-		action_list_t *list = &(*thrd_lists)[i];
-		sllnode<ModelAction *>* rit;
-		for (rit = list->end();rit != NULL;rit=rit->getPrev()) {
-			ModelAction *act = rit->getVal();
-
-			/* Don't disallow due to act == reader */
-			if (!reader->happens_before(act) || reader == act)
-				break;
-			else if (act->is_write())
-				write_after_read = act;
-			else if (act->is_read() && act->get_reads_from() != NULL)
-				write_after_read = act->get_reads_from();
-		}
-
-		if (write_after_read && write_after_read != writer && mo_graph->checkReachable(write_after_read, writer))
-			return false;
-	}
-	return true;
-}
-
-/**
  * Computes the clock vector that happens before propagates from this write.
  *
  * @param rf The action that might be part of a release sequence. Must be a
