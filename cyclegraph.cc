@@ -70,8 +70,7 @@ void CycleGraph::addNodeEdge(CycleNode *fromnode, CycleNode *tonode, bool forcee
 	 * If the fromnode has a rmwnode, we should
 	 * follow its RMW chain to add an edge at the end.
 	 */
-	while (fromnode->getRMW()) {
-		CycleNode *nextnode = fromnode->getRMW();
+	while (CycleNode * nextnode = fromnode->getRMW()) {
 		if (nextnode == tonode)
 			break;
 		fromnode = nextnode;

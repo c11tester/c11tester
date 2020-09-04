@@ -508,13 +508,15 @@ Thread * Thread::waiting_on() const
 	if (!pending)
 		return NULL;
 
-	if (pending->get_type() == THREAD_JOIN)
-		return pending->get_thread_operand();
-	else if (pending->get_type() == PTHREAD_JOIN)
-		return pending->get_thread_operand();
-	else if (pending->is_lock())
-		return (Thread *)pending->get_mutex()->get_state()->locked;
-	return NULL;
+	switch (pending->get_type()) {
+		case THREAD_JOIN:
+		case PTHREAD_JOIN:
+			return pending->get_thread_operand();
+		case ATOMIC_LOCK:
+			return (Thread *)pending->get_mutex()->get_state()->locked;
+		default:
+			return NULL;
+	}
 }
 
 /**

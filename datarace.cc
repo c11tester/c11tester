@@ -55,7 +55,7 @@ void * table_calloc(size_t size)
 
 /** This function looks up the entry in the shadow table corresponding to a
  * given address.*/
-static uint64_t * lookupAddressEntry(const void *address)
+static inline uint64_t * lookupAddressEntry(const void *address)
 {
 	struct ShadowTable *currtable = root;
 #if BIT48

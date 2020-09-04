@@ -250,21 +250,7 @@ void ModelExecution::restore_last_seq_num()
 bool ModelExecution::should_wake_up(const ModelAction *curr, const Thread *thread) const
 {
 	const ModelAction *asleep = thread->get_pending();
-	/* Don't allow partial RMW to wake anyone up */
-	if (curr->is_rmwr())
-		return false;
-	/* Synchronizing actions may have been backtracked */
-	if (asleep->could_synchronize_with(curr))
-		return true;
-	/* All acquire/release fences and fence-acquire/store-release */
-	if (asleep->is_fence() && asleep->is_acquire() && curr->is_release())
-		return true;
-	/* Fence-release + store can awake load-acquire on the same location */
-	if (asleep->is_read() && asleep->is_acquire() && curr->same_var(asleep) && curr->is_write()) {
-		ModelAction *fence_release = get_last_fence_release(curr->get_tid());
-		if (fence_release && *(get_last_action(thread->get_id())) < *fence_release)
-			return true;
-	}
+
 	/* The sleep is literally sleeping */
 	if (asleep->is_sleep()) {
 		if (fuzzer->shouldWake(asleep))
@@ -278,8 +264,8 @@ void ModelExecution::wake_up_sleeping_actions(ModelAction *curr)
 {
 	for (unsigned int i = 0;i < get_num_threads();i++) {
 		thread_id_t tid = int_to_id(i);
-		Thread *thr = get_thread(tid);
 		if (scheduler->is_sleep_set(tid)) {
+			Thread *thr = get_thread(tid);
 			if (should_wake_up(curr, thr)) {
 				/* Remove this thread from sleep set */
 				scheduler->remove_sleep(thr);
@@ -420,10 +406,10 @@ bool ModelExecution::process_read(ModelAction *curr, SnapVector<ModelAction *> *
 				mo_graph->addEdge((*priorset)[i], rf);
 			}
 			read_from(curr, rf);
-			get_thread(curr)->set_return_value(curr->get_return_value());
+			get_thread(curr)->set_return_value(rf->get_write_value());
 			delete priorset;
 			//Update acquire fence clock vector
-			ClockVector * hbcv = get_hb_from_write(curr->get_reads_from());
+			ClockVector * hbcv = get_hb_from_write(rf);
 			if (hbcv != NULL)
 				get_thread(curr)->get_acq_fence_cv()->merge(hbcv);
 			return canprune && (curr->get_type() == ATOMIC_READ);
@@ -487,10 +473,10 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 	case ATOMIC_WAIT: {
 		//TODO: DOESN'T REALLY IMPLEMENT SPURIOUS WAKEUPS CORRECTLY
 		if (fuzzer->shouldWait(curr)) {
+			Thread *curr_thrd = get_thread(curr);
 			/* wake up the other threads */
 			for (unsigned int i = 0;i < get_num_threads();i++) {
 				Thread *t = get_thread(int_to_id(i));
-				Thread *curr_thrd = get_thread(curr);
 				if (t->waiting_on() == curr_thrd && t->get_pending()->is_lock())
 					scheduler->wake(t);
 			}
@@ -509,7 +495,7 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 			}
 
 			waiters->push_back(curr);
-			scheduler->sleep(get_thread(curr));
+			scheduler->sleep(curr_thrd);
 		}
 
 		break;
@@ -527,9 +513,9 @@ bool ModelExecution::process_mutex(ModelAction *curr)
 
 		// TODO: lock count for recursive mutexes
 		/* wake up the other threads */
+		Thread *curr_thrd = get_thread(curr);
 		for (unsigned int i = 0;i < get_num_threads();i++) {
 			Thread *t = get_thread(int_to_id(i));
-			Thread *curr_thrd = get_thread(curr);
 			if (t->waiting_on() == curr_thrd && t->get_pending()->is_lock())
 				scheduler->wake(t);
 		}
@@ -770,7 +756,8 @@ bool ModelExecution::synchronize(const ModelAction *first, ModelAction *second)
  * @return a bool that indicates whether the action is enabled.
  */
 bool ModelExecution::check_action_enabled(ModelAction *curr) {
-	if (curr->is_lock()) {
+	switch (curr->get_type()) {
+	case ATOMIC_LOCK: {
 		cdsc::mutex *lock = curr->get_mutex();
 		struct cdsc::mutex_state *state = lock->get_state();
 		if (state->locked) {
@@ -782,14 +769,23 @@ bool ModelExecution::check_action_enabled(ModelAction *curr) {
 
 			return false;
 		}
-	} else if (curr->is_thread_join()) {
+		break;
+	}
+	case THREAD_JOIN:
+	case PTHREAD_JOIN: {
 		Thread *blocking = curr->get_thread_operand();
 		if (!blocking->is_complete()) {
 			return false;
 		}
-	} else if (curr->is_sleep()) {
+		break;
+	}
+	case THREAD_SLEEP: {
 		if (!fuzzer->shouldSleep(curr))
 			return false;
+		break;
+	}
+	default:
+		return true;
 	}
 
 	return true;

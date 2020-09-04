@@ -73,7 +73,6 @@ private:
 
 	unsigned int curr_thread_num;
 	Thread * chosen_thread;
-	bool thread_chosen;
 	bool break_execution;
 
 	void startRunExecution(Thread *old);

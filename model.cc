@@ -342,7 +342,6 @@ void ModelChecker::startRunExecution(Thread *old) {
 			execution->collectActions();
 		}
 
-		thread_chosen = false;
 		curr_thread_num = 1;
 		Thread *thr = getNextThread(old);
 		if (thr != nullptr) {
@@ -386,20 +385,18 @@ Thread* ModelChecker::getNextThread(Thread *old)
 			}
 
 			/* Allow pending relaxed/release stores or thread actions to perform first */
-			else if (!thread_chosen) {
+			else if (!chosen_thread) {
 				if (act->is_write()) {
 					std::memory_order order = act->get_mo();
 					if (order == std::memory_order_relaxed || \
 							order == std::memory_order_release) {
 						chosen_thread = thr;
-						thread_chosen = true;
 					}
 				} else if (act->get_type() == THREAD_CREATE || \
 									 act->get_type() == PTHREAD_CREATE || \
 									 act->get_type() == THREAD_START || \
 									 act->get_type() == THREAD_FINISH) {
 					chosen_thread = thr;
-					thread_chosen = true;
 				}
 			}
 		}
@@ -487,7 +484,7 @@ bool ModelChecker::handleChosenThread(Thread *old)
 	if (!chosen_thread) {
 		chosen_thread = get_next_thread();
 	}
-	if (!chosen_thread || chosen_thread->is_model_thread()) {
+	if (!chosen_thread) {
 		finishRunExecution(old);
 		return false;
 	}
