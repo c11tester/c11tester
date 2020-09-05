@@ -119,7 +119,7 @@ int pthread_mutex_trylock(pthread_mutex_t *p_mutex) {
 
 	ModelExecution *execution = model->get_execution();
 	cdsc::snapmutex *m = execution->getMutexMap()->get(p_mutex);
-	return m->try_lock();
+	return m->try_lock() ? 0 : EBUSY;
 }
 int pthread_mutex_unlock(pthread_mutex_t *p_mutex) {
 	ModelExecution *execution = model->get_execution();
