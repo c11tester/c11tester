@@ -13,6 +13,7 @@
 #include "context.h"
 #include "classlist.h"
 #include "pthread.h"
+#include <sys/epoll.h>
 
 struct thread_params {
 	thrd_start_t func;
@@ -232,6 +233,7 @@ static inline int id_to_int(thread_id_t id)
 	return id;
 }
 
+int real_epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
 int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr);
 int real_pthread_mutex_lock (pthread_mutex_t *__mutex);
 int real_pthread_mutex_unlock (pthread_mutex_t *__mutex);

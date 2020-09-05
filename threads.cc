@@ -16,8 +16,9 @@
 #include "schedule.h"
 #include "clockvector.h"
 
-#ifdef TLS
 #include <dlfcn.h>
+
+#ifdef TLS
 uintptr_t get_tls_addr() {
 	uintptr_t addr;
 	asm ("mov %%fs:0, %0" : "=r" (addr));
@@ -110,6 +111,13 @@ void thread_startup()
 #endif
 }
 
+
+static int (*real_epoll_wait_p)(int epfd, struct epoll_event *events, int maxevents, int timeout) = NULL;
+
+int real_epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
+	return real_epoll_wait_p(epfd, events, maxevents, timeout);
+}
+
 static int (*pthread_mutex_init_p)(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) = NULL;
 
 int real_pthread_mutex_init(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr) {
@@ -148,6 +156,13 @@ void real_pthread_exit (void * value_ptr) {
 
 void real_init_all() {
 	char * error;
+	if (!real_epoll_wait_p) {
+		real_epoll_wait_p = (int (*)(int epfd, struct epoll_event *events, int maxevents, int timeout))dlsym(RTLD_NEXT, "epoll_wait");
+		if ((error = dlerror()) != NULL) {
+			fputs(error, stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
 	if (!pthread_mutex_init_p) {
 		pthread_mutex_init_p = (int (*)(pthread_mutex_t *__mutex, const pthread_mutexattr_t *__mutexattr))dlsym(RTLD_NEXT, "pthread_mutex_init");
 		if ((error = dlerror()) != NULL) {
