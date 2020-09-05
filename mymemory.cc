@@ -18,29 +18,23 @@
 size_t allocatedReqs[REQUESTS_BEFORE_ALLOC] = { 0 };
 int nextRequest = 0;
 int howManyFreed = 0;
-static mspace sStaticSpace = NULL;
+mspace sStaticSpace = NULL;
 
 /** Non-snapshotting calloc for our use. */
 void *model_calloc(size_t count, size_t size)
 {
-	if (!sStaticSpace)
-		sStaticSpace = create_shared_mspace();
 	return mspace_calloc(sStaticSpace, count, size);
 }
 
 /** Non-snapshotting malloc for our use. */
 void *model_malloc(size_t size)
 {
-	if (!sStaticSpace)
-		sStaticSpace = create_shared_mspace();
 	return mspace_malloc(sStaticSpace, size);
 }
 
 /** Non-snapshotting malloc for our use. */
 void *model_realloc(void *ptr, size_t size)
 {
-	if (!sStaticSpace)
-		sStaticSpace = create_shared_mspace();
 	return mspace_realloc(sStaticSpace, ptr, size);
 }
 

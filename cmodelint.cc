@@ -15,39 +15,31 @@ memory_order orders[6] = {
 	memory_order_release, memory_order_acq_rel, memory_order_seq_cst,
 };
 
-static void ensureModel() {
-	if (!model) {
-		snapshot_system_init(10000, 1024, 1024, 40000);
-		model = new ModelChecker();
-		model->startChecker();
-	}
-}
-
 /* ---  helper functions --- */
 uint64_t model_rmwrcas_action_helper(void *obj, int atomic_index, uint64_t oldval, int size, const char *position) {
-	ensureModel();
+	createModelIfNotExist();
 	return model->switch_thread(new ModelAction(ATOMIC_RMWRCAS, position, orders[atomic_index], obj, oldval, size));
 }
 
 uint64_t model_rmwr_action_helper(void *obj, int atomic_index, const char *position) {
-	ensureModel();
+	createModelIfNotExist();
 	return model->switch_thread(new ModelAction(ATOMIC_RMWR, position, orders[atomic_index], obj));
 }
 
 void model_rmw_action_helper(void *obj, uint64_t val, int atomic_index, const char * position) {
-	ensureModel();
+	createModelIfNotExist();
 	model->switch_thread(new ModelAction(ATOMIC_RMW, position, orders[atomic_index], obj, val));
 }
 
 void model_rmwc_action_helper(void *obj, int atomic_index, const char *position) {
-	ensureModel();
+	createModelIfNotExist();
 	model->switch_thread(new ModelAction(ATOMIC_RMWC, position, orders[atomic_index], obj));
 }
 
 // cds volatile loads
 #define VOLATILELOAD(size) \
 	uint ## size ## _t cds_volatile_load ## size(void * obj, const char * position) { \
-		ensureModel();                                                      \
+		createModelIfNotExist();                                                      \
 		return (uint ## size ## _t)model->switch_thread(new ModelAction(ATOMIC_READ, position, memory_order_volatile_load, obj)); \
 	}
 
@@ -59,7 +51,7 @@ VOLATILELOAD(64)
 // cds volatile stores
 #define VOLATILESTORE(size) \
 	void cds_volatile_store ## size (void * obj, uint ## size ## _t val, const char * position) { \
-		ensureModel();                                                      \
+		createModelIfNotExist();                                                      \
 		model->switch_thread(new ModelAction(ATOMIC_WRITE, position, memory_order_volatile_store, obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;            \
 		thread_id_t tid = thread_current_id();           \
@@ -76,7 +68,7 @@ VOLATILESTORE(64)
 // cds atomic inits
 #define CDSATOMICINT(size)                                              \
 	void cds_atomic_init ## size (void * obj, uint ## size ## _t val, const char * position) { \
-		ensureModel();                                                      \
+		createModelIfNotExist();                                                      \
 		model->switch_thread(new ModelAction(ATOMIC_INIT, position, memory_order_relaxed, obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;                                 \
 		thread_id_t tid = thread_current_id();           \
@@ -93,7 +85,7 @@ CDSATOMICINT(64)
 // cds atomic loads
 #define CDSATOMICLOAD(size)                                             \
 	uint ## size ## _t cds_atomic_load ## size(void * obj, int atomic_index, const char * position) { \
-		ensureModel();                                                      \
+		createModelIfNotExist();                                                      \
 		uint ## size ## _t val = (uint ## size ## _t)model->switch_thread( \
 			new ModelAction(ATOMIC_READ, position, orders[atomic_index], obj)); \
 		thread_id_t tid = thread_current_id();           \
@@ -111,7 +103,7 @@ CDSATOMICLOAD(64)
 // cds atomic stores
 #define CDSATOMICSTORE(size)                                            \
 	void cds_atomic_store ## size(void * obj, uint ## size ## _t val, int atomic_index, const char * position) { \
-		ensureModel();                                                        \
+		createModelIfNotExist();                                                        \
 		model->switch_thread(new ModelAction(ATOMIC_WRITE, position, orders[atomic_index], obj, (uint64_t) val)); \
 		*((volatile uint ## size ## _t *)obj) = val;                     \
 		thread_id_t tid = thread_current_id();           \
@@ -292,7 +284,7 @@ void cds_atomic_thread_fence(int atomic_index, const char * position) {
 
 void cds_func_entry(const char * funcName) {
 #ifdef NEWFUZZER
-	ensureModel();
+	createModelIfNotExist();
 	thread_id_t tid = thread_current_id();
 	uint32_t func_id;
 
@@ -319,7 +311,7 @@ void cds_func_entry(const char * funcName) {
 
 void cds_func_exit(const char * funcName) {
 #ifdef NEWFUZZER
-	ensureModel();
+	createModelIfNotExist();
 	thread_id_t tid = thread_current_id();
 	uint32_t func_id;
 

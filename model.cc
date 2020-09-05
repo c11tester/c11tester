@@ -54,7 +54,14 @@ void install_handler() {
 		perror("sigaction(SIGSEGV)");
 		exit(EXIT_FAILURE);
 	}
+}
 
+void createModelIfNotExist() {
+	if (!model) {
+		snapshot_system_init(100000);
+		model = new ModelChecker();
+		model->startChecker();
+	}
 }
 
 /** @brief Constructor */

@@ -106,6 +106,7 @@ static void createSharedMemory()
 	fork_snap->mStackSize = STACK_SIZE_DEFAULT;
 	fork_snap->mIDToRollback = -1;
 	fork_snap->currSnapShotID = 0;
+	sStaticSpace = create_shared_mspace();
 }
 
 /**
@@ -121,9 +122,7 @@ mspace create_shared_mspace()
 	return create_mspace_with_base((void *)(fork_snap->mSharedMemoryBase), SHARED_MEMORY_DEFAULT - sizeof(*fork_snap), 1);
 }
 
-static void fork_snapshot_init(unsigned int numbackingpages,
-															 unsigned int numsnapshots, unsigned int nummemoryregions,
-															 unsigned int numheappages)
+static void fork_snapshot_init(unsigned int numheappages)
 {
 	if (!fork_snap)
 		createSharedMemory();
@@ -192,11 +191,9 @@ static void fork_roll_back(snapshot_id theID)
  * @brief Initializes the snapshot system
  * @param entryPoint the function that should run the program.
  */
-void snapshot_system_init(unsigned int numbackingpages,
-													unsigned int numsnapshots, unsigned int nummemoryregions,
-													unsigned int numheappages)
+void snapshot_system_init(unsigned int numheappages)
 {
-	fork_snapshot_init(numbackingpages, numsnapshots, nummemoryregions, numheappages);
+	fork_snapshot_init(numheappages);
 }
 
 void startExecution() {

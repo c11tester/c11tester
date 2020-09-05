@@ -10,9 +10,7 @@
 typedef unsigned int snapshot_id;
 typedef void (*VoidFuncPtr)();
 
-void snapshot_system_init(unsigned int numbackingpages,
-													unsigned int numsnapshots, unsigned int nummemoryregions,
-													unsigned int numheappages);
+void snapshot_system_init(unsigned int numheappages);
 void startExecution();
 snapshot_id take_snapshot();
 void snapshot_roll_back(snapshot_id theSnapShot);
