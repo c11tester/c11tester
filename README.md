@@ -25,11 +25,11 @@ Getting Started
 
 If you haven't done so already, you may download C11Tester using git:
 
-      git clone git://plrg.eecs.uci.edu/c11tester.git
+      git clone https://github.com/c11tester/c11tester.git
 
 Get the benchmarks (not required; distributed separately):
 
-      git clone git://plrg.eecs.uci.edu/c11concurrency-benchmarks.git
+      git clone https://github.com/c11tester/c11concurrency-benchmarks
 
 Get the LLVM frontend using git and follow its directions to build:
 
